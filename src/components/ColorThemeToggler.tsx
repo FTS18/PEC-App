@@ -18,11 +18,11 @@ const colorThemes = [
 ];
 
 export function ColorThemeToggler() {
-  const [currentTheme, setCurrentTheme] = useState("white");
+  const [currentTheme, setCurrentTheme] = useState("green");
 
   useEffect(() => {
-    let savedTheme = localStorage.getItem("color-theme") || "white";
-    if (savedTheme === "blue") savedTheme = "white";
+    let savedTheme = localStorage.getItem("color-theme") || "green";
+    if (savedTheme === "blue") savedTheme = "green";
     setCurrentTheme(savedTheme);
     applyColorTheme(savedTheme);
 
