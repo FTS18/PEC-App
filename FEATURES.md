@@ -1,253 +1,284 @@
 # OmniFlow - Features Documentation
 
-## Overview
-The Library Management system allows students to browse and borrow books from the college library. Librarians can manage the book inventory and process returns.
+Complete feature list and capabilities of OmniFlow ERP platform.
 
-## Features
+## Feature Overview
 
-### For Students
-- **Browse Books**: Search and filter books by title, author, or category
-- **Borrow Books**: Request books with automatic 14-day due dates
-- **View Borrowed Books**: See currently borrowed books and due dates
-- **Return Books**: Return borrowed books when done
-
-### For Librarians/Admins
-- **Add Books**: Add new books to the library inventory
-- **Manage Inventory**: Track total copies and available copies
-- **View Catalog**: Complete book database with filtering and search
-
-## Data Model
-
-```typescript
-interface Book {
-  id: string;
-  title: string;
-  author: string;
-  isbn: string;
-  category: string;
-  totalCopies: number;
-  availableCopies: number;
-  location: string;
-  publisher: string;
-  year: number;
-}
-
-interface BookBorrow {
-  id: string;
-  userId: string;
-  bookId: string;
-  borrowDate: any;
-  dueDate: any;
-  returnDate?: any;
-  status: 'borrowed' | 'returned' | 'overdue';
-  fine?: number;
-}
-```
-
-## Navigation
-- Students: **Sidebar** → Library
-- Admins: **Sidebar** → Library (with add button)
-
-## API Endpoints (Firestore Collections)
-- `books/` - All books in library
-- `bookBorrows/` - All borrow records
-
-## Permissions
-- **All Users**: Can view and borrow books
-- **College Admin / Super Admin**: Can add and manage books
+OmniFlow is a comprehensive Enterprise Resource Planning system with 15+ major features covering academics, placements, finance, and student services.
 
 ---
 
-# Room Booking System
+## 📚 ACADEMIC MANAGEMENT
 
-## Overview
-The Room Booking system allows faculty and staff to book classrooms, labs, meeting rooms, and auditoriums for classes and events. Administrators can approve or reject bookings.
+### Courses & Syllabus
+**Description**: Comprehensive course management system with materials and resources
 
-## Features
+**Student Features**:
+- Browse available courses with descriptions
+- View course syllabus and learning objectives  
+- Access course materials (notes, PDFs, presentations)
+- See instructor information and contact details
+- Track course progress and completion
 
-### For Faculty/Staff
-- **Browse Rooms**: View available rooms with capacity and location
-- **Check Availability**: See real-time room bookings for specific dates
-- **Request Room**: Submit room booking requests with time and purpose
-- **View Bookings**: Track pending and approved bookings
+**Faculty Features**:
+- Create and edit courses
+- Upload and manage course materials
+- Set course prerequisites and learning outcomes
+- View enrolled students
 
-### For Admins
-- **Add Rooms**: Add classrooms, labs, and meeting rooms
-- **Approve Bookings**: Review and approve pending room booking requests
-- **View Calendar**: See all room bookings across the college
-- **Manage Facilities**: Track room capacity and amenities
-
-## Data Model
-
-```typescript
-interface Room {
-  id: string;
-  name: string;
-  type: 'classroom' | 'lab' | 'meeting-room' | 'auditorium';
-  capacity: number;
-  building: string;
-  floor: number;
-  facilities: string[];
-  location?: string;
-  isAvailable?: boolean;
-  createdAt?: any;
-}
-
-interface RoomBooking {
-  id: string;
-  roomId: string;
-  userId: string;
-  title: string;
-  startTime: any;
-  endTime: any;
-  date: string;
-  purpose: string;
-  status: 'pending' | 'approved' | 'rejected' | 'completed';
-  createdAt: any;
-}
-```
-
-## Navigation
-- Faculty: **Sidebar** → Room Booking
-- Admins: **Sidebar** → Room Booking (with add button and approvals)
-
-## Workflow
-1. Faculty selects date and room
-2. Faculty enters start time, end time, and purpose
-3. Request submitted as "pending" (faculty) or "approved" (admin)
-4. Admin reviews pending requests
-5. Admin approves or rejects
-6. Faculty receives confirmation
-
-## API Endpoints (Firestore Collections)
-- `rooms/` - All rooms
-- `roomBookings/` - All booking records
-
-## Permissions
-- **Faculty/Staff**: Can request and view own bookings
-- **College Admin / Super Admin**: Can add rooms and approve requests
+**Admin Features**:
+- Manage all courses across departments
+- Assign faculty to courses
+- View course statistics
 
 ---
 
-# Leave Management System
+## 💼 PLACEMENT & CAREER DEVELOPMENT
 
-## Overview
-The Leave Management system handles faculty and staff leave requests with balance tracking. Administrators can approve or reject leave requests while ensuring leave balances are not exceeded.
+### Job Board
+**Description**: Job posting and application management for students and recruiters
 
-## Features
+**Student Features**:
+- Browse job postings by company, location, role
+- Filter by salary, experience, skills
+- Apply to jobs with resume
+- Track application status
+- Set job preferences
 
-### For Faculty/Staff
-- **Apply for Leave**: Submit leave requests with start/end dates and reason
-- **View Leave Balance**: See available days for each leave type
-- **Track History**: View past and current leave requests with status
-- **Multiple Leave Types**: Casual, Sick, Earned, Maternity, Paternity
+### Resume Builder
+**Description**: Interactive resume creation with templates
 
-### For Admins
-- **Approve/Reject**: Review and action pending leave requests
-- **Manage Balances**: Track and update leave balances per employee
-- **View Analytics**: See all leave requests across faculty
-- **Configure Leave Types**: Set default days per leave type
+**Features**:
+- 5+ professional resume templates
+- Real-time preview while editing
+- Download as PDF or Word
+- Multiple font and color options
+- Version history tracking
 
-## Data Model
+### Resume Analyzer
+**Description**: AI-powered resume analysis and feedback
 
-```typescript
-interface LeaveType {
-  id: string;
-  name: string;
-  defaultDays: number;
-  description: string;
-}
-
-interface Leave {
-  id: string;
-  userId: string;
-  userName?: string;
-  leaveTypeId: string;
-  leaveType?: string;
-  startDate: any;
-  endDate: any;
-  days: number;
-  reason: string;
-  status: 'pending' | 'approved' | 'rejected';
-  approvedBy?: string;
-  approvalDate?: any;
-  createdAt: any;
-}
-
-interface LeaveBalance {
-  id: string;
-  userId: string;
-  leaveTypeId: string;
-  totalDays: number;
-  usedDays: number;
-  remainingDays: number;
-  year: number;
-}
-```
-
-## Navigation
-- Faculty: **Sidebar** → Leave Management
-- Admins: **Sidebar** → Leave Management (with approval section)
-
-## Workflow
-1. Faculty selects leave type, start date, end date
-2. System calculates number of days
-3. System checks available balance
-4. Request submitted as "pending"
-5. Admin reviews with balance information
-6. Admin approves or rejects
-7. If approved, balance is updated automatically
-
-## Leave Types (Pre-seeded)
-- **Casual Leave**: 10 days/year
-- **Sick Leave**: 8 days/year
-- **Earned Leave**: 20 days/year
-- **Maternity Leave**: 180 days
-- **Paternity Leave**: 15 days
-
-## API Endpoints (Firestore Collections)
-- `leaveTypes/` - All leave type definitions
-- `leaves/` - All leave requests
-- `leaveBalance/` - User leave balances per type
-
-## Permissions
-- **Faculty/Staff**: Can apply for and view own leaves
-- **College Admin / Super Admin**: Can approve all requests and manage balances
+**Features**:
+- Score out of 100
+- Feedback on formatting and content
+- Keyword optimization suggestions
+- ATS compliance check
+- Section completeness analysis
 
 ---
 
-## Common Features Across All Systems
+## 💰 FINANCE MANAGEMENT
 
-### Search & Filter
-- All systems include search functionality
-- Category/Type filters available
-- Real-time updates via Firestore listeners
+### Fee Management
+**Description**: Comprehensive fee structure and payment management
 
-### Status Tracking
-- All requests have clear status indicators
-- Color-coded status badges (pending, approved, rejected)
-- Timestamps for all actions
+**Student Features**:
+- View fee structure and breakdown
+- See payment history and receipts
+- Check outstanding balance
+- Download fee statements
 
-### Role-Based Access
-- All systems respect user roles
-- Automatic visibility based on permissions
-- Self-service for regular users, admin controls for managers
+**Admin Features**:
+- Create fee structures by category
+- Set payment schedules
+- Apply discounts and waivers
+- Track fee collection
+- Generate fee reports
 
-### Notifications
-- Toast notifications for all actions
-- Success/error feedback for user actions
-- Confirmation dialogs for important actions
+### Online Payments
+**Description**: Multiple payment gateway integration
+
+**Payment Methods**:
+- UPI (Google Pay, Paytm, WhatsApp Pay)
+- Debit/Credit cards
+- Net banking
+- Mobile wallets
+- Bank transfer
 
 ---
 
-## Seeding Data
+## 🛏️ STUDENT SERVICES
 
-Run the seed script to populate library and leave data:
+### Hostel Management
+**Description**: Issue reporting and resolution tracking
 
-```bash
-node scripts/seedLibraryAndLeaves.js
-```
+**Student Features**:
+- Report hostel issues (maintenance, amenities, etc)
+- Track issue resolution status
+- Add attachments and photos
+- View issue timeline
 
-This will create:
-- **Sample Books**: 8 different books across categories
-- **Leave Types**: 5 pre-configured leave types with default days
+**Admin Features**:
+- View all issues and priority
+- Assign to maintenance staff
+- Track resolution timeline
+- Generate reports
+
+### Night Canteen Service
+**Description**: Late-night food ordering system
+
+**Features**:
+- Browse food menu
+- Place orders with delivery preference
+- Track order status
+- Pay online
+- View order history
+
+### Student Profile
+**Description**: Comprehensive student information management
+
+**Features**:
+- Edit personal information
+- Upload documents and certificates
+- Download transcripts
+- Set communication preferences
+- Manage privacy settings
+
+---
+
+## ⚙️ ADMINISTRATION & MANAGEMENT
+
+### User Management
+**Description**: Complete user lifecycle management
+
+**Features**:
+- Create user accounts
+- Assign roles and permissions
+- Edit user information
+- Disable/enable accounts
+- Reset passwords
+
+### Department Management
+**Description**: Organize institution by departments
+
+**Features**:
+- Create departments
+- Assign heads
+- Track enrollment
+- View statistics
+
+### Faculty Management
+**Description**: Faculty profile and course management
+
+**Features**:
+- Create faculty profiles
+- Assign courses
+- Track specialization
+- View teaching schedule
+
+### College Settings
+**Description**: System-wide configuration and branding
+
+**Features**:
+- Upload college logo
+- Configure branding
+- Set institutional details
+- Manage academic calendar
+- Configure system policies
+
+---
+
+## 📖 HELP & SUPPORT SYSTEM
+
+### Comprehensive Help Documentation
+
+**Categories**:
+1. Getting Started - Platform overview and setup
+2. Account & Profile - Profile management and settings
+3. Academics - Course, grades, attendance guidance
+4. Finance - Fee, payment and refund information
+5. Placements - Job search and career resources
+6. Settings & Privacy - Account security and data protection
+
+**Features**:
+- Full-text search
+- Category-based navigation
+- Related articles suggestions
+- FAQ section
+- Troubleshooting guides
+
+---
+
+## 🎨 PLATFORM FEATURES
+
+### Theme Customization
+- **Dark/Light Modes**: Automatic system detection or manual switching
+- **Accent Colors**: 6 preset themes (Green, Red, Purple, Gold, Cyan, White)
+- **Persistence**: Settings saved in localStorage
+
+### Responsive Design
+- **Mobile** (320px-767px): Touch-optimized interface
+- **Tablet** (768px-1024px): Balanced layout
+- **Desktop** (1025px+): Full-featured experience
+
+### Accessibility
+- WCAG 2.1 Level AA compliance
+- Keyboard navigation support
+- Screen reader compatibility
+- Color blind friendly options
+- High contrast modes
+
+### Real-Time Features
+- Live data updates via Firestore
+- Instant notifications
+- Automatic sync across devices
+
+---
+
+## 🔒 SECURITY FEATURES
+
+### Authentication
+- Email/Password login with Firebase Auth
+- Session management
+- Automatic logout on inactivity
+- Password reset via email
+
+### Authorization
+- Role-based access control (RBAC)
+- Permission-based feature access
+- Secure API calls with Firestore rules
+- Data isolation by user role
+
+### Data Protection
+- HTTPS encryption
+- Firestore encryption at rest
+- User data isolation
+- Backup and recovery mechanisms
+
+---
+
+## 📊 ANALYTICS & REPORTING
+
+### Available Reports
+- Attendance reports by student, course, department
+- Grade reports with distribution and trends
+- Fee collection and outstanding tracking
+- Placement statistics and trends
+- Hostel issue resolution metrics
+- Canteen revenue and traffic analysis
+
+### Export Options
+- PDF documents
+- Excel spreadsheets
+- CSV files
+- Print-friendly formats
+
+---
+
+## 📱 CROSS-PLATFORM SUPPORT
+
+### Browsers
+- Chrome/Edge (latest 2 versions)
+- Firefox (latest 2 versions)
+- Safari (latest 2 versions)
+- Mobile browsers (iOS Safari, Chrome Mobile)
+
+### Devices
+- Desktop computers (Windows, Mac, Linux)
+- Tablets (iPad, Android tablets)
+- Mobile phones (iOS, Android)
+- Full touch and mouse support
+
+---
+
+**Last Updated**: January 2026
