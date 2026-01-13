@@ -117,7 +117,7 @@ export default function ChatPage() {
   const onlineCount = 12; // Placeholder - replace with actual count
 
   return (
-    <div className="flex flex-col  ">
+    <div className="chat-container h-[calc(100vh-7rem)]">
       {/* Chat Navbar */}
       <div className="chat-navbar">
         <div className="flex items-center gap-4">
