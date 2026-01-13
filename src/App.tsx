@@ -53,6 +53,7 @@ import Approvals from "./pages/admin/Approvals";
 import Departments from "./pages/college/Departments";
 import DepartmentDetail from "./pages/college/DepartmentDetail";
 import FinancialReport from "./pages/college/FinancialReport";
+import ChatPage from "./pages/Chat";
 import Admissions from "./pages/college/Admissions";
 import Faculty from "./pages/college/Faculty";
 import FacultyDetail from "./pages/college/FacultyDetail";
@@ -98,6 +99,7 @@ const App = () => (
             <Route path="/demo-dashboard" element={<DemoDashboard />} />
             <Route element={<MainLayout />}>
               <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/chat" element={<ChatPage />} />
               <Route path="/profile" element={<StudentProfile />} />
               <Route path="/users" element={<UsersPage />} />
               <Route path="/users/:userId" element={<UserDetail />} />
