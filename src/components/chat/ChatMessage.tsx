@@ -36,7 +36,7 @@ export function ChatMessage({ message, showSenderName = true }: ChatMessageProps
       <div
         className={cn(
           'chat-bubble',
-          message.isOwn ? 'chat-bubble-own' : 'chat-bubble-other'
+          message.isOwn ? 'bg-primary' : 'chat-bubble-other'
         )}
       >
         <p className="leading-relaxed break-words">{message.content}</p>

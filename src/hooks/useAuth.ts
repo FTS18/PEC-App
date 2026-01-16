@@ -14,6 +14,8 @@ export interface CurrentUser {
   avatar: string | null;
   verified: boolean;
   profileComplete: boolean;
+  organizationId?: string | null;
+  semester?: number | null;
 }
 
 interface UseAuthResult {
@@ -59,6 +61,8 @@ export function useAuth(): UseAuthResult {
           avatar: userData.avatar,
           verified: userData.verified,
           profileComplete: userData.profileComplete,
+          organizationId: userData.organizationId,
+          semester: userData.semester,
         });
 
         setError(null);

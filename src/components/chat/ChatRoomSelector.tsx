@@ -1,4 +1,4 @@
-import { ChevronDown, Hash, Users } from 'lucide-react';
+import { Hash, Users, Building2, ShieldCheck } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -7,98 +7,100 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
+import { ChatRoom } from "@/types/chat";
+import { UserRole } from "@/types";
 
-export interface ChatRoom {
-  id: string;
-  name: string;
-  type: 'general' | 'year' | 'branch';
-  category?: string;
-}
-
-interface ChatRoomSelectorProps {
+interface Props {
   rooms: ChatRoom[];
   selectedRoom: string;
-  onRoomChange: (roomId: string) => void;
-  userRole?: 'student' | 'admin' | 'superadmin';
+  onRoomChange: (id: string) => void;
+  loading?: boolean;
+  userRole: UserRole; // We use this to determine visibility
 }
 
 export function ChatRoomSelector({
   rooms,
   selectedRoom,
   onRoomChange,
-}: ChatRoomSelectorProps) {
-  const generalRooms = rooms.filter((r) => r.type === 'general');
-  const yearRooms = rooms.filter((r) => r.type === 'year');
-  const branchRooms = rooms.filter((r) => r.type === 'branch');
+  loading,
+  userRole,
+}: Props) {
+  // 1. Determine if the user is a restricted student
+  const isStudent = userRole === "student";
+
+  // 2. Logic: If not a student, they see ALL rooms. 
+  // If a student, the 'rooms' array should already be pre-filtered by your fetch function.
+  const generalRooms = rooms.filter((r) => r.type === "general");
+  const semesterRooms = rooms.filter((r) => r.type === "semester");
+  const departmentRooms = rooms.filter((r) => r.type === "department");
 
   const selectedRoomData = rooms.find((r) => r.id === selectedRoom);
 
   return (
     <Select value={selectedRoom} onValueChange={onRoomChange}>
-      <SelectTrigger className="w-[220px] bg-secondary border-border text-foreground focus:ring-1 focus:ring-success/50">
+      <SelectTrigger className="w-[260px] bg-secondary border-border">
         <div className="flex items-center gap-2">
-          <Hash className="w-4 h-4 text-muted-foreground" />
-          <SelectValue placeholder="Select a room">
-            {selectedRoomData?.name || 'Select a room'}
+          {/* Visual indicator if Admin is viewing */}
+          {!isStudent ? (
+            <ShieldCheck className="w-4 h-4 text-primary" />
+          ) : (
+            <Hash className="w-4 h-4 text-muted-foreground" />
+          )}
+          <SelectValue placeholder={loading ? "Loading…" : "Select a room"}>
+            {selectedRoomData?.title}
           </SelectValue>
         </div>
       </SelectTrigger>
-      <SelectContent className="bg-card border-border z-50">
+
+      <SelectContent className="bg-card border-border z-50 max-h-[400px]">
+        {/* SECTION 1: GENERAL */}
         {generalRooms.length > 0 && (
           <SelectGroup>
-            <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1.5">
-              General
+            <SelectLabel className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider px-2 py-1.5">
+              Community
             </SelectLabel>
             {generalRooms.map((room) => (
-              <SelectItem
-                key={room.id}
-                value={room.id}
-                className="cursor-pointer focus:bg-secondary"
-              >
+              <SelectItem key={room.id} value={room.id}>
                 <div className="flex items-center gap-2">
-                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>{room.name}</span>
+                  <Users className="w-3.5 h-3.5" />
+                  <span>{room.title}</span>
                 </div>
               </SelectItem>
             ))}
           </SelectGroup>
         )}
 
-        {yearRooms.length > 0 && (
+        {/* SECTION 2: DEPARTMENTS */}
+        {departmentRooms.length > 0 && (
           <SelectGroup>
-            <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1.5 mt-2">
-              Year-wise
+            <SelectLabel className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider px-2 py-1.5 mt-2">
+              {isStudent ? "Your Department" : "All Departments"}
             </SelectLabel>
-            {yearRooms.map((room) => (
-              <SelectItem
-                key={room.id}
-                value={room.id}
-                className="cursor-pointer focus:bg-secondary"
-              >
+            {departmentRooms.map((room) => (
+              <SelectItem key={room.id} value={room.id}>
                 <div className="flex items-center gap-2">
-                  <Hash className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>{room.name}</span>
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span className="truncate max-w-[190px]">
+                    {room.department || room.title}
+                  </span>
                 </div>
               </SelectItem>
             ))}
           </SelectGroup>
         )}
 
-        {branchRooms.length > 0 && (
+        {/* SECTION 3: SEMESTERS */}
+        {semesterRooms.length > 0 && (
           <SelectGroup>
-            <SelectLabel className="text-xs text-muted-foreground uppercase tracking-wider px-2 py-1.5 mt-2">
-              Branch-wise
+            <SelectLabel className="text-[10px] uppercase text-muted-foreground font-bold tracking-wider px-2 py-1.5 mt-2">
+              {isStudent ? "Your Semester" : "All Semesters"}
             </SelectLabel>
-            {branchRooms.map((room) => (
-              <SelectItem
-                key={room.id}
-                value={room.id}
-                className="cursor-pointer focus:bg-secondary"
-              >
+            {semesterRooms.map((room) => (
+              <SelectItem key={room.id} value={room.id}>
                 <div className="flex items-center gap-2">
-                  <Hash className="w-3.5 h-3.5 text-muted-foreground" />
-                  <span>{room.name}</span>
+                  <Hash className="w-3.5 h-3.5" />
+                  <span>{room.title}</span>
                 </div>
               </SelectItem>
             ))}

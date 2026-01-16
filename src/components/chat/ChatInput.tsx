@@ -62,7 +62,7 @@ export function ChatInput({
         onClick={handleSend}
         disabled={isEmpty || disabled}
         size="icon"
-        className="h-11 w-11 shrink-0 bg-success hover:bg-success/90 text-success-foreground disabled:opacity-50 disabled:cursor-not-allowed"
+        className="h-11 w-11 shrink-0 bg-primary hover:bg-success/90 text-success-foreground disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Send className="w-4 h-4" />
       </Button>
