@@ -134,7 +134,7 @@ const FloatingAIChat = () => {
                   <h2 className="text-sm font-bold">OmniFlow AI</h2>
                   <div className="flex items-center gap-1.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-[10px] text-muted-foreground uppercase font-medium">GPT-4o Online</span>
+                    <span className="text-[10px] text-muted-foreground uppercase font-medium">GPT-4 Online</span>
                   </div>
                 </div>
               </div>
