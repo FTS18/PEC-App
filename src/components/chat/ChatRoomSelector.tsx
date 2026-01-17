@@ -16,7 +16,7 @@ interface Props {
   selectedRoom: string;
   onRoomChange: (id: string) => void;
   loading?: boolean;
-  userRole: UserRole; // We use this to determine visibility
+  userRole: UserRole;
 }
 
 export function ChatRoomSelector({
@@ -26,28 +26,31 @@ export function ChatRoomSelector({
   loading,
   userRole,
 }: Props) {
-  // 1. Determine if the user is a restricted student
   const isStudent = userRole === "student";
 
-  // 2. Logic: If not a student, they see ALL rooms. 
-  // If a student, the 'rooms' array should already be pre-filtered by your fetch function.
   const generalRooms = rooms.filter((r) => r.type === "general");
   const semesterRooms = rooms.filter((r) => r.type === "semester");
   const departmentRooms = rooms.filter((r) => r.type === "department");
 
-  const selectedRoomData = rooms.find((r) => r.id === selectedRoom);
+  // Logic to find selected data or fallback to the general room data
+  const selectedRoomData = 
+    rooms.find((r) => r.id === selectedRoom) || 
+    rooms.find((r) => r.id === "general");
 
   return (
-    <Select value={selectedRoom} onValueChange={onRoomChange}>
+    <Select 
+      // Ensure value is "general" if selectedRoom is empty
+      value={selectedRoom || "general"} 
+      onValueChange={onRoomChange}
+    >
       <SelectTrigger className="w-[260px] bg-secondary border-border">
         <div className="flex items-center gap-2">
-          {/* Visual indicator if Admin is viewing */}
           {!isStudent ? (
             <ShieldCheck className="w-4 h-4 text-primary" />
           ) : (
             <Hash className="w-4 h-4 text-muted-foreground" />
           )}
-          <SelectValue placeholder={loading ? "Loading…" : "Select a room"}>
+          <SelectValue placeholder={loading ? "Loading…" : "General Chat"}>
             {selectedRoomData?.title}
           </SelectValue>
         </div>

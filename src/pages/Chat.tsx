@@ -17,7 +17,7 @@ export default function ChatPage() {
   // rooms from Firestore
   const { rooms, loading: roomsLoading } = useChatRooms(user);
 
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>("general");
 
   // messages from Firestore (realtime)
   const {
