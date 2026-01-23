@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, Search, User, ChevronDown, LogOut, Settings, HelpCircle, Menu, Palette } from 'lucide-react';
+import { Bell, Search, User, ChevronDown, LogOut, Settings, HelpCircle, Menu, Palette, Building2 } from 'lucide-react';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { toast } from 'sonner';

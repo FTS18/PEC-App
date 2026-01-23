@@ -173,6 +173,27 @@ export default function Onboarding() {
           return;
         }
 
+        // Auto-detect and store organization
+        if (userData.organizationId) {
+          try {
+            const { collection, query, where, getDocs } = await import('firebase/firestore');
+            const orgsRef = collection(db, 'organizations');
+            const q = query(orgsRef, where('__name__', '==', userData.organizationId));
+            const orgSnapshot = await getDocs(q);
+            
+            if (!orgSnapshot.empty) {
+              const orgData = orgSnapshot.docs[0].data();
+              localStorage.setItem('currentOrganization', JSON.stringify({
+                id: userData.organizationId,
+                name: orgData.name,
+                slug: orgData.slug,
+              }));
+            }
+          } catch (error) {
+            console.error('Error fetching organization:', error);
+          }
+        }
+
         if (userData.profileComplete) {
           // Profile already complete, redirect to dashboard
           navigate('/dashboard');

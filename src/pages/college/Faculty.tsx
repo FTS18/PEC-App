@@ -14,7 +14,7 @@ import {
   Upload,
   Download,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -35,14 +35,18 @@ import {
   doc,
   getDoc,
   serverTimestamp,
+  query,
+  where,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { toast } from 'sonner';
 import BulkUpload from '@/components/BulkUpload';
 import * as XLSX from 'xlsx';
+import { getOrgIdFromSlug, isSuperAdmin } from '@/lib/orgHelpers';
 
 export default function Faculty() {
   const navigate = useNavigate();
+  const { orgSlug } = useParams<{ orgSlug: string }>();
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('');
   const [faculty, setFaculty] = useState<any[]>([]);
@@ -68,10 +72,13 @@ export default function Faculty() {
 
     for (const row of data) {
       try {
+        const orgId = await getOrgIdFromSlug(orgSlug);
+
         const userRef = await addDoc(collection(db, 'users'), {
           fullName: row.fullName || row.name,
           email: row.email,
           role: 'faculty',
+          organizationId: orgId,
           profileComplete: true,
           status: 'active',
           createdAt: serverTimestamp(),
@@ -174,8 +181,25 @@ export default function Faculty() {
 
   const fetchFaculty = async () => {
     try {
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      const allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      let allUsers: any[] = [];
+
+      // Get organization ID for filtering
+      const orgId = await getOrgIdFromSlug(orgSlug);
+
+      if (!orgId || isSuperAdmin(userRole)) {
+        // Super admin or no org: show all
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } else {
+        // Filter by organization
+        const usersQuery = query(
+          collection(db, 'users'),
+          where('organizationId', '==', orgId)
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+        allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
+
       const facultyUsers = allUsers.filter(u => u.role === 'faculty');
       
       const facultyWithProfiles = await Promise.all(
@@ -198,10 +222,13 @@ export default function Faculty() {
 
   const handleCreate = async () => {
     try {
+      const orgId = await getOrgIdFromSlug(orgSlug);
+
       const userRef = await addDoc(collection(db, 'users'), {
         fullName: facultyForm.fullName,
         email: facultyForm.email,
         role: 'faculty',
+        organizationId: orgId,
         profileComplete: true,
         status: 'active',
         createdAt: serverTimestamp(),

@@ -45,6 +45,8 @@ import {
   doc,
   getDoc,
   serverTimestamp,
+  query,
+  where,
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { toast } from 'sonner';
@@ -53,9 +55,11 @@ import { usePermissions } from '@/hooks/usePermissions';
 import { useDepartmentFilter } from '@/hooks/useDepartmentFilter';
 import BulkUpload from '@/components/BulkUpload';
 import * as XLSX from 'xlsx';
+import { useParams } from 'react-router-dom';
 
 export default function Users() {
   const navigate = useNavigate();
+  const { orgSlug } = useParams<{ orgSlug: string }>();
   const { permissions, isAdmin, isFaculty, isPlacementOfficer, user, loading: authLoading } = usePermissions();
   const { filterByDepartment, canManageItem, userDepartment } = useDepartmentFilter();
   const [loading, setLoading] = useState(true);
@@ -111,8 +115,30 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      let usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      let usersData: any[] = [];
+
+      // Super admin or no orgSlug: show all users
+      if (!orgSlug || user?.role === 'super_admin') {
+        const usersSnapshot = await getDocs(collection(db, 'users'));
+        usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      } else {
+        // Get organization ID from slug
+        const orgsSnapshot = await getDocs(collection(db, 'organizations'));
+        const org = orgsSnapshot.docs.find(doc => doc.data().slug === orgSlug);
+        
+        if (!org) {
+          toast.error('Organization not found');
+          return;
+        }
+
+        // Query users by organizationId
+        const usersQuery = query(
+          collection(db, 'users'),
+          where('organizationId', '==', org.id)
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+        usersData = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      }
       
       // Apply department filtering for faculty
       usersData = filterByDepartment(usersData);
@@ -125,10 +151,21 @@ export default function Users() {
 
   const handleCreate = async () => {
     try {
+      // Get current organization ID
+      let currentOrgId = null;
+      if (orgSlug) {
+        const orgsSnapshot = await getDocs(collection(db, 'organizations'));
+        const org = orgsSnapshot.docs.find(doc => doc.data().slug === orgSlug);
+        if (org) {
+          currentOrgId = org.id;
+        }
+      }
+
       const userRef = await addDoc(collection(db, 'users'), {
         fullName: userForm.fullName,
         email: userForm.email,
         role: userForm.role,
+        organizationId: currentOrgId, // Set organization
         profileComplete: false,
         status: 'active',
         createdAt: serverTimestamp(),
@@ -260,12 +297,23 @@ export default function Users() {
     let failCount = 0;
     const errors: string[] = [];
 
+    // Get current organization ID
+    let currentOrgId = null;
+    if (orgSlug) {
+      const orgsSnapshot = await getDocs(collection(db, 'organizations'));
+      const org = orgsSnapshot.docs.find(doc => doc.data().slug === orgSlug);
+      if (org) {
+        currentOrgId = org.id;
+      }
+    }
+
     for (const row of data) {
       try {
         const userRef = await addDoc(collection(db, 'users'), {
           fullName: row.fullName || row.name,
           email: row.email,
           role: row.role || 'student',
+          organizationId: currentOrgId, // Set organization
           profileComplete: false,
           status: 'active',
           createdAt: serverTimestamp(),

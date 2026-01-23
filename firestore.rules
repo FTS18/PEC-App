@@ -2,9 +2,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // ====================
+    // ==========================================
     // HELPER FUNCTIONS
-    // ====================
+    // ==========================================
     
     function isAuthenticated() {
       return request.auth != null;
@@ -47,6 +47,26 @@ service cloud.firestore {
     }
     
     // ====================
+    // ORGANIZATION HELPERS
+    // ====================
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function getUserOrg() {
+      return getUserData().organizationId;
+    }
+    
+    function isSameOrg(orgId) {
+      return getUserOrg() == orgId;
+    }
+    
+    function canAccessOrgData() {
+      return isSuperAdmin() || isSameOrg(resource.data.organizationId);
+    }
+    
+    // ====================
     // USERS COLLECTION
     // ====================
     
@@ -63,8 +83,12 @@ service cloud.firestore {
         (resource.data.role != null && request.resource.data.role == resource.data.role)
       ) && request.resource.data.uid == resource.data.uid;
       
-      // ADMINS: Full access to all users
-      allow read, write, delete: if isAdmin();
+      // College admins: Can access users in same org
+      allow read: if isCollegeAdmin() && canAccessOrgData();
+      allow write, delete: if isCollegeAdmin() && canAccessOrgData();
+      
+      // Super admins: Full access to all users
+      allow read, write, delete: if isSuperAdmin();
     }
     
     // ====================
@@ -122,15 +146,18 @@ service cloud.firestore {
     // ====================
     
     match /courses/{courseId} {
-      // All authenticated users can read courses
-      allow read: if isAuthenticated();
+      // Users can read courses in their org
+      allow read: if isAuthenticated() && canAccessOrgData();
       
-      // Faculty can create and update courses they teach
-      allow create: if isFaculty();
-      allow update: if isFaculty();
+      // Faculty can create/update courses in their org
+      allow create: if isFaculty() && canAccessOrgData();
+      allow update: if isFaculty() && canAccessOrgData();
       
-      // ADMINS: Full access to all courses
-      allow read, write, delete: if isAdmin();
+      // College admins: Full access in their org
+      allow write, delete: if isCollegeAdmin() && canAccessOrgData();
+      
+      // Super admins: Full access
+      allow read, write, delete: if isSuperAdmin();
     }
     
     // ====================
@@ -388,11 +415,14 @@ service cloud.firestore {
     // ====================
     
     match /departments/{deptId} {
-      // All authenticated users can read departments
-      allow read: if isAuthenticated();
+      // Users can read departments in their org
+      allow read: if isAuthenticated() && canAccessOrgData();
       
-      // ADMINS: Full access
-      allow read, write, delete: if isAdmin();
+      // College admins: Manage departments in their org
+      allow write, delete: if isCollegeAdmin() && canAccessOrgData();
+      
+      // Super admins: Full access
+      allow read, write, delete: if isSuperAdmin();
     }
     
     // ====================

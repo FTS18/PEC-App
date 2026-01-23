@@ -44,7 +44,7 @@ export interface User {
   email: string;
   role: UserRole | null; // Role can be null initially
   avatar?: string;
-  organizationId?: string;
+  organizationId?: string; // NEW: Link to organization
   profileComplete?: boolean; // Track if profile is complete
 }
 

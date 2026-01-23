@@ -77,6 +77,7 @@ export function Dashboard() {
   // Render role-based dashboard
   switch (userRole) {
     case 'super_admin':
+      return <SuperAdminDashboard />;
     case 'college_admin':
       return <AdminDashboard />;
     case 'placement_officer':

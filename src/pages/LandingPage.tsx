@@ -33,6 +33,7 @@ import {
   Linkedin,
   Twitter,
   Instagram,
+  Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -503,6 +504,18 @@ export function LandingPage() {
               <Link to="/onboarding" className="flex items-center gap-3">
                 Start Free Trial
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              asChild
+              className="magnetic-btn group rounded-full border-2 border-primary/50 hover:border-primary/80 hover:bg-primary/10 transition-all duration-300 px-8 py-6 text-base font-semibold"
+              aria-label="Apply to onboard your institution"
+            >
+              <Link to="/apply-institution" className="flex items-center gap-3">
+                <Building2 className="w-5 h-5" />
+                Apply as Institution
               </Link>
             </Button>
             <Button

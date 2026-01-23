@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -17,6 +18,9 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/config/firebase';
+import { toast } from 'sonner';
 
 const container = {
   hidden: { opacity: 0 },
@@ -31,8 +35,106 @@ const item = {
   show: { opacity: 1, y: 0 }
 };
 
+interface Organization {
+  id: string;
+  name: string;
+  type: string;
+  totalUsers: number;
+  status: 'active' | 'pending' | 'suspended';
+}
+
 export function SuperAdminDashboard() {
   const navigate = useNavigate();
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [totalUsers, setTotalUsers] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      // Fetch organizations
+      const orgsSnapshot = await getDocs(collection(db, 'organizations'));
+      const orgsData = orgsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Organization));
+
+      // Fetch all users to calculate real stats
+      const usersSnapshot = await getDocs(collection(db, 'users'));
+      const allUsers: any[] = usersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+
+      // Calculate stats for each organization dynamically
+      const orgsWithStats = orgsData.map(org => {
+        const orgUsers = allUsers.filter(u => u.organizationId === org.id);
+        const students = orgUsers.filter(u => u.role === 'student').length;
+        const faculty = orgUsers.filter(u => u.role === 'faculty').length;
+
+        return {
+          ...org,
+          totalUsers: orgUsers.length,
+          totalStudents: students,
+          totalFaculty: faculty,
+        };
+      });
+
+      setOrganizations(orgsWithStats);
+
+      // Calculate total users across all orgs
+      const total = allUsers.length;
+      setTotalUsers(total);
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stats = {
+    totalOrgs: organizations.length,
+    activeOrgs: organizations.filter(o => o.status === 'active').length,
+    totalUsers: totalUsers,
+  };
+
+  const handleApproveOrganization = async (orgId: string) => {
+    try {
+      const { updateDoc, doc } = await import('firebase/firestore');
+      await updateDoc(doc(db, 'organizations', orgId), {
+        status: 'active',
+        verified: true,
+        updatedAt: new Date(),
+      });
+      toast.success('Organization approved successfully!');
+    } catch (error) {
+      console.error('Error approving organization:', error);
+      toast.error('Failed to approve organization');
+    }
+  };
+
+  const handleRejectOrganization = async (orgId: string) => {
+    try {
+      const { deleteDoc, doc } = await import('firebase/firestore');
+      // You could also update status to 'rejected' instead of deleting
+      await deleteDoc(doc(db, 'organizations', orgId));
+      toast.success('Organization application rejected');
+    } catch (error) {
+      console.error('Error rejecting organization:', error);
+      toast.error('Failed to reject organization');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   return (
     <motion.div
       variants={container}
@@ -47,11 +149,11 @@ export function SuperAdminDashboard() {
           <p className="text-muted-foreground">Monitor all organizations and system health</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/admin/system-config')}>
-            <Settings className="w-4 h-4" />
-            System Config
+          <Button variant="outline" onClick={() => navigate('/organizations')}>
+            <Building2 className="w-4 h-4" />
+            View All Organizations
           </Button>
-          <Button variant="gradient" onClick={() => navigate('/admin/organizations/new')}>
+          <Button variant="gradient" onClick={() => navigate('/organizations')}>
             <Building2 className="w-4 h-4" />
             Add Organization
           </Button>
@@ -63,18 +165,22 @@ export function SuperAdminDashboard() {
         <StatCard
           icon={Building2}
           label="Organizations"
-          value="48"
-          subtext="Active institutions"
-          trend="+3 this month"
-          trendUp
+          value={stats.totalOrgs.toString()}
+          subtext="Total institutions"
+        />
+        <StatCard
+          icon={CheckCircle}
+          label="Active Organizations"
+          value={stats.activeOrgs.toString()}
+          subtext="Verified institutions"
+          iconColor="text-success"
         />
         <StatCard
           icon={Users}
           label="Total Users"
-          value="125,430"
+          value={stats.totalUsers.toLocaleString()}
           subtext="Across all institutions"
-          trend="+2.4%"
-          trendUp
+          iconColor="text-accent"
         />
         <StatCard
           icon={Server}
@@ -82,14 +188,6 @@ export function SuperAdminDashboard() {
           value="99.97%"
           subtext="Last 30 days"
           iconColor="text-success"
-        />
-        <StatCard
-          icon={Activity}
-          label="API Requests"
-          value="2.4M"
-          subtext="This month"
-          trend="+12%"
-          trendUp
         />
       </motion.div>
 
@@ -101,36 +199,27 @@ export function SuperAdminDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Organizations</h2>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/organizations')}>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/organizations')}>
                 Manage All
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Button>
             </div>
             <div className="space-y-3">
-              <OrgRow
-                name="Indian Institute of Technology, Delhi"
-                type="University"
-                users={15420}
-                status="active"
-              />
-              <OrgRow
-                name="Stanford University"
-                type="University"
-                users={12850}
-                status="active"
-              />
-              <OrgRow
-                name="National Institute of Technology, Warangal"
-                type="Institute"
-                users={8920}
-                status="active"
-              />
-              <OrgRow
-                name="Delhi Technological University"
-                type="University"
-                users={7650}
-                status="pending"
-              />
+              {organizations.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No organizations yet. Run the seed script to add sample data.
+                </p>
+              ) : (
+                organizations.slice(0, 4).map((org) => (
+                  <OrgRow
+                    key={org.id}
+                    name={org.name}
+                    type={org.type.charAt(0).toUpperCase() + org.type.slice(1)}
+                    users={org.totalUsers || 0}
+                    status={org.status}
+                  />
+                ))
+              )}
             </div>
           </motion.div>
 
@@ -189,11 +278,6 @@ export function SuperAdminDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Pending Approvals</h2>
             <div className="space-y-3">
-              <ApprovalItem
-                title="Organization Verification"
-                details="BITS Pilani - Goa Campus"
-                count={1}
-              />
               <ApprovalItem
                 title="Admin Role Requests"
                 details="5 pending requests"

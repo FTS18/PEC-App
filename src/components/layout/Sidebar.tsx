@@ -22,6 +22,7 @@ import {
   UtensilsCrossed,
   Wrench,
   HelpCircle,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCollegeSettings } from "@/hooks/useCollegeSettings";
@@ -58,22 +59,28 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    icon: Building2,
+    label: "Organizations",
+    path: "/organizations",
+    roles: ["super_admin"],
+  },
+  {
     icon: Users,
     label: "Users",
     path: "/users",
-    roles: ["college_admin", "super_admin", "faculty", "placement_officer"],
+    roles: ["college_admin", "faculty", "placement_officer"],
   },
   {
     icon: Building2,
     label: "Departments",
     path: "/departments",
-    roles: ["college_admin", "super_admin"],
+    roles: ["college_admin"],
   },
   {
     icon: UserCog,
     label: "Faculty",
     path: "/faculty",
-    roles: ["college_admin", "super_admin"],
+    roles: ["college_admin"],
   },
   {
     icon: GraduationCap,
@@ -91,7 +98,7 @@ const navItems: NavItem[] = [
     icon: Calendar,
     label: "Timetable",
     path: "/timetable",
-    roles: ["student", "faculty", "college_admin", "super_admin"],
+    roles: ["student", "faculty", "college_admin"],
   },
   {
     icon: ClipboardCheck,
@@ -121,7 +128,7 @@ const navItems: NavItem[] = [
     icon: CreditCard,
     label: "Finance",
     path: "/finance",
-    roles: ["student", "college_admin", "super_admin"],
+    roles: ["student", "college_admin"],
   },
   {
     icon: Briefcase,
@@ -145,7 +152,7 @@ const navItems: NavItem[] = [
     icon: Building2,
     label: "Recruiters",
     path: "/placements/recruiters",
-    roles: ["placement_officer", "super_admin"],
+    roles: ["placement_officer"],
   },
   {
     icon: FileText,
@@ -175,13 +182,13 @@ const navItems: NavItem[] = [
     icon: UtensilsCrossed,
     label: "Canteen Manager",
     path: "/admin/canteen",
-    roles: ["super_admin", "college_admin"],
+    roles: ["college_admin"],
   },
   {
     icon: Wrench,
     label: "Manage Hostel",
     path: "/admin/hostel",
-    roles: ["super_admin", "college_admin"],
+    roles: ["college_admin"],
   },
   {
     icon: Settings,

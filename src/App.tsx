@@ -17,6 +17,8 @@ import Cookies from "./pages/Cookies";
 import Auth from "./pages/AuthEnhanced";
 import RoleSelection from "./pages/RoleSelection";
 import Onboarding from "./pages/Onboarding";
+import ApplyInstitution from "./pages/ApplyInstitution";
+import { OrgScopeRedirect } from "./components/OrgScopeRedirect";
 import Dashboard from "./pages/Dashboard";
 import StudentProfile from "./pages/StudentProfile";
 import Courses from "./pages/Courses";
@@ -44,12 +46,7 @@ import AccountProfile from "./pages/help/AccountProfile";
 import AcademicsHelp from "./pages/help/Academics";
 import SettingsPrivacy from "./pages/help/SettingsPrivacy";
 import HostelIssues from "./pages/HostelIssues";
-import Organizations from "./pages/admin/Organizations";
-import OrganizationDetail from "./pages/admin/OrganizationDetail";
-import AddOrganization from "./pages/admin/AddOrganization";
-import SystemConfig from "./pages/admin/SystemConfig";
-import SystemLogs from "./pages/admin/SystemLogs";
-import Approvals from "./pages/admin/Approvals";
+import Organizations from "./pages/Organizations";
 import Departments from "./pages/college/Departments";
 import DepartmentDetail from "./pages/college/DepartmentDetail";
 import FinancialReport from "./pages/college/FinancialReport";
@@ -95,8 +92,59 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/role-selection" element={<RoleSelection />} />
             <Route path="/onboarding" element={<Onboarding />} />
+            <Route path="/apply-institution" element={<ApplyInstitution />} />
             <Route path="/demo-dashboard" element={<DemoDashboard />} />
-            <Route element={<MainLayout />}>
+            
+            {/* Org-Scoped Routes for Non-Super-Admin Users */}
+            <Route path="/:orgSlug" element={<MainLayout />}>
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="profile" element={<StudentProfile />} />
+              <Route path="users" element={<UsersPage />} />
+              <Route path="users/:userId" element={<UserDetail />} />
+              <Route path="courses" element={<Courses />} />
+              <Route path="courses/:id" element={<CourseDetail />} />
+              <Route path="timetable" element={<Timetable />} />
+              <Route path="attendance" element={<Attendance />} />
+              <Route path="examinations" element={<Examinations />} />
+              <Route path="assignments" element={<Assignments />} />
+              <Route path="course-materials" element={<CourseMaterials />} />
+              <Route path="finance" element={<Finance />} />
+              <Route path="finance/:id" element={<PaymentDetail />} />
+              <Route path="placements/jobs" element={<Jobs />} />
+              <Route path="placements/drives" element={<PlacementDrives />} />
+              <Route path="placements/applications" element={<PlacementApplications />} />
+              <Route path="placements/recruiters" element={<PlacementRecruiters />} />
+              <Route path="my-applications" element={<MyApplications />} />
+              <Route path="resume-builder" element={<ResumeBuilderIvyLeague />} />
+              <Route path="resume-analyzer" element={<ResumeAnalyzer />} />
+              <Route path="settings" element={<Settings />} />
+              <Route path="notifications" element={<Notifications />} />
+              <Route path="notifications/:id" element={<NotificationDetail />} />
+              <Route path="help" element={<Help />} />
+              <Route path="help/getting-started" element={<GettingStarted />} />
+              <Route path="help/account-profile" element={<AccountProfile />} />
+              <Route path="help/academics" element={<AcademicsHelp />} />
+              <Route path="help/settings-privacy" element={<SettingsPrivacy />} />
+              <Route path="hostel-issues" element={<HostelIssues />} />
+              <Route path="canteen" element={<NightCanteen />} />
+              <Route path="admin/canteen" element={<CanteenManager />} />
+              <Route path="admin/hostel" element={<HostelAdmin />} />
+              <Route path="departments" element={<Departments />} />
+              <Route path="departments/:id" element={<DepartmentDetail />} />
+              <Route path="college/financial-report" element={<FinancialReport />} />
+              <Route path="college/admissions" element={<Admissions />} />
+              <Route path="faculty" element={<Faculty />} />
+              <Route path="faculty/add" element={<AddFaculty />} />
+              <Route path="faculty/:id" element={<FacultyDetail />} />
+              <Route path="college/add-user" element={<AddUser />} />
+              <Route path="college/reports" element={<Reports />} />
+              <Route path="college/add-course" element={<AddCourse />} />
+              <Route path="college/schedule" element={<Schedule />} />
+              <Route path="college/fee-setup" element={<FeeSetup />} />
+            </Route>
+
+            {/* Regular Routes (for Super Admin - no org slug) */}
+            <Route element={<OrgScopeRedirect><MainLayout /></OrgScopeRedirect>}>
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/profile" element={<StudentProfile />} />
               <Route path="/users" element={<UsersPage />} />
@@ -131,11 +179,8 @@ const App = () => (
               <Route path="/canteen" element={<NightCanteen />} />
               <Route path="/admin/canteen" element={<CanteenManager />} />
 
-              {/* Admin Routes - Super Admin Only - TODO: Uncomment when ready */}
-              {/* <Route path="/admin/organizations" element={<ProtectedRoute requiredPermission="manage_organizations"><Organizations /></ProtectedRoute>} />
-              <Route path="/admin/organizations/new" element={<ProtectedRoute requiredPermission="manage_organizations"><AddOrganization /></ProtectedRoute>} />
-              <Route path="/admin/organizations/:id" element={<ProtectedRoute requiredPermission="manage_organizations"><OrganizationDetail /></ProtectedRoute>} />
-              <Route path="/admin/approvals" element={<ProtectedRoute requiredPermission="manage_organizations"><Approvals /></ProtectedRoute>} /> */}
+              {/* Admin Routes - Super Admin */}
+              <Route path="/organizations" element={<Organizations />} />
               <Route path="/admin/payment-settings" element={<PaymentSettings />} />
               <Route path="/admin/college-settings" element={<CollegeSettings />} />
               <Route path="/admin/hostel" element={<HostelAdmin />} />
