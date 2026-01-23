@@ -15,6 +15,8 @@ export default {
     extend: {
       fontFamily: {
         sans: ['DM Sans', 'system-ui', 'sans-serif'],
+        monument: ['Monument Extended', 'serif'],
+        fraunces: ['Fraunces', 'serif']
       },
       colors: {
         border: "hsl(var(--border))",
@@ -68,6 +70,10 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        chat: {
+          own: "hsl(var(--chat-bubble-own))",
+          other: "hsl(var(--chat-bubble-other))",
+        }
       },
       borderRadius: {
         lg: "var(--radius)",

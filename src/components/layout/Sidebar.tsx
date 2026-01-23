@@ -19,6 +19,7 @@ import {
   UserCog,
   Menu,
   X,
+  MessageCircle,
   UtensilsCrossed,
   Wrench,
   HelpCircle,
@@ -69,6 +70,19 @@ const navItems: NavItem[] = [
     label: "Users",
     path: "/users",
     roles: ["college_admin", "faculty", "placement_officer"],
+  },
+  {
+    icon:MessageCircle,
+    label: "Chat",
+    path: "/chat",
+    roles: [
+      "student",
+      "faculty",
+      "college_admin",
+      "super_admin",
+      "placement_officer",
+      "recruiter",
+    ],
   },
   {
     icon: Building2,
