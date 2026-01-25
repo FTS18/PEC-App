@@ -76,11 +76,12 @@ html {
     --secondary-foreground: var(--accent-hue) 25% 10%;
 
     --muted: var(--accent-hue) 15% 96%;
-    --muted-foreground: var(--accent-hue) 10% 45%;
-    /* Increased contrast */
+    --muted-foreground: var(--accent-hue) 10% 35%;
+    /* Much darker for better contrast */
 
-    --accent: var(--accent-hue) 15% 93%;
-    --accent-foreground: var(--accent-hue) 25% 10%;
+    --accent: var(--accent-hue) 60% 45%;
+    /* Much darker and more saturated for visibility */
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
@@ -91,8 +92,9 @@ html {
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
 
-    --border: var(--accent-hue) 15% 90%;
-    --input: var(--accent-hue) 15% 90%;
+    --border: var(--accent-hue) 15% 85%;
+    /* Darker border */
+    --input: var(--accent-hue) 15% 85%;
     --ring: var(--accent-hue) 25% 10%;
 
     /* Sidebar Light */
@@ -146,8 +148,9 @@ html {
     --muted-foreground: var(--accent-hue) 10% 70%;
     /* High contrast text */
 
-    --accent: var(--accent-hue) 20% 14%;
-    --accent-foreground: 0 0% 98%;
+    --accent: var(--accent-hue) 70% 75%;
+    /* Much brighter for dark mode visibility */
+    --accent-foreground: var(--accent-hue) 20% 5%;
 
     --destructive: 0 62% 55%;
     --destructive-foreground: 0 0% 100%;
@@ -201,14 +204,21 @@ html {
     --sidebar-background: 220 16% 6%;
     --primary: 0 0% 98%;
     --primary-foreground: 220 16% 4%;
+    --accent: 220 70% 75%;
+    /* Bright blue accent for dark mode */
+    --accent-foreground: 220 16% 4%;
   }
 
   .accent-obsidian:not(.dark) {
-    --background: 210 15% 95%;
+    --background: 210 15% 98%;
     --card: 0 0% 100%;
-    --sidebar-background: 220 15% 93%;
-    --primary: 0 0% 9%;
+    --sidebar-background: 220 15% 96%;
+    --primary: 220 70% 40%;
+    /* Brighter, more visible in light mode */
     --primary-foreground: 0 0% 100%;
+    --accent: 220 70% 50%;
+    /* Much more visible */
+    --accent-foreground: 0 0% 100%;
   }
 
   /* Theme 2: Emerald (Deep Green Tint) */

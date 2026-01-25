@@ -558,7 +558,8 @@ export function LandingPage() {
       </section>
 
       {/* Social Proof - Client Logos & Recently Adopted */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-secondary/30 relative overflow-hidden">
+      {/* Integrations - Light Accent BG */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-accent/5 dark:bg-accent/10 relative overflow-hidden">
         <div className="max-w-7xl mx-auto">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -652,7 +653,8 @@ export function LandingPage() {
       </section>
 
       {/* Key Benefits Section - Minimal Design */}
-      <section className="py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Why OmniFlow - Light Accent BG */}
+      <section className="py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden bg-accent/5 dark:bg-accent/10">
         <div className="max-w-6xl mx-auto">
           {/* Section Header */}
           <motion.div
@@ -721,7 +723,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Features Section */}
+      {/* Features Bento Grid - Normal BG */}
       <section id="features" className="py-32 px-4 sm:px-6 lg:px-8 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-background via-accent/5 to-background -z-10" />
         
@@ -754,7 +756,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 onClick={() => navigate('/profile')}
-                className="col-span-1 sm:col-span-2 md:col-span-2 row-span-1 md:row-span-2 bg-accent rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:shadow-2xl hover:shadow-accent/30 transition-all duration-300 cursor-pointer"
+                className="col-span-1 sm:col-span-2 md:col-span-2 row-span-1 md:row-span-2 bg-gradient-to-br from-blue-500 to-blue-600 rounded-3xl p-6 sm:p-8 relative overflow-hidden group hover:shadow-2xl hover:shadow-blue-500/30 transition-all duration-300 cursor-pointer"
               >
                 <div className="absolute top-8 right-8 w-32 h-32 bg-white/10 rounded-full" />
                 <div className="relative z-10">
@@ -775,14 +777,14 @@ export function LandingPage() {
                 viewport={{ once: true }}
                 transition={{ delay: 0.1 }}
                 onClick={() => navigate('/courses')}
-                className="col-span-1 sm:col-span-2 md:col-span-2 row-span-1 bg-foreground/5 dark:bg-foreground/10 border-2 border-accent/20 rounded-3xl p-6 sm:p-8 flex flex-col justify-between group hover:shadow-2xl hover:border-accent/40 transition-all duration-300 cursor-pointer"
+                className="col-span-1 sm:col-span-2 md:col-span-2 row-span-1 bg-gradient-to-br from-purple-500 to-purple-600 rounded-3xl p-6 sm:p-8 flex flex-col justify-between group hover:shadow-2xl hover:shadow-purple-500/30 transition-all duration-300 cursor-pointer"
               >
-                <BookOpen className="w-10 h-10 text-accent" />
+                <BookOpen className="w-10 h-10 text-white/90" />
                 <div>
-                  <h3 className="text-2xl md:text-3xl font-bold text-foreground mb-3" style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic" }}>
+                  <h3 className="text-2xl md:text-3xl font-bold text-white mb-3" style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic" }}>
                     Academic Management
                   </h3>
-                  <p className="text-sm text-foreground/70">
+                  <p className="text-sm text-white/90">
                     Complete academic core with catalog, scheduling, curriculum planning and examination management.
                   </p>
                 </div>
@@ -797,12 +799,12 @@ export function LandingPage() {
                 onClick={() => navigate('/attendance')}
                 className="col-span-1 row-span-1 md:row-span-2 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-3xl p-6 flex flex-col justify-between group hover:shadow-2xl hover:shadow-emerald-500/30 transition-all duration-300 cursor-pointer"
               >
-                <ClipboardCheck className="w-9 h-9 text-white/80" />
+                <ClipboardCheck className="w-9 h-9 text-white/90" />
                 <div>
                   <h3 className="text-xl font-bold text-white mb-2" style={{ fontFamily: "'Monument Extended', serif" }}>
                     Attendance Tracking
                   </h3>
-                  <p className="text-xs text-white/90">
+                  <p className="text-sm text-white/90">
                     Biometric & QR-based with alerts
                   </p>
                 </div>
@@ -910,8 +912,8 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Role-Based Access Section */}
-      <section className="py-32 px-4 sm:px-6 lg:px-8 relative">
+      {/* Role-Based Access - Light Accent BG */}
+      <section className="py-32 px-4 sm:px-6 lg:px-8 relative bg-accent/5 dark:bg-accent/10">
         <div className="absolute inset-0 bg-gradient-to-br from-accent/5 via-transparent to-primary/5" />
         <div className="max-w-7xl mx-auto relative">
           <motion.div
@@ -1009,7 +1011,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* How it Works - Timeline Design */}
+      {/* How it Works - Normal BG */}
       <section
         id="how-it-works"
         className="py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden"
@@ -1238,6 +1240,7 @@ export function LandingPage() {
       </section>
 
       {/* Testimonials */}
+      {/* Testimonials - Normal BG */}
       <section id="testimonials" className="py-20 bg-background relative overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center mb-12">
           <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-4" style={{ fontFamily: "'Monument Extended', serif" }}>
@@ -1251,7 +1254,8 @@ export function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-32 px-4 sm:px-6 lg:px-8 relative">
+      {/* Pricing - Light Accent BG */}
+      <section id="pricing" className="py-32 px-4 sm:px-6 lg:px-8 relative bg-accent/5 dark:bg-accent/10">
         <div className="absolute inset-0 bg-gradient-to-b from-accent/5 via-transparent to-primary/5 -z-10" />
         
         <div className="max-w-7xl mx-auto">
@@ -1549,8 +1553,8 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* FAQ Section */}
-      <section className="py-32 px-4 sm:px-6 lg:px-8 relative">
+      {/* FAQ - Light Accent BG */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-accent/5 dark:bg-accent/10 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-accent/5 -z-10" />
         
         <div className="max-w-4xl mx-auto">
@@ -1601,9 +1605,9 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* Final CTA - Normal BG */}
       <section className="py-32 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-primary/10 to-accent/10" />
+        <div className="absolute inset-0 bg-gradient-to-t from-accent/10 via-transparent to-transparent -z-10" />
         <FloatingParticles />
         <div className="max-w-4xl mx-auto text-center relative z-10">
           <motion.div
