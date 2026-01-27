@@ -21,7 +21,6 @@ import {
   Ban,
   ExternalLink,
   Sparkles,
-  Sparkles,
   MessageCircle,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
