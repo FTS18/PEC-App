@@ -84,6 +84,12 @@ const navItems: NavItem[] = [
     roles: ["college_admin", "faculty", "placement_officer"],
   },
   {
+    icon: BarChart3,
+    label: "Reports",
+    path: "/college/reports",
+    roles: ["college_admin"],
+  },
+  {
     icon:MessageCircle,
     label: "Chat",
     path: "/chat",
@@ -359,6 +365,8 @@ export function Sidebar({
 
 
 
+
+
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3">
         <ul className="space-y-1">
@@ -440,7 +448,7 @@ export function Sidebar({
                  <div className="h-6 w-[1px] bg-border" />
                  <div className="scale-90"><LandingColorTheme /></div>
                  <div className="h-6 w-[1px] bg-border" />
-                 <div className="flex-1 min-w-0 overflow-hidden"><GoogleTranslate containerId="google_translate_sidebar" /></div>
+                 {/* <div className="flex-1 min-w-0 overflow-hidden"><GoogleTranslate containerId="google_translate_sidebar" /></div> */}
             </div>
         </div>
       )}

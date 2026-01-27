@@ -153,10 +153,10 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
       // Determine which organization's data to fetch
       const targetOrgId = viewingOrgId || userData?.organizationId;
 
-      if (!targetOrgId) {
-        toast.error('No organization selected');
-        return;
-      }
+      // if (!targetOrgId) {
+      //   toast.error('No organization selected');
+      //   return;
+      // }
 
       // Fetch courses - filter by organization using Firestore query
       const coursesQuery = query(

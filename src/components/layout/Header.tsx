@@ -88,7 +88,7 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick }: Header
 
         {/* Right Section */}
         <div className="flex items-center gap-3 ml-auto">
-          <div className="hidden md:block scale-90 sm:scale-100"><GoogleTranslate /></div>
+          <div className="scale-90 sm:scale-100"><GoogleTranslate containerId="google_translate_header" /></div>
           <div className="hidden md:block"><LandingColorTheme /></div>
           <div className="hidden md:block"><ThemeToggler/></div>
           {/* Notifications */}

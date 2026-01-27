@@ -19,6 +19,15 @@ html {
   scroll-behavior: smooth;
 }
 
+/* HIDE GOOGLE TRANSLATE BANNER FRAME */
+.goog-te-banner-frame {
+  display: none !important;
+}
+
+body {
+  top: 0px !important;
+}
+
 /* ====================================
    SLEEK SCROLLBAR
    ==================================== */

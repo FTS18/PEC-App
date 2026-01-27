@@ -118,6 +118,10 @@ const HostelAdmin = lazy(() => import("./pages/admin/HostelAdmin"));
 const PaymentSettings = lazy(() => import("./pages/admin/PaymentSettings"));
 const CollegeSettings = lazy(() => import("./pages/admin/CollegeSettings"));
 
+// Placeholders for missing pages
+const Approvals = () => <div className="p-8"><h1>Approvals Page</h1><p>Pending approvals</p></div>;
+
+
 // =========================================
 // Loading Fallback Component
 // =========================================
@@ -136,8 +140,10 @@ const AppRoutes = () => (
     <Route path="chat" element={<ChatPage />} />
     <Route path="profile" element={<StudentProfile />} />
     <Route path="users" element={<UsersPage />} />
+    <Route path="users/add" element={<AddUser />} />
     <Route path="users/:userId" element={<UserDetail />} />
     <Route path="courses" element={<Courses />} />
+    <Route path="courses/add" element={<AddCourse />} />
     <Route path="courses/:id" element={<CourseDetail />} />
     <Route path="timetable" element={<Timetable />} />
     <Route path="attendance" element={<Attendance />} />

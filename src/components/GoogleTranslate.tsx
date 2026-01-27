@@ -1,10 +1,17 @@
 import { useEffect } from 'react';
 
 interface GoogleTranslateElement {
-  TranslateElement: new (
-    options: { pageLanguage: string },
-    elementId: string
-  ) => void;
+  TranslateElement: {
+    new (
+      options: { pageLanguage: string; layout?: any; autoDisplay?: boolean; includedLanguages?: string },
+      elementId: string
+    ): void;
+    InlineLayout: {
+      SIMPLE: any;
+      HORIZONTAL: any;
+      VERTICAL: any;
+    };
+  };
 }
 
 interface GoogleTranslate {
@@ -28,85 +35,104 @@ export function GoogleTranslate({
   containerId = "google_translate_element" 
 }: GoogleTranslateProps) {
   useEffect(() => {
-    // 1. Define the Init Function (Supporting both IDs if they exist)
-    window.googleTranslateElementInit = () => {
+    // Helper to initialize this specific instance
+    const initWidget = () => {
+      // Check if google translate API is loaded
       if (window.google?.translate?.TranslateElement) {
-        // Init the standard one
-        const el1 = document.getElementById('google_translate_element');
-        if (el1 && !el1.querySelector('.goog-te-gadget')) {
-          new window.google.translate.TranslateElement({pageLanguage: 'en'}, 'google_translate_element');
-        }
-        // Init the sidebar one
-        const el2 = document.getElementById('google_translate_sidebar');
-        if (el2 && !el2.querySelector('.goog-te-gadget')) {
-          new window.google.translate.TranslateElement({pageLanguage: 'en'}, 'google_translate_sidebar');
+        const element = document.getElementById(containerId);
+        // Only initialize if element exists and doesn't already have the gadget
+        if (element && !element.querySelector('.goog-te-gadget')) {
+          new window.google.translate.TranslateElement(
+            { 
+              pageLanguage: 'en', 
+              layout: window.google.translate.TranslateElement.InlineLayout.SIMPLE,
+              autoDisplay: false
+            }, 
+            containerId
+          );
         }
       }
     };
 
-    // 2. Load Script
-    const scriptId = 'google-translate-script';
-    if (!document.getElementById(scriptId)) {
-      const script = document.createElement('script');
-      script.id = scriptId;
-      script.type = 'text/javascript';
-      script.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
-      script.async = true;
-      document.body.appendChild(script);
-    } else if (window.google?.translate?.TranslateElement) {
-      // If already loaded, trigger init manually
-      window.googleTranslateElementInit();
+    // If script is already loaded and ready, init immediately
+    if (window.google?.translate?.TranslateElement) {
+      initWidget();
     }
-  }, []);
+
+    // Listen for the ready event (fired when script loads)
+    const handleReady = () => initWidget();
+    window.addEventListener('google-translate-ready', handleReady);
+    
+    return () => {
+      window.removeEventListener('google-translate-ready', handleReady);
+    };
+  }, [containerId]);
 
   return (
     <div className="relative group z-50">
       <div 
         id={containerId} 
-        className="google-translate-container overflow-hidden rounded-md border border-input bg-background shadow-sm hover:border-accent hover:bg-accent/50 transition-colors" 
+        className="google-translate-container min-h-[40px] flex items-center" 
       />
-      <div className="absolute inset-y-0 right-2 pointer-events-none flex items-center">
-        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground opacity-70"><path d="m6 9 6 6 6-6"/></svg>
-      </div>
+      
       <style>{`
-        /* Hide everything we don't need */
-        .goog-te-banner-frame, iframe.skiptranslate { display: none !important; }
-        body { top: 0px !important; }
+        /* Hide the specific google branding elements we don't want, but be careful not to hide the dropdown */
+        .goog-te-banner-frame { display: none !important; }
         .goog-logo-link { display: none !important; }
-        .goog-te-gadget { color: transparent !important; font-size: 0 !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
-        .goog-te-gadget > span { display: none !important; }
-        .goog-te-gadget > div { display: block !important; width: 100% !important; }
+        body { top: 0px !important; }
         
-        /* Style the Select Dropdown */
-        .goog-te-combo {
-          width: 100% !important;
-          height: 36px !important;
-          background-color: transparent !important;
-          border: none !important;
-          color: hsl(var(--foreground)) !important;
+        /* The container for the dropdown */
+        .goog-te-gadget {
           font-family: inherit !important;
-          font-size: 13px !important;
-          font-weight: 500 !important;
-          padding: 0 30px 0 12px !important;
+          color: transparent !important; /* Hide 'Powered by Google' text */
+          width: 100% !important;
+          overflow: hidden !important;
+        }
+        
+        /* The Actual Dropdown (Select Element) */
+        .goog-te-combo {
+          color: hsl(var(--foreground)) !important;
+          background-color: hsl(var(--background)) !important;
+          border: 1px solid hsl(var(--border)) !important;
+          border-radius: 6px !important;
+          padding: 6px 8px !important;
+          font-size: 13px !important; /* Slightly smaller for sidebar */
+          line-height: 1.5 !important;
+          height: 36px !important;
+          width: 100% !important; /* Full width */
           margin: 0 !important;
           cursor: pointer !important;
           outline: none !important;
-          appearance: none !important; /* Hide default arrow */
-          -webkit-appearance: none !important;
-          box-shadow: none !important;
+          box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
+          display: block !important; /* Ensure it shows */
         }
 
-        /* Dropdown Options */
-        .goog-te-combo option {
-          background-color: hsl(var(--popover)) !important;
-          color: hsl(var(--popover-foreground)) !important;
-          padding: 8px !important;
-        }
-
-        /* Container Adjustment for Sidebar */
+        /* Specific style for Sidebar (Darker context) */
         #google_translate_sidebar .goog-te-combo {
-            height: 32px !important;
-            font-size: 12px !important;
+          background-color: rgba(255,255,255,0.05) !important;
+          border-color: rgba(255,255,255,0.1) !important;
+          color: rgba(255,255,255,0.9) !important;
+        }
+        
+        #google_translate_sidebar .goog-te-combo option {
+          background-color: #1a1a1a !important; /* Dark background for options */
+          color: white !important;
+        }
+
+        /* Hide all other Google clutter */
+        .goog-te-gadget span {
+          display: none !important;
+        }
+        
+        .goog-te-gadget-simple {
+          background-color: transparent !important;
+          border: none !important;
+          padding: 0 !important;
+          font-size: 10pt !important;
+          display: inline-block !important;
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+          cursor: pointer !important;
         }
       `}</style>
     </div>

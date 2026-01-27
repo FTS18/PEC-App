@@ -5,6 +5,7 @@ import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { SuperAdminDashboard } from './dashboards/SuperAdminDashboard';
 import { AdminDashboard } from './dashboards/AdminDashboard';
+import { CollegeAdminDashboard } from './dashboards/CollegeAdminDashboard';
 import { PlacementOfficerDashboard } from './dashboards/PlacementOfficerDashboard';
 import { FacultyDashboard } from './dashboards/FacultyDashboard';
 import { RecruiterDashboard } from './dashboards/RecruiterDashboard';
@@ -52,8 +53,8 @@ export function Dashboard() {
           return;
         }
 
-        // If super admin and viewing a specific org, get that org's ID
-        if (userData.role === 'super_admin' && orgSlug) {
+        // If orgSlug provides, try to resolve the org ID
+        if (orgSlug) {
           const orgsSnapshot = await getDocs(collection(db, 'organizations'));
           const org = orgsSnapshot.docs.find(doc => doc.data().slug === orgSlug);
           if (org) {
@@ -92,7 +93,7 @@ export function Dashboard() {
       return <SuperAdminDashboard />;
     case 'college_admin':
       // College admin sees the admin dashboard for their institution
-      return <AdminDashboard viewingOrgId={viewingOrgId} />;
+      return <CollegeAdminDashboard />;
     case 'placement_officer':
       return <PlacementOfficerDashboard />;
     case 'faculty':
