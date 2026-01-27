@@ -1,5 +1,7 @@
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { exportTimetablePDF, exportAttendanceReport } from '@/lib/pdfExport';
 import PDFExportButton from '@/components/common/PDFExportButton';
 import {
@@ -43,6 +45,7 @@ const item = {
 };
 
 export function FacultyDashboard() {
+  const navigate = useNavigate();
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [showScheduleManager, setShowScheduleManager] = useState(false);
@@ -168,9 +171,9 @@ export function FacultyDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Today's Schedule</h2>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/timetable')}>
                 Full Timetable
-                <ArrowUpRight className="w-3.5 h-3.5" />
+                <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
               </Button>
             </div>
             <div className="space-y-3">
@@ -213,9 +216,9 @@ export function FacultyDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">My Courses</h2>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" onClick={() => navigate('/courses')}>
                 Manage
-                <ArrowUpRight className="w-3.5 h-3.5" />
+                <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -307,20 +310,20 @@ export function FacultyDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
             <div className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <ClipboardCheck className="w-4 h-4" />
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/attendance')}>
+                <ClipboardCheck className="w-4 h-4 mr-2" />
                 Mark Attendance
               </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <FileText className="w-4 h-4" />
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/assignments')}>
+                <FileText className="w-4 h-4 mr-2" />
                 Create Assignment
               </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <TrendingUp className="w-4 h-4" />
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/examinations')}>
+                <TrendingUp className="w-4 h-4 mr-2" />
                 Upload Grades
               </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start">
-                <Calendar className="w-4 h-4" />
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/examinations')}>
+                <Calendar className="w-4 h-4 mr-2" />
                 Schedule Test
               </Button>
             </div>
@@ -355,34 +358,36 @@ export function FacultyDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Class Performance</h2>
             <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Excellent (&gt;80%)</span>
-                  <span className="font-medium text-success">42 students</span>
-                </div>
-                <Progress value={17} className="h-2" />
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Good (60-80%)</span>
-                  <span className="font-medium text-primary">128 students</span>
-                </div>
-                <Progress value={52} className="h-2" />
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Average (40-60%)</span>
-                  <span className="font-medium text-warning">58 students</span>
-                </div>
-                <Progress value={24} className="h-2" />
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-muted-foreground">Needs Improvement</span>
-                  <span className="font-medium text-destructive">17 students</span>
-                </div>
-                <Progress value={7} className="h-2" />
-              </div>
+            <div className="h-[200px] w-full">
+               <ResponsiveContainer width="100%" height="100%">
+                 <BarChart data={[
+                   { name: 'Excellent', count: 42, color: '#22c55e' },
+                   { name: 'Good', count: 128, color: '#3b82f6' },
+                   { name: 'Average', count: 58, color: '#f59e0b' },
+                   { name: 'Poor', count: 17, color: '#ef4444' },
+                 ]}>
+                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                   <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                   <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                   <Tooltip 
+                     cursor={{ fill: 'hsl(var(--accent)/0.1)' }}
+                     contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                   />
+                   <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                     {
+                        [
+                          { name: 'Excellent', count: 42, color: '#22c55e' },
+                          { name: 'Good', count: 128, color: '#3b82f6' },
+                          { name: 'Average', count: 58, color: '#f59e0b' },
+                          { name: 'Poor', count: 17, color: '#ef4444' },
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))
+                     }
+                   </Bar>
+                 </BarChart>
+               </ResponsiveContainer>
+            </div>
             </div>
           </motion.div>
         </div>

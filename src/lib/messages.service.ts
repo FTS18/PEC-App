@@ -39,10 +39,11 @@ export interface ChatMessage {
 export function subscribeToMessages(
   roomId: string,
   callback: (messages: ChatMessage[]) => void,
+  limitCount: number = 20
 ) {
   const messagesRef = collection(db, "chatRooms", roomId, "messages");
 
-  const q = query(messagesRef, orderBy("createdAt", "desc"), limit(50));
+  const q = query(messagesRef, orderBy("createdAt", "desc"), limit(limitCount));
 
   return onSnapshot(q, (snap) => {
     const msgs = snap.docs.map((d) => ({

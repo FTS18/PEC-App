@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { db } from '@/config/firebase';
 import { 
   collection, 
@@ -171,9 +172,11 @@ export function PlacementOfficerDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Upcoming Drives</h2>
-              <Button variant="ghost" size="sm">
-                View Calendar
-                <ArrowUpRight className="w-3.5 h-3.5" />
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/placements/drives">
+                  View Calendar
+                  <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
+                </Link>
               </Button>
             </div>
             <div className="space-y-3">
@@ -199,9 +202,11 @@ export function PlacementOfficerDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Recent Placements</h2>
-              <Button variant="ghost" size="sm">
-                View All
-                <ArrowUpRight className="w-3.5 h-3.5" />
+              <Button variant="ghost" size="sm" asChild>
+                <Link to="/placements/reports">
+                  View All
+                  <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
+                </Link>
               </Button>
             </div>
             <div className="space-y-3">
@@ -225,28 +230,41 @@ export function PlacementOfficerDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Recruiter Pipeline</h2>
-              <Button variant="ghost" size="sm">
-                Manage
-                <ArrowUpRight className="w-3.5 h-3.5" />
+              <Button variant="ghost" size="sm" asChild>
+                 <Link to="/placements/recruiters">
+                  Manage
+                  <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
+                </Link>
               </Button>
             </div>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-center">
-              <div className="p-4 rounded-lg bg-secondary/50">
-                <p className="text-2xl font-bold text-foreground">12</p>
-                <p className="text-xs text-muted-foreground">Contacted</p>
-              </div>
-              <div className="p-4 rounded-lg bg-warning/10">
-                <p className="text-2xl font-bold text-warning">8</p>
-                <p className="text-xs text-muted-foreground">In Discussion</p>
-              </div>
-              <div className="p-4 rounded-lg bg-accent/10">
-                <p className="text-2xl font-bold text-accent">5</p>
-                <p className="text-xs text-muted-foreground">Confirmed</p>
-              </div>
-              <div className="p-4 rounded-lg bg-success/10">
-                <p className="text-2xl font-bold text-success">42</p>
-                <p className="text-xs text-muted-foreground">Completed</p>
-              </div>
+            <div className="h-[200px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { name: 'Contacted', value: 12, color: '#3b82f6' },
+                  { name: 'Discussion', value: 8, color: '#f59e0b' },
+                  { name: 'Confirmed', value: 5, color: '#8b5cf6' },
+                  { name: 'Completed', value: 42, color: '#22c55e' },
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                  <Tooltip 
+                     cursor={{ fill: 'hsl(var(--accent)/0.1)' }}
+                     contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                  />
+                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                    {
+                      [
+                        { name: 'Contacted', value: 12, color: '#3b82f6' },
+                        { name: 'Discussion', value: 8, color: '#f59e0b' },
+                        { name: 'Confirmed', value: 5, color: '#8b5cf6' },
+                        { name: 'Completed', value: 42, color: '#22c55e' },
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))
+                    }
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </motion.div>
         </div>
@@ -258,30 +276,33 @@ export function PlacementOfficerDashboard() {
             <h2 className="text-lg font-semibold text-foreground mb-4">Batch Progress</h2>
             <div className="space-y-4">
               <div className="text-center">
-                <div className="relative w-28 h-28 mx-auto">
-                  <svg className="w-28 h-28 transform -rotate-90">
-                    <circle
-                      cx="56"
-                      cy="56"
-                      r="48"
-                      className="stroke-secondary"
-                      strokeWidth="10"
-                      fill="none"
-                    />
-                    <circle
-                      cx="56"
-                      cy="56"
-                      r="48"
-                      className="stroke-success"
-                      strokeWidth="10"
-                      fill="none"
-                      strokeDasharray={`${60 * 3.01} 301`}
-                    />
-                  </svg>
-                  <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold">
-                    60%
-                  </span>
-                </div>
+              <div className="h-[200px] w-full flex justify-center">
+                 <ResponsiveContainer width={200} height={200}>
+                   <PieChart>
+                     <Pie
+                       data={[
+                         { name: 'Placed', value: 856, color: '#22c55e' },
+                         { name: 'Remaining', value: 564, color: 'hsl(var(--secondary))' },
+                       ]}
+                       cx="50%"
+                       cy="50%"
+                       innerRadius={60}
+                       outerRadius={80}
+                       startAngle={90}
+                       endAngle={-270}
+                       dataKey="value"
+                     >
+                       <Cell fill="#22c55e" />
+                       <Cell fill="hsl(var(--secondary))" />
+                     </Pie>
+                     <Tooltip />
+                     <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle">
+                       <tspan x="50%" dy="-0.5em" fontSize="24" fontWeight="bold" fill="hsl(var(--foreground))">60%</tspan>
+                       <tspan x="50%" dy="1.5em" fontSize="12" fill="hsl(var(--muted-foreground))">Placed</tspan>
+                     </text>
+                   </PieChart>
+                 </ResponsiveContainer>
+              </div>
                 <p className="text-sm text-muted-foreground mt-2">856 / 1,420 placed</p>
               </div>
               <div className="space-y-2">

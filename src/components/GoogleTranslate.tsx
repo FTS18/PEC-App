@@ -60,41 +60,53 @@ export function GoogleTranslate({
   }, []);
 
   return (
-    <div className="flex items-center">
-      <div id={containerId} className="google-translate-container" />
+    <div className="relative group z-50">
+      <div 
+        id={containerId} 
+        className="google-translate-container overflow-hidden rounded-md border border-input bg-background shadow-sm hover:border-accent hover:bg-accent/50 transition-colors" 
+      />
+      <div className="absolute inset-y-0 right-2 pointer-events-none flex items-center">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground opacity-70"><path d="m6 9 6 6 6-6"/></svg>
+      </div>
       <style>{`
-        /* Minimalist style to clean up the Google default look */
-        .goog-te-banner-frame.skiptranslate { display: none !important; }
-        body { top: 0px !important; position: static !important; }
+        /* Hide everything we don't need */
+        .goog-te-banner-frame, iframe.skiptranslate { display: none !important; }
+        body { top: 0px !important; }
         .goog-logo-link { display: none !important; }
-        .goog-te-gadget { color: transparent !important; font-size: 0 !important; }
+        .goog-te-gadget { color: transparent !important; font-size: 0 !important; margin: 0 !important; padding: 0 !important; width: 100% !important; }
         .goog-te-gadget > span { display: none !important; }
-        .goog-te-gadget > div { display: inline-block !important; }
-        #goog-gt-tt { display: none !important; }
+        .goog-te-gadget > div { display: block !important; width: 100% !important; }
         
-        /* Hide only the translate bar iframe at the top */
-        iframe.skiptranslate { display: none !important; }
-        .goog-te-banner-frame { display: none !important; }
-        
-        .goog-te-gadget .goog-te-combo {
-          background-color: hsl(var(--background));
-          border: 1px solid hsl(var(--border));
-          border-radius: 6px;
-          padding: 2px 4px;
-          color: hsl(var(--foreground));
-          font-size: 12px;
-          cursor: pointer;
+        /* Style the Select Dropdown */
+        .goog-te-combo {
+          width: 100% !important;
+          height: 36px !important;
+          background-color: transparent !important;
+          border: none !important;
+          color: hsl(var(--foreground)) !important;
+          font-family: inherit !important;
+          font-size: 13px !important;
+          font-weight: 500 !important;
+          padding: 0 30px 0 12px !important;
+          margin: 0 !important;
+          cursor: pointer !important;
+          outline: none !important;
+          appearance: none !important; /* Hide default arrow */
+          -webkit-appearance: none !important;
+          box-shadow: none !important;
         }
-        .goog-te-gadget .goog-te-combo option {
-          background-color: hsl(var(--background));
-          color: hsl(var(--foreground));
+
+        /* Dropdown Options */
+        .goog-te-combo option {
+          background-color: hsl(var(--popover)) !important;
+          color: hsl(var(--popover-foreground)) !important;
+          padding: 8px !important;
         }
-        .goog-te-gadget .goog-te-combo:hover {
-          border-color: hsl(var(--primary));
-        }
-        .goog-te-gadget .goog-te-combo:focus {
-          outline: 2px solid hsl(var(--ring));
-          outline-offset: 2px;
+
+        /* Container Adjustment for Sidebar */
+        #google_translate_sidebar .goog-te-combo {
+            height: 32px !important;
+            font-size: 12px !important;
         }
       `}</style>
     </div>

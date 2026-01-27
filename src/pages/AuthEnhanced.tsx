@@ -424,7 +424,7 @@ export default function AuthEnhanced() {
 
                 {/* Recruiter Credentials */}
                 <button
-                  onClick={() => fillCredentials('recruiter.microsoft@pec.edu', 'Recruiter@123')}
+                  onClick={() => fillCredentials('placement@pec.edu', 'Placement@123')}
                   className="w-full bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4 hover:bg-green-100 dark:hover:bg-green-950/50 transition-all cursor-pointer text-left"
                 >
                   <div className="flex items-start gap-4">
@@ -437,11 +437,11 @@ export default function AuthEnhanced() {
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground w-16">Email:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">recruiter.microsoft@pec.edu</code>
+                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">placement@pec.edu</code>
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground w-16">Password:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Recruiter@123</code>
+                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Placement@123</code>
                         </div>
                       </div>
                     </div>

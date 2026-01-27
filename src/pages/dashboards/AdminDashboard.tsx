@@ -30,6 +30,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  LineChart,
+  Line,
+} from 'recharts';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -416,7 +428,15 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
 
       {/* Stats Cards */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card-elevated p-5">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          className="card-elevated p-5 cursor-pointer hover:border-primary/50 transition-colors"
+          onClick={() => {
+            const tabsTrigger = document.querySelector('[value="users"]');
+            if (tabsTrigger instanceof HTMLElement) tabsTrigger.click();
+          }}
+        >
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-primary/10">
               <Users className="w-5 h-5 text-primary" />
@@ -428,7 +448,16 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="card-elevated p-5">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.05 }} 
+          className="card-elevated p-5 cursor-pointer hover:border-primary/50 transition-colors"
+           onClick={() => {
+            const tabsTrigger = document.querySelector('[value="users"]');
+            if (tabsTrigger instanceof HTMLElement) tabsTrigger.click();
+          }}
+        >
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-foreground/10">
               <BookOpen className="w-5 h-5 text-foreground" />
@@ -440,7 +469,16 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="card-elevated p-5">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.1 }} 
+          className="card-elevated p-5 cursor-pointer hover:border-primary/50 transition-colors"
+           onClick={() => {
+            const tabsTrigger = document.querySelector('[value="courses"]');
+            if (tabsTrigger instanceof HTMLElement) tabsTrigger.click();
+          }}
+        >
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-foreground/10">
               <FileText className="w-5 h-5 text-foreground" />
@@ -452,7 +490,16 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
           </div>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="card-elevated p-5">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }} 
+          transition={{ delay: 0.15 }} 
+          className="card-elevated p-5 cursor-pointer hover:border-primary/50 transition-colors"
+           onClick={() => {
+            const tabsTrigger = document.querySelector('[value="fees"]');
+            if (tabsTrigger instanceof HTMLElement) tabsTrigger.click();
+          }}
+        >
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-foreground/10">
               <DollarSign className="w-5 h-5 text-foreground" />
@@ -634,39 +681,58 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="card-elevated p-6">
               <h3 className="font-semibold text-foreground mb-4">User Distribution</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Students</span>
-                  <span className="font-medium text-foreground">{stats.totalStudents}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Faculty</span>
-                  <span className="font-medium text-foreground">{stats.totalFaculty}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Admins</span>
-                  <span className="font-medium text-foreground">
-                    {users.filter(u => u.role === 'college_admin' || u.role === 'super_admin').length}
-                  </span>
-                </div>
+              <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[
+                    { name: 'Students', count: stats.totalStudents, color: '#22c55e' },
+                    { name: 'Faculty', count: stats.totalFaculty, color: '#3b82f6' },
+                    { name: 'Admins', count: users.filter(u => u.role === 'college_admin' || u.role === 'super_admin').length, color: '#f59e0b' },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      cursor={{ fill: 'hsl(var(--accent)/0.1)' }}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                    />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                      {
+                        [
+                          { name: 'Students', count: stats.totalStudents, color: '#22c55e' },
+                          { name: 'Faculty', count: stats.totalFaculty, color: '#3b82f6' },
+                          { name: 'Admins', count: users.filter(u => u.role === 'college_admin' || u.role === 'super_admin').length, color: '#f59e0b' },
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))
+                      }
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
             <div className="card-elevated p-6">
-              <h3 className="font-semibold text-foreground mb-4">System Overview</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Total Courses</span>
-                  <span className="font-medium text-foreground">{stats.totalCourses}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Active Users</span>
-                  <span className="font-medium text-foreground">{users.filter(u => u.status === 'active').length}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Fee Records</span>
-                  <span className="font-medium text-foreground">{feeRecords.length}</span>
-                </div>
+              <h3 className="font-semibold text-foreground mb-4">Projected vs Actual Revenue</h3>
+               <div className="h-[250px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[
+                    { month: 'Jan', projected: 50000, actual: 48000 },
+                    { month: 'Feb', projected: 55000, actual: 52000 },
+                    { month: 'Mar', projected: 60000, actual: 65000 },
+                    { month: 'Apr', projected: 58000, actual: 56000 },
+                    { month: 'May', projected: 62000, actual: 68000 },
+                    { month: 'Jun', projected: 65000, actual: 72000 },
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', borderRadius: '8px' }}
+                    />
+                    <Line type="monotone" dataKey="projected" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+                    <Line type="monotone" dataKey="actual" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4, fill: 'hsl(var(--background))', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
           </div>

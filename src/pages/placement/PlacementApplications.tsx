@@ -293,8 +293,8 @@ export default function PlacementApplications() {
       const profile = studentProfiles[app.studentId] || {};
       return {
         ...app,
-        // Overlay dynamic data
-        cgpa: profile.cgpa ?? app.cgpa,
+        // Overlay dynamic data (check both cgpa and currentCgpa)
+        cgpa: profile.cgpa ?? profile.currentCgpa ?? app.cgpa,
         skills: profile.skills ?? app.skills,
         resumeUrl: profile.resumeUrl || app.resumeUrl,
         aiScore: 0 // placeholder, calc below
@@ -330,7 +330,7 @@ export default function PlacementApplications() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-3xl font-bold text-foreground">
             Applicant Tracking
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -469,7 +469,7 @@ export default function PlacementApplications() {
                       <p className="text-sm text-muted-foreground">{app.studentDepartment}</p>
                       <div className="flex items-center gap-2 mt-1.5">
                         <Badge variant="secondary" className="text-[10px] h-5">
-                          CGPA: {app.cgpa || 'N/A'}
+                          CGPA: {(app.cgpa !== undefined && app.cgpa !== null) ? Number(app.cgpa).toFixed(1) : 'N/A'}
                         </Badge>
                         <Badge variant="outline" className="text-[10px] h-5 border-green-500/30 text-green-600 bg-green-500/5">
                           Verified

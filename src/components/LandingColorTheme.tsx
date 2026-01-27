@@ -1,12 +1,7 @@
-import { Palette, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 
 // Unified accent color themes - must match index.css definitions
 const accentThemes = [
@@ -18,12 +13,15 @@ const accentThemes = [
 ];
 
 export function LandingColorTheme() {
-  const [currentAccent, setCurrentAccent] = useState("obsidian");
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
     const savedAccent = localStorage.getItem("accent-color") || "obsidian";
-    setCurrentAccent(savedAccent);
-    applyAccentTheme(savedAccent);
+    const index = accentThemes.findIndex(t => t.id === savedAccent);
+    if (index !== -1) {
+      setCurrentIndex(index);
+      applyAccentTheme(savedAccent);
+    }
   }, []);
 
   const applyAccentTheme = (accentId: string) => {
@@ -34,40 +32,51 @@ export function LandingColorTheme() {
     root.classList.add(`accent-${accentId}`);
   };
 
-  const handleAccentChange = (accentId: string) => {
-    setCurrentAccent(accentId);
-    localStorage.setItem("accent-color", accentId);
-    applyAccentTheme(accentId);
+  const cycleTheme = (direction: 'next' | 'prev') => {
+    let newIndex;
+    if (direction === 'next') {
+        newIndex = (currentIndex + 1) % accentThemes.length;
+    } else {
+        newIndex = (currentIndex - 1 + accentThemes.length) % accentThemes.length;
+    }
+    
+    const newTheme = accentThemes[newIndex];
+    setCurrentIndex(newIndex);
+    localStorage.setItem("accent-color", newTheme.id);
+    applyAccentTheme(newTheme.id);
   };
 
+  const currentTheme = accentThemes[currentIndex];
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Palette className="h-5 w-5" />
-          <span className="sr-only">Change accent color</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-44 rounded-none strict-sharp-corners neo-brutal-card">
-        {accentThemes.map((theme) => (
-          <DropdownMenuItem
-            key={theme.id}
-            onClick={() => handleAccentChange(theme.id)}
-            className="cursor-pointer"
-          >
-            <div className="flex items-center gap-3 w-full">
-              <div
-                className="w-5 h-5 rounded-none border border-foreground shadow-sm"
-                style={{ background: theme.color }}
-              />
-              <span className="flex-1">{theme.name}</span>
-              {currentAccent === theme.id && (
-                <Check className="w-4 h-4 text-primary" />
-              )}
-            </div>
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div className="flex items-center gap-1 bg-accent/10 rounded-lg p-0.5 border border-accent/20">
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 hover:bg-accent/20 text-muted-foreground hover:text-accent"
+        onClick={() => cycleTheme('prev')}
+        title="Previous Color"
+      >
+        <ChevronLeft className="h-3 w-3" />
+      </Button>
+      
+      <div className="flex items-center justify-center w-6 h-6">
+        <div 
+            className="w-3 h-3 rounded-full shadow-sm ring-2 ring-background transition-all"
+            style={{ backgroundColor: currentTheme?.color }}     
+            title={currentTheme?.name}
+        />
+      </div>
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-6 w-6 hover:bg-accent/20 text-muted-foreground hover:text-accent"
+        onClick={() => cycleTheme('next')}
+        title="Next Color"
+      >
+        <ChevronRight className="h-3 w-3" />
+      </Button>
+    </div>
   );
 }

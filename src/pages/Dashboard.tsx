@@ -88,13 +88,11 @@ export function Dashboard() {
   // Render role-based dashboard
   switch (userRole) {
     case 'super_admin':
-      // If viewing a specific org, show admin dashboard for that org
-      if (viewingOrgId) {
-        return <AdminDashboard viewingOrgId={viewingOrgId} />;
-      }
+      // Super admin always sees the super admin dashboard
       return <SuperAdminDashboard />;
     case 'college_admin':
-      return <AdminDashboard />;
+      // College admin sees the admin dashboard for their institution
+      return <AdminDashboard viewingOrgId={viewingOrgId} />;
     case 'placement_officer':
       return <PlacementOfficerDashboard />;
     case 'faculty':

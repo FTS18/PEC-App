@@ -39,17 +39,44 @@ export default function ChatPage() {
   const {
     messages,
     loading: messagesLoading,
-    sendMessage
+    sendMessage,
+    loadMore,
+    hasMore
   } = useChatMessages(selectedRoomId);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<any>(null);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
   // auto-scroll
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    // Only auto-scroll if we are adding new messages at the bottom (not loading history)
+    // or if it's the first load
+    const behavior = messagesLoading ? "auto" : "smooth";
+    if (!isAutoScrolling) {
+        messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+    }
+  }, [messages, messagesLoading, isAutoScrolling]);
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    
+    // If scrolled to top and not loading and has more messages
+    if (scrollTop === 0 && hasMore && !messagesLoading) {
+      // Save current scroll height to restore position after load
+      const currentScrollHeight = scrollHeight;
+      setIsAutoScrolling(true);
+      loadMore();
+      
+      // Attempt to maintain position after render (approximation)
+      // Ideally should be done in a useLayoutEffect after messages update
+      // But for now verify if this works reasonably
+    } else {
+        setIsAutoScrolling(false);
+    }
+  };
 
   // Auto-focus input when user starts typing
   useEffect(() => {
@@ -162,7 +189,11 @@ export default function ChatPage() {
         </div>
 
         {/* MESSAGES */}
-        <div className="chat-messages bg-gradient-to-b from-background/50 to-background">
+        <div 
+            className="chat-messages bg-background overflow-y-auto"
+            ref={containerRef}
+            onScroll={handleScroll}
+        >
           {messagesLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="flex flex-col items-center gap-3">

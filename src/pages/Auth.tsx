@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, Chrome, Shield, X, Lightbulb, Briefcase, Users } from 'lucide-react';
+import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, Chrome, Shield, X, Lightbulb, Briefcase, Users, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -285,6 +285,68 @@ export default function Auth() {
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-muted-foreground w-16">Password:</span>
                           <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Faculty@123</code>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Placement Officer Credentials */}
+                <button
+                  onClick={() => {
+                    setLoginEmail('placement@pec.edu');
+                    setLoginPassword('Placement@123');
+                    setLoginRole('placement_officer');
+                    setShowCredentialsModal(false);
+                  }}
+                  className="w-full bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4 hover:bg-green-100 dark:hover:bg-green-950/50 transition-all cursor-pointer text-left"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0">
+                      <Briefcase className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-foreground mb-1">Placement Officer - Mr. Vikram Malhotra</h3>
+                      <p className="text-xs text-muted-foreground mb-2">Training & Placement Cell</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-16">Email:</span>
+                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">placement@pec.edu</code>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-16">Password:</span>
+                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Placement@123</code>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Recruiter Credentials */}
+                <button
+                  onClick={() => {
+                    setLoginEmail('placement@pec.edu');
+                    setLoginPassword('Placement@123');
+                    setLoginRole('recruiter');
+                    setShowCredentialsModal(false);
+                  }}
+                  className="w-full bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-xl p-4 hover:bg-orange-100 dark:hover:bg-orange-950/50 transition-all cursor-pointer text-left"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
+                      <UserCheck className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold text-foreground mb-1">Recruiter - Rahul Mehta</h3>
+                      <p className="text-xs text-muted-foreground mb-2">Microsoft India</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-16">Email:</span>
+                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">placement@pec.edu</code>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground w-16">Password:</span>
+                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Placement@123</code>
                         </div>
                       </div>
                     </div>

@@ -85,7 +85,7 @@ interface Job {
 }
 
 export default function Jobs() {
-  const { isRecruiter, isPlacementOfficer, isAdmin, user } = usePermissions();
+  const { isRecruiter, isPlacementOfficer, isAdmin, isStudent, user } = usePermissions();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -466,24 +466,26 @@ export default function Jobs() {
                     >
                       View Detail
                     </Button>
-                    {appliedJobIds.has(job.id) ? (
-                      <Button 
-                        size="lg" 
-                        className="px-8 bg-green-600 hover:bg-green-700 text-white cursor-default"
-                        disabled
-                      >
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Applied
-                      </Button>
-                    ) : (
-                      <Button 
-                        size="lg" 
-                        className="px-8 shadow-md hover:shadow-lg transition-all"
-                        onClick={() => handleApply(job)}
-                        disabled={job.status === 'closed'}
-                      >
-                        {job.status === 'closed' ? 'Closed' : 'Apply Now'}
-                      </Button>
+                    {isStudent && (
+                      appliedJobIds.has(job.id) ? (
+                        <Button 
+                          size="lg" 
+                          className="px-8 bg-green-600 hover:bg-green-700 text-white cursor-default"
+                          disabled
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Applied
+                        </Button>
+                      ) : (
+                        <Button 
+                          size="lg" 
+                          className="px-8 shadow-md hover:shadow-lg transition-all"
+                          onClick={() => handleApply(job)}
+                          disabled={job.status === 'closed'}
+                        >
+                          {job.status === 'closed' ? 'Closed' : 'Apply Now'}
+                        </Button>
+                      )
                     )}
                     {(isRecruiter || isPlacementOfficer || isAdmin) && (
                       <DropdownMenu>
@@ -678,27 +680,29 @@ export default function Jobs() {
 
                 {/* Apply Button */}
                 <div className="flex gap-3 pt-4 border-t">
-                  {appliedJobIds.has(selectedJob.id) ? (
-                    <Button 
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-default" 
-                      size="lg"
-                      disabled
-                    >
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Already Applied
-                    </Button>
-                  ) : (
-                    <Button 
-                      className="flex-1" 
-                      size="lg"
-                      onClick={() => {
-                        handleApply(selectedJob);
-                        setSelectedJob(null);
-                      }}
-                      disabled={selectedJob.status === 'closed'}
-                    >
-                      {selectedJob.status === 'closed' ? 'Position Closed' : 'Apply for this Position'}
-                    </Button>
+                  {isStudent && (
+                    appliedJobIds.has(selectedJob.id) ? (
+                      <Button 
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white cursor-default" 
+                        size="lg"
+                        disabled
+                      >
+                        <CheckCircle2 className="w-4 h-4 mr-2" />
+                        Already Applied
+                      </Button>
+                    ) : (
+                      <Button 
+                        className="flex-1" 
+                        size="lg"
+                        onClick={() => {
+                          handleApply(selectedJob);
+                          setSelectedJob(null);
+                        }}
+                        disabled={selectedJob.status === 'closed'}
+                      >
+                        {selectedJob.status === 'closed' ? 'Position Closed' : 'Apply for this Position'}
+                      </Button>
+                    )
                   )}
                   <Button variant="outline" size="lg" onClick={() => setSelectedJob(null)}>
                     Close
