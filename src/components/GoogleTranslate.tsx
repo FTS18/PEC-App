@@ -76,7 +76,7 @@ export function GoogleTranslate({
       />
       
       <style>{`
-        /* Hide the specific google branding elements we don't want, but be careful not to hide the dropdown */
+        /* Hide the specific google branding elements we don't want */
         .goog-te-banner-frame { display: none !important; }
         .goog-logo-link { display: none !important; }
         body { top: 0px !important; }
@@ -84,9 +84,8 @@ export function GoogleTranslate({
         /* The container for the dropdown */
         .goog-te-gadget {
           font-family: inherit !important;
-          color: transparent !important; /* Hide 'Powered by Google' text */
-          width: 100% !important;
-          overflow: hidden !important;
+          font-size: 0 !important; /* Hide 'Powered by Google' text */
+          color: transparent !important;
         }
         
         /* The Actual Dropdown (Select Element) */
@@ -96,27 +95,18 @@ export function GoogleTranslate({
           border: 1px solid hsl(var(--border)) !important;
           border-radius: 6px !important;
           padding: 6px 8px !important;
-          font-size: 13px !important; /* Slightly smaller for sidebar */
+          font-size: 14px !important; /* Restore font size for dropdown */
+          font-weight: 500 !important;
           line-height: 1.5 !important;
           height: 36px !important;
-          width: 100% !important; /* Full width */
+          min-width: 120px !important;
           margin: 0 !important;
           cursor: pointer !important;
           outline: none !important;
           box-shadow: 0 1px 2px rgba(0,0,0,0.05) !important;
-          display: block !important; /* Ensure it shows */
-        }
-
-        /* Specific style for Sidebar (Darker context) */
-        #google_translate_sidebar .goog-te-combo {
-          background-color: rgba(255,255,255,0.05) !important;
-          border-color: rgba(255,255,255,0.1) !important;
-          color: rgba(255,255,255,0.9) !important;
-        }
-        
-        #google_translate_sidebar .goog-te-combo option {
-          background-color: #1a1a1a !important; /* Dark background for options */
-          color: white !important;
+          display: block !important;
+          opacity: 1 !important;
+          visibility: visible !important;
         }
 
         /* Hide all other Google clutter */
