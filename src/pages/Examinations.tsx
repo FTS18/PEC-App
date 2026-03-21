@@ -1,631 +1,445 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import {
-  FileText,
-  TrendingUp,
-  Award,
-  Calendar,
-  ChevronDown,
-  ChevronUp,
-  Download,
-  Shield,
-  Loader2,
-  Plus,
-  Trash2,
-  Save,
-  Upload,
-  Search,
-  Clock
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
+import { Calendar, FileText, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs,
-  doc,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  orderBy,
-  Timestamp
-} from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import api from '@/lib/api';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useDepartmentFilter } from '@/hooks/useDepartmentFilter';
-import BulkUpload from '@/components/BulkUpload';
-import { cn } from '@/lib/utils';
-import * as XLSX from 'xlsx';
-import { exportGradeSheet } from '@/lib/pdfExport';
-import PDFExportButton from '@/components/common/PDFExportButton';
+import { useNavigate } from 'react-router-dom';
+
+type ApiResponse<T> = { success: boolean; data: T; meta?: { total?: number } };
+
+type Course = { id: string; code: string; name: string };
+type Enrollment = { id: string; studentId: string; courseId: string; status: string };
+type ExamSchedule = {
+  id: string;
+  courseId: string;
+  courseName: string;
+  courseCode: string;
+  examType: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  room: string;
+};
+type Grade = {
+  id: string;
+  studentId: string;
+  courseId: string;
+  midterm?: number;
+  final?: number;
+  total?: number;
+  grade?: string;
+  credits?: number;
+  remarks?: string;
+};
+
+const examTypeOptions = ['Midterm', 'Final', 'Practical', 'Quiz'];
+const GRADES_ENDPOINT_DISABLED_KEY = 'api.examinations.grades.disabled';
+
+const isGradesEndpointDisabled = () =>
+  typeof window !== 'undefined' && sessionStorage.getItem(GRADES_ENDPOINT_DISABLED_KEY) === '1';
+
+const disableGradesEndpoint = () => {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(GRADES_ENDPOINT_DISABLED_KEY, '1');
+  }
+};
+
+const isNotFoundError = (error: unknown) =>
+  !!(error as any)?.response && (error as any).response.status === 404;
 
 export default function Examinations() {
   const navigate = useNavigate();
-  const { isAdmin, isFaculty, isStudent, user, loading: authLoading } = usePermissions();
-  const { filterByDepartment } = useDepartmentFilter();
-  const [loading, setLoading] = useState(true);
+  const { isAdmin, isFaculty, user, loading: authLoading } = usePermissions();
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
-    
+    if (authLoading) return;
     if (!user) {
-      navigate('/auth');
-      return;
+      navigate('/auth', { replace: true });
     }
-    setLoading(false);
-  }, [user, navigate]);
+  }, [authLoading, user, navigate]);
 
-  if (loading) return <div className="flex justify-center min-h-screen items-center"><Loader2 className="animate-spin w-8 h-8 text-primary"/></div>;
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (isAdmin || isFaculty) {
-    return <ExaminationsManager userId={user.uid} userRole={user.role} />;
+    return <ExaminationsManager />;
   }
 
   return <StudentExaminationsView userId={user.uid} />;
 }
 
-function ExaminationsManager({ userId, userRole }: { userId: string, userRole: string }) {
-  const [activeTab, setActiveTab] = useState('schedule');
-  const [showBulkUpload, setShowBulkUpload] = useState(false);
-  const [courses, setCourses] = useState<any[]>([]);
+function ExaminationsManager() {
+  const [activeTab, setActiveTab] = useState<'schedule' | 'grades'>('schedule');
+  const [loading, setLoading] = useState(false);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [schedules, setSchedules] = useState<ExamSchedule[]>([]);
   const [selectedCourse, setSelectedCourse] = useState('');
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [gradesMap, setGradesMap] = useState<Record<string, Partial<Grade>>>({});
 
-  // Schedule State
-  const [schedules, setSchedules] = useState<any[]>([]);
   const [scheduleForm, setScheduleForm] = useState({
     courseId: '',
+    examType: 'Final',
     date: '',
     startTime: '',
     endTime: '',
     room: '',
-    type: 'Final'
   });
 
-  // Grades State
-  const [students, setStudents] = useState<any[]>([]); // { id, name, gradeData }
-  const [loading, setLoading] = useState(false);
-
-  const isAdmin = userRole.includes('admin');
+  const enrolledStudents = useMemo(
+    () => enrollments.filter((e) => e.status === 'active' && e.courseId === selectedCourse),
+    [enrollments, selectedCourse],
+  );
 
   useEffect(() => {
-    fetchCourses();
-    fetchSchedules();
-  }, [userId]);
+    void bootstrap();
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'grades' && selectedCourse) {
-      fetchStudentsForGrade();
+      void loadGradesForCourse(selectedCourse);
     }
   }, [activeTab, selectedCourse]);
 
-  const fetchCourses = async () => {
-    // Get user's organization from auth context
-    const userDoc = await getDoc(doc(db, 'users', userId));
-    const userData = userDoc.data();
-    const orgId = userData?.organizationId;
+  const bootstrap = async () => {
+    try {
+      setLoading(true);
+      const [coursesRes, schedulesRes, enrollmentsRes] = await Promise.all([
+        api.get<ApiResponse<Course[]>>('/courses', { params: { limit: 200, offset: 0 } }),
+        api.get<ApiResponse<ExamSchedule[]>>('/examinations/schedules', { params: { limit: 200, offset: 0 } }),
+        api.get<ApiResponse<Enrollment[]>>('/enrollments', { params: { limit: 200, offset: 0, status: 'active' } }),
+      ]);
 
-    // Fetch courses filtered by organization
-    const q = orgId
-      ? query(collection(db, 'courses'), where('organizationId', '==', orgId))
-      : query(collection(db, 'courses'));
-    const snap = await getDocs(q);
-    let data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    
-    // Filter for faculty using assignments
-    if (!isAdmin && userId) {
-      const assignmentsQuery = query(
-        collection(db, 'facultyAssignments'),
-        where('facultyId', '==', userId)
-      );
-      const assignmentsSnap = await getDocs(assignmentsQuery);
-      
-      if (assignmentsSnap.docs.length > 0) {
-        // Faculty has assignments - show only assigned courses
-        const assignedCourseIds = assignmentsSnap.docs.map(doc => doc.data().courseId);
-        data = data.filter(course => assignedCourseIds.includes(course.id));
-      } else {
-        // No assignments - filter by department
-        const userDoc = await getDoc(doc(db, 'users', userId));
-        const userDept = userDoc.data()?.department;
-        if (userDept) {
-          data = data.filter(course => (course as any)?.department === userDept);
-        }
+      const loadedCourses = coursesRes.data.data || [];
+      setCourses(loadedCourses);
+      setSchedules(schedulesRes.data.data || []);
+      setEnrollments(enrollmentsRes.data.data || []);
+
+      if (loadedCourses.length > 0) {
+        setSelectedCourse(loadedCourses[0].id);
       }
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to load examination data');
+    } finally {
+      setLoading(false);
     }
-    
-    setCourses(data);
   };
 
-  const fetchSchedules = async () => {
-    const snap = await getDocs(collection(db, 'examSchedules'));
-    setSchedules(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+  const loadGradesForCourse = async (courseId: string) => {
+    if (isGradesEndpointDisabled()) {
+      setGradesMap({});
+      return;
+    }
+
+    try {
+      const gradesRes = await api.get<ApiResponse<Grade[]>>('/examinations/grades', {
+        params: { limit: 200, offset: 0, courseId },
+      });
+      const existing = gradesRes.data.data || [];
+      const next: Record<string, Partial<Grade>> = {};
+      existing.forEach((grade) => {
+        next[grade.studentId] = grade;
+      });
+      setGradesMap(next);
+    } catch (error) {
+      if (isNotFoundError(error)) {
+        disableGradesEndpoint();
+        setGradesMap({});
+        return;
+      }
+      console.error(error);
+      toast.error('Failed to load grades');
+    }
   };
 
   const handleAddSchedule = async () => {
-    if (!scheduleForm.courseId || !scheduleForm.date) return toast.error('Required fields missing');
-    const course = courses.find(c => c.id === scheduleForm.courseId);
-    
-    await addDoc(collection(db, 'examSchedules'), {
-      ...scheduleForm,
-      courseName: course?.name,
-      courseCode: course?.code,
-      createdAt: serverTimestamp()
-    });
-    toast.success('Schedule added');
-    fetchSchedules();
+    if (!scheduleForm.courseId || !scheduleForm.date || !scheduleForm.startTime || !scheduleForm.endTime || !scheduleForm.room) {
+      toast.error('Fill all schedule fields');
+      return;
+    }
+
+    try {
+      await api.post('/examinations/schedules', scheduleForm);
+      toast.success('Exam schedule added');
+      setScheduleForm({
+        courseId: '',
+        examType: 'Final',
+        date: '',
+        startTime: '',
+        endTime: '',
+        room: '',
+      });
+      await bootstrap();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to add schedule');
+    }
   };
 
   const handleDeleteSchedule = async (id: string) => {
     if (!confirm('Delete schedule?')) return;
-    await deleteDoc(doc(db, 'examSchedules', id));
-    toast.success('Deleted');
-    fetchSchedules();
-  };
-
-  const fetchStudentsForGrade = async () => {
-    setLoading(true);
     try {
-      // 1. Enrollments
-      const enSnap = await getDocs(query(collection(db, 'enrollments'), where('courseId', '==', selectedCourse), where('status', '==', 'active')));
-      const enrolled = enSnap.docs.map(d => ({ sid: d.data().studentId }));
-      
-      // 2. Users
-      const users = await Promise.all(enrolled.map(async (e) => {
-        const u = await getDoc(doc(db, 'users', e.sid));
-        return { id: e.sid, name: u.data()?.fullName || 'Unknown', email: u.data()?.email };
-      }));
-
-      // 3. Existing Grades
-      const gSnap = await getDocs(query(collection(db, 'grades'), where('courseId', '==', selectedCourse)));
-      const gradeMap: any = {};
-      gSnap.docs.forEach(d => gradeMap[d.data().studentId] = { id: d.id, ...d.data() });
-
-      setStudents(users.map(u => ({
-        ...u,
-        gradeData: gradeMap[u.id] || { midterm: '', final: '', total: '', grade: '', credits: '' }
-      })));
-    } catch (e) { console.error(e); }
-    setLoading(false);
+      await api.delete(`/examinations/schedules/${id}`);
+      toast.success('Schedule deleted');
+      await bootstrap();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to delete schedule');
+    }
   };
 
-  const handleGradeChange = (studentId: string, field: string, value: string) => {
-    setStudents(prev => prev.map(s => s.id === studentId ? {
-      ...s, gradeData: { ...s.gradeData, [field]: value }
-    } : s));
+  const handleGradeChange = (studentId: string, field: keyof Grade, value: string) => {
+    setGradesMap((prev) => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        [field]: ['grade', 'remarks'].includes(field) ? value : Number(value || 0),
+      },
+    }));
   };
 
-  const handleSaveGrades = async () => {
+  const saveGrades = async () => {
+    if (!selectedCourse) {
+      toast.error('Select a course first');
+      return;
+    }
+
     try {
-      const course = courses.find(c => c.id === selectedCourse);
-      const batchPromises = students.map(async (s) => {
-        const gd = s.gradeData;
-        if (!gd.grade && !gd.total) return; // Skip empty
-        
-        const data = {
-          studentId: s.id,
-          courseId: selectedCourse,
-          courseName: course?.name,
-          courseCode: course?.code,
-          academicYear: '2023-2024', // Default for now
-          semester: course?.semester || 1,
-          credits: Number(gd.credits) || course?.credits || 0,
-          midtermMarks: Number(gd.midterm) || 0,
-          finalMarks: Number(gd.final) || 0,
-          totalMarks: Number(gd.total) || 0,
-          maxMarks: 100,
-          grade: gd.grade,
-          gradePoints: calculateGradePoints(gd.grade),
-          updatedAt: serverTimestamp()
-        };
+      setLoading(true);
+      await Promise.all(
+        enrolledStudents.map(async (student) => {
+          const payload = gradesMap[student.studentId] || {};
+          const midterm = Number(payload.midterm || 0);
+          const final = Number(payload.final || 0);
+          const total = Number(payload.total || midterm + final);
+          const grade = String(payload.grade || '').trim();
 
-        if (gd.id) {
-          await updateDoc(doc(db, 'grades', gd.id), data);
-        } else {
-          await addDoc(collection(db, 'grades'), data);
-        }
-      });
-      await Promise.all(batchPromises);
-      toast.success('Grades saved');
-      fetchStudentsForGrade();
-    } catch (e) { toast.error('Failed to save'); }
-  };
-
-  const calculateGradePoints = (grade: string) => {
-    if (grade === 'A+') return 10;
-    if (grade === 'A') return 9;
-    if (grade === 'B+') return 8;
-    if (grade === 'B') return 7;
-    if (grade === 'C') return 6;
-    if (grade === 'D') return 5;
-    if (grade === 'F') return 0;
-    return 0;
-  };
-
-  const handleBulkImport = async (data: any[]) => {
-    // Determine type based on active tab
-    if (activeTab === 'schedule') {
-      // Import schedule
-      for (const row of data) {
-         // row: courseCode, date, startTime, endTime, room, type
-         const course = courses.find(c => c.code === row.courseCode);
-         if (!course) continue;
-         await addDoc(collection(db, 'examSchedules'), {
-             courseId: course.id,
-             courseName: course.name,
-             courseCode: course.code,
-             date: row.date,
-             startTime: row.startTime,
-             endTime: row.endTime,
-             room: row.room,
-             type: row.type || 'Final',
-             createdAt: serverTimestamp()
-         });
-      }
-      fetchSchedules();
-      return { success: data.length, failed: 0, errors: [] };
-    } else {
-      // Import Grades
-      // row: studentEmail, courseCode, semester, (marks...)
-      let success = 0; let failed = 0; const errors: string[] = [];
-      for (const row of data) {
-        try {
-          const course = courses.find(c => c.code === row.courseCode);
-          if (!course) throw new Error('Course not found');
-          
-          const uSnap = await getDocs(query(collection(db, 'users'), where('email', '==', row.studentEmail)));
-          if (uSnap.empty) throw new Error('Student not found');
-          const sid = uSnap.docs[0].id;
-
-          // Check exists
-          const gSnap = await getDocs(query(collection(db, 'grades'), where('studentId', '==', sid), where('courseId', '==', course.id)));
-          
-          const gradeData = {
-              studentId: sid,
-              courseId: course.id,
-              courseName: course.name,
-              courseCode: course.code,
-              semester: Number(row.semester) || course.semester,
-              academicYear: row.academicYear || '2023-2024',
-              midtermMarks: Number(row.midterm) || 0,
-              finalMarks: Number(row.final) || 0,
-              totalMarks: Number(row.total) || 0,
-              grade: row.grade,
-              gradePoints: calculateGradePoints(row.grade),
-              credits: Number(row.credits) || course.credits,
-              maxMarks: 100,
-              updatedAt: serverTimestamp()
-          };
-
-          if (!gSnap.empty) {
-             await updateDoc(doc(db, 'grades', gSnap.docs[0].id), gradeData);
-          } else {
-             await addDoc(collection(db, 'grades'), gradeData);
+          if (!grade && total === 0 && midterm === 0 && final === 0) {
+            return;
           }
-          success++;
-        } catch (e) { failed++; errors.push((e as Error).message); }
-      }
-      if (selectedCourse) fetchStudentsForGrade();
-      return { success, failed, errors };
+
+          await api.post('/examinations/grades', {
+            studentId: student.studentId,
+            courseId: selectedCourse,
+            midterm,
+            final,
+            total,
+            grade,
+            credits: Number(payload.credits || 3),
+            remarks: payload.remarks || '',
+          });
+        }),
+      );
+
+      toast.success('Grades saved');
+      await loadGradesForCourse(selectedCourse);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to save grades');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold">Exam & Grades Manager</h1>
-          <p className="text-muted-foreground">Manage schedules and student grades</p>
-        </div>
-        <div className="button-group">
-          {activeTab === 'grades' && selectedCourse && (
-            <PDFExportButton
-              onExport={async () => {
-                const course = courses.find(c => c.id === selectedCourse);
-                const gradesData = students.map(s => ({
-                  studentName: s.name,
-                  enrollmentNumber: s.email,
-                  internalMarks: s.gradeData.midterm || '-',
-                  externalMarks: s.gradeData.final || '-',
-                  totalMarks: s.gradeData.total || '-',
-                  grade: s.gradeData.grade || '-'
-                }));
-                exportGradeSheet(course?.name || 'Course', gradesData);
-              }}
-              label="Export Grade Sheet"
-              variant="outline"
-            />
-          )}
-          <Button variant="outline" onClick={() => setShowBulkUpload(true)}><Upload className="w-4 h-4 mr-2"/> Bulk Upload</Button>
-        </div>
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Examinations</h1>
+        <p className="text-muted-foreground">Manage exam schedules and student grades</p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-         <TabsList>
-           <TabsTrigger value="schedule">Exam Schedule</TabsTrigger>
-           <TabsTrigger value="grades">Grades</TabsTrigger>
-         </TabsList>
-         
-         <TabsContent value="schedule" className="space-y-4">
-           {/* Add Schedule Form */}
-           <div className="card-elevated p-4 grid gap-4 md:grid-cols-6 items-end">
-              <div className="md:col-span-2">
-                 <label className="text-xs">Course</label>
-                 <Select onValueChange={v => setScheduleForm({...scheduleForm, courseId: v})}>
-                    <SelectTrigger><SelectValue placeholder="Course"/></SelectTrigger>
-                    <SelectContent>{courses.map(c=><SelectItem key={c.id} value={c.id}>{c.code}</SelectItem>)}</SelectContent>
-                 </Select>
-              </div>
-              <div><label className="text-xs">Date</label><Input type="date" onChange={e=>setScheduleForm({...scheduleForm, date: e.target.value})}/></div>
-              <div><label className="text-xs">Time</label><Input type="time" onChange={e=>setScheduleForm({...scheduleForm, startTime: e.target.value})}/></div>
-              <div><label className="text-xs">Room</label><Input placeholder="Room" onChange={e=>setScheduleForm({...scheduleForm, room: e.target.value})}/></div>
-              <Button onClick={handleAddSchedule}><Plus className="w-4 h-4 mr-2"/> Add</Button>
-           </div>
-           
-           <div className="card-elevated p-4">
-              <h3 className="font-semibold mb-4">Upcoming Exams</h3>
-              <div className="space-y-2">
-                 {schedules.map(s => (
-                   <div key={s.id} className="flex justify-between items-center p-3 border rounded">
-                      <div>
-                        <p className="font-medium">{s.courseName} ({s.courseCode})</p>
-                        <p className="text-xs text-muted-foreground">{s.date?.toDate?.().toLocaleDateString() || s.date} | {s.startTime} - {s.endTime} | {s.room}</p>
-                      </div>
-                      <Button size="sm" variant="ghost" onClick={() => handleDeleteSchedule(s.id)}><Trash2 className="w-4 h-4 text-destructive"/></Button>
-                   </div>
-                 ))}
-              </div>
-           </div>
-         </TabsContent>
-         
-         <TabsContent value="grades" className="space-y-4">
-            <div className="card-elevated p-4">
-               <label className="text-sm font-medium mb-1 block">Select Course to Grade</label>
-               <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                  <SelectTrigger><SelectValue placeholder="Choose Course..."/></SelectTrigger>
-                  <SelectContent>{courses.map(c=><SelectItem key={c.id} value={c.id}>{c.code} - {c.name}</SelectItem>)}</SelectContent>
-               </Select>
-            </div>
-            
-            {selectedCourse && (
-              <div className="card-elevated p-4 overflow-x-auto">
-                 <table className="w-full min-w-[800px]">
-                   <thead className="bg-muted/30">
-                     <tr>
-                       <th className="p-2 text-left">Student</th>
-                       <th className="p-2 w-20">Mid</th>
-                       <th className="p-2 w-20">Final</th>
-                       <th className="p-2 w-20">Total</th>
-                       <th className="p-2 w-20">Grade</th>
-                       <th className="p-2 w-20">Cr</th>
-                     </tr>
-                   </thead>
-                   <tbody>
-                     {loading ? <tr><td colSpan={6} className="p-4 text-center">Loading...</td></tr> : students.map(s => (
-                       <tr key={s.id} className="border-b">
-                          <td className="p-2">
-                            <p className="font-medium">{s.name}</p>
-                            <p className="text-xs text-muted-foreground">{s.email}</p>
-                          </td>
-                          <td className="p-2"><Input className="h-8" value={s.gradeData.midterm} onChange={e=>handleGradeChange(s.id, 'midterm', e.target.value)}/></td>
-                          <td className="p-2"><Input className="h-8" value={s.gradeData.final} onChange={e=>handleGradeChange(s.id, 'final', e.target.value)}/></td>
-                          <td className="p-2"><Input className="h-8" value={s.gradeData.total} onChange={e=>handleGradeChange(s.id, 'total', e.target.value)}/></td>
-                          <td className="p-2"><Input className="h-8 bg-muted/20 font-bold" value={s.gradeData.grade} onChange={e=>handleGradeChange(s.id, 'grade', e.target.value)}/></td>
-                          <td className="p-2"><Input className="h-8" value={s.gradeData.credits} onChange={e=>handleGradeChange(s.id, 'credits', e.target.value)}/></td>
-                       </tr>
-                     ))}
-                   </tbody>
-                 </table>
-                 <div className="flex justify-end mt-4">
-                   <Button onClick={handleSaveGrades}><Save className="w-4 h-4 mr-2"/> Save Grades</Button>
-                 </div>
-              </div>
+      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'schedule' | 'grades')}>
+        <TabsList>
+          <TabsTrigger value="schedule">Exam Schedule</TabsTrigger>
+          <TabsTrigger value="grades">Grades</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="schedule" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+            <Select value={scheduleForm.courseId} onValueChange={(value) => setScheduleForm((p) => ({ ...p, courseId: value }))}>
+              <SelectTrigger className="md:col-span-2"><SelectValue placeholder="Course" /></SelectTrigger>
+              <SelectContent>
+                {courses.map((course) => (
+                  <SelectItem key={course.id} value={course.id}>{course.code} - {course.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={scheduleForm.examType} onValueChange={(value) => setScheduleForm((p) => ({ ...p, examType: value }))}>
+              <SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent>
+                {examTypeOptions.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}
+              </SelectContent>
+            </Select>
+
+            <Input type="date" value={scheduleForm.date} onChange={(e) => setScheduleForm((p) => ({ ...p, date: e.target.value }))} />
+            <Input type="time" value={scheduleForm.startTime} onChange={(e) => setScheduleForm((p) => ({ ...p, startTime: e.target.value }))} />
+            <Input type="time" value={scheduleForm.endTime} onChange={(e) => setScheduleForm((p) => ({ ...p, endTime: e.target.value }))} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+            <Input className="md:col-span-5" placeholder="Room" value={scheduleForm.room} onChange={(e) => setScheduleForm((p) => ({ ...p, room: e.target.value }))} />
+            <Button onClick={handleAddSchedule}><Plus className="w-4 h-4 mr-2" />Add</Button>
+          </div>
+
+          <div className="space-y-2">
+            {schedules.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No exam schedules yet</p>
+            ) : (
+              schedules.map((schedule) => (
+                <div key={schedule.id} className="border rounded-lg p-3 flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="font-medium text-foreground">{schedule.courseCode} • {schedule.courseName}</div>
+                    <div className="text-sm text-muted-foreground">{new Date(schedule.date).toLocaleDateString()} • {schedule.startTime}-{schedule.endTime} • {schedule.room}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline">{schedule.examType}</Badge>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteSchedule(schedule.id)}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              ))
             )}
-         </TabsContent>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="grades" className="space-y-4">
+          <div className="flex gap-3">
+            <Select value={selectedCourse} onValueChange={setSelectedCourse}>
+              <SelectTrigger className="max-w-md"><SelectValue placeholder="Select course" /></SelectTrigger>
+              <SelectContent>
+                {courses.map((course) => (
+                  <SelectItem key={course.id} value={course.id}>{course.code} - {course.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={saveGrades} disabled={loading}><Save className="w-4 h-4 mr-2" />Save Grades</Button>
+          </div>
+
+          <div className="space-y-2">
+            {enrolledStudents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No active enrollments for selected course</p>
+            ) : (
+              enrolledStudents.map((student) => {
+                const grade = gradesMap[student.studentId] || {};
+                return (
+                  <div key={student.id} className="grid grid-cols-1 md:grid-cols-6 gap-2 border rounded-lg p-3">
+                    <Input value={student.studentId} readOnly className="md:col-span-2" />
+                    <Input type="number" placeholder="Midterm" value={grade.midterm ?? ''} onChange={(e) => handleGradeChange(student.studentId, 'midterm', e.target.value)} />
+                    <Input type="number" placeholder="Final" value={grade.final ?? ''} onChange={(e) => handleGradeChange(student.studentId, 'final', e.target.value)} />
+                    <Input type="number" placeholder="Total" value={grade.total ?? ''} onChange={(e) => handleGradeChange(student.studentId, 'total', e.target.value)} />
+                    <Input placeholder="Grade (A/B/C)" value={grade.grade ?? ''} onChange={(e) => handleGradeChange(student.studentId, 'grade', e.target.value)} />
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </TabsContent>
       </Tabs>
 
-      <Dialog open={showBulkUpload} onOpenChange={setShowBulkUpload}>
-        <DialogContent className="max-w-4xl">
-           <DialogHeader><DialogTitle>Bulk Upload {activeTab === 'schedule' ? 'Schedule' : 'Grades'}</DialogTitle></DialogHeader>
-           <BulkUpload 
-              entityType={activeTab === 'schedule' ? 'exams' : 'grades'} 
-              onImport={handleBulkImport} 
-              templateColumns={activeTab === 'schedule' ? 
-                ['courseCode', 'date', 'startTime', 'endTime', 'room', 'type'] : 
-                ['studentEmail', 'courseCode', 'midterm', 'final', 'total', 'grade', 'credits']}
-           />
-        </DialogContent>
-      </Dialog>
-    </div>
+      {loading && (
+        <div className="flex items-center justify-center py-4">
+          <Loader2 className="w-5 h-5 animate-spin text-primary" />
+        </div>
+      )}
+    </motion.div>
   );
 }
 
 function StudentExaminationsView({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<any>(null);
-  const [semesters, setSemesters] = useState<any[]>([]);
-  const [schedules, setSchedules] = useState<any[]>([]);
-  const [cgpa, setCgpa] = useState(0);
-  const [totalCredits, setTotalCredits] = useState(0);
-  const [expandedSemester, setExpandedSemester] = useState<number | null>(null);
+  const [schedules, setSchedules] = useState<ExamSchedule[]>([]);
+  const [grades, setGrades] = useState<Grade[]>([]);
 
   useEffect(() => {
-    if (!userId) return;
-    fetchData();
+    void (async () => {
+      try {
+        const schedulePromise = api.get<ApiResponse<ExamSchedule[]>>('/examinations/schedules', {
+          params: { limit: 200, offset: 0 },
+        });
+        const gradesPromise = isGradesEndpointDisabled()
+          ? Promise.resolve({ data: { success: true, data: [] as Grade[] } })
+          : api.get<ApiResponse<Grade[]>>('/examinations/grades', {
+              params: { limit: 200, offset: 0, studentId: userId },
+            });
+
+        const [scheduleRes, gradesRes] = await Promise.all([schedulePromise, gradesPromise]);
+        setSchedules(scheduleRes.data.data || []);
+        setGrades(gradesRes.data.data || []);
+      } catch (error) {
+        if (isNotFoundError(error)) {
+          disableGradesEndpoint();
+          setGrades([]);
+          return;
+        }
+        console.error(error);
+        toast.error('Failed to load examination data');
+      } finally {
+        setLoading(false);
+      }
+    })();
   }, [userId]);
 
-  const fetchData = async () => {
-    try {
-      const uDoc = await getDoc(doc(db, 'users', userId));
-      setUserData(uDoc.data());
-
-      // Grades
-      const gSnap = await getDocs(query(collection(db, 'grades'), where('studentId', '==', userId)));
-      const grades = gSnap.docs.map(d => ({id: d.id, ...d.data()})) as any[];
-      
-      // Group by Semester
-      const semMap: any = {};
-      grades.forEach(g => {
-        const key = `${g.semester}-${g.academicYear}`;
-        if (!semMap[key]) semMap[key] = { semester: g.semester, academicYear: g.academicYear, grades: [], totalCredits: 0, totalPoints: 0 };
-        semMap[key].grades.push(g);
-        semMap[key].totalCredits += Number(g.credits);
-        semMap[key].totalPoints += (Number(g.credits) * Number(g.gradePoints));
-      });
-
-      const semData = Object.values(semMap).map((s: any) => ({
-        ...s,
-        sgpa: s.totalCredits > 0 ? (Math.round((s.totalPoints / s.totalCredits) * 100) / 100) : 0
-      }));
-      
-      setSemesters(semData.sort((a: any, b: any) => b.semester - a.semester));
-      if (semData.length > 0) setExpandedSemester(semData[0].semester);
-
-      // Calc CGPA
-      const grandTotalCredits = semData.reduce((sum: number, s: any) => sum + s.totalCredits, 0);
-      const grandTotalPoints = semData.reduce((sum: number, s: any) => sum + s.totalPoints, 0);
-      setCgpa(grandTotalCredits > 0 ? (Math.round((grandTotalPoints / grandTotalCredits) * 100) / 100) : 0);
-      setTotalCredits(grandTotalCredits);
-
-      // Schedule (My Courses)
-      const enSnap = await getDocs(query(collection(db, 'enrollments'), where('studentId', '==', userId)));
-      const myCourseIds = enSnap.docs.map(d => d.data().courseId);
-      
-      const sSnap = await getDocs(collection(db, 'examSchedules'));
-      const allSchedules = sSnap.docs.map(d => ({id:d.id, ...d.data()})) as any[];
-      setSchedules(allSchedules.filter(s => myCourseIds.includes(s.courseId) || grades.some(g => g.courseId === s.courseId))); // fallback to grades if no enrollment
-      
-    } catch(e) { console.error(e); }
-    setLoading(false);
-  };
-
-  const getGradeColor = (grade: string) => {
-    if (grade.startsWith('A')) return 'text-success';
-    if (grade.startsWith('B')) return 'text-primary';
-    if (grade.startsWith('C')) return 'text-warning';
-    return 'text-destructive';
-  };
-
-  if (loading) return <div className="p-8 text-center">Loading...</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Examinations & Grades</h1>
-        <p className="text-muted-foreground">My academic performance</p>
+        <h1 className="text-2xl font-bold text-foreground">Examinations & Grades</h1>
+        <p className="text-muted-foreground">Your exam schedule and posted grades</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-4">
-        <div className="card-elevated p-4 flex gap-3 items-center">
-           <div className="p-2 rounded bg-primary/10"><TrendingUp className="text-primary w-5 h-5"/></div>
-           <div><p className="text-sm text-muted-foreground">CGPA</p><p className="text-2xl font-bold">{cgpa}</p></div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="card-elevated p-5 space-y-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2"><Calendar className="w-5 h-5" />Upcoming Exams</h2>
+          {schedules.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No upcoming exams</p>
+          ) : (
+            schedules.map((schedule) => (
+              <div key={schedule.id} className="border rounded-lg p-3">
+                <div className="font-medium">{schedule.courseCode} • {schedule.examType}</div>
+                <div className="text-sm text-muted-foreground">{new Date(schedule.date).toLocaleDateString()} • {schedule.startTime}-{schedule.endTime} • {schedule.room}</div>
+              </div>
+            ))
+          )}
         </div>
-        <div className="card-elevated p-4 flex gap-3 items-center">
-           <div className="p-2 rounded bg-primary/10"><Award className="text-primary w-5 h-5"/></div>
-           <div><p className="text-sm text-muted-foreground">Credits</p><p className="text-2xl font-bold">{totalCredits}</p></div>
-        </div>
-      </div>
 
-      <Tabs defaultValue="schedule">
-        <TabsList>
-           <TabsTrigger value="schedule">Exam Schedule</TabsTrigger>
-           <TabsTrigger value="grades">Gradebook</TabsTrigger>
-           <TabsTrigger value="transcript">Transcript</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="schedule" className="space-y-4">
-           {schedules.length === 0 ? <p className="text-center text-muted-foreground p-8">No upcoming exams</p> : (
-             <div className="grid gap-4 md:grid-cols-2">
-                {schedules.map(s => (
-                  <div key={s.id} className="card-elevated p-4 flex justify-between items-center border-l-4 border-l-primary">
-                     <div>
-                        <h3 className="font-semibold">{s.courseName}</h3>
-                        <div className="flex bg-muted/20 rounded p-1 mt-2 text-xs gap-3">
-                           <span className="flex items-center gap-1"><Calendar className="w-3 h-3"/> {s.date?.toDate?.().toLocaleDateString() || s.date}</span>
-                           <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> {s.startTime} - {s.endTime}</span>
-                        </div>
-                     </div>
-                     <Badge>{s.type}</Badge>
-                  </div>
-                ))}
-             </div>
-           )}
-        </TabsContent>
-
-        <TabsContent value="grades" className="space-y-4">
-           {semesters.map(sem => (
-             <div key={sem.semester} className="card-elevated border bg-card text-card-foreground shadow-sm rounded-lg overflow-hidden">
-                <div onClick={() => setExpandedSemester(expandedSemester === sem.semester ? null : sem.semester)} 
-                     className="p-4 flex justify-between items-center cursor-pointer hover:bg-muted/10">
-                   <div>
-                      <h3 className="font-semibold">Semester {sem.semester}</h3>
-                      <p className="text-xs text-muted-foreground">{sem.academicYear} | SGPA: {sem.sgpa}</p>
-                   </div>
-                   {expandedSemester === sem.semester ? <ChevronUp/> : <ChevronDown/>}
+        <div className="card-elevated p-5 space-y-3">
+          <h2 className="text-lg font-semibold flex items-center gap-2"><FileText className="w-5 h-5" />My Grades</h2>
+          {grades.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No grades published yet</p>
+          ) : (
+            grades.map((grade) => (
+              <div key={grade.id} className="border rounded-lg p-3 flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Course ID: {grade.courseId}</div>
+                  <div className="text-sm text-muted-foreground">Midterm: {grade.midterm ?? '-'} • Final: {grade.final ?? '-'} • Total: {grade.total ?? '-'}</div>
                 </div>
-                {expandedSemester === sem.semester && (
-                   <div className="border-t p-4 overflow-x-auto">
-                      <table className="w-full text-sm">
-                         <thead><tr className="text-muted-foreground text-left"><th>Course</th><th>Cr</th><th>Total</th><th>Grade</th></tr></thead>
-                         <tbody className="divide-y">
-                            {sem.grades.map((g: any) => (
-                              <tr key={g.id}>
-                                 <td className="py-2">{g.courseCode} - {g.courseName}</td>
-                                 <td>{g.credits}</td>
-                                 <td>{g.totalMarks}</td>
-                                 <td className={getGradeColor(g.grade)}>{g.grade}</td>
-                              </tr>
-                            ))}
-                         </tbody>
-                      </table>
-                   </div>
-                )}
-             </div>
-           ))}
-        </TabsContent>
-
-        <TabsContent value="transcript">
-           <div className="card-elevated p-8 bg-white text-black dark:bg-zinc-900 dark:text-white">
-              <div className="flex justify-between border-b pb-4 mb-4">
-                 <h2 className="text-xl font-bold font-serif">OFFICIAL TRANSCRIPT</h2>
-                 <Shield className="w-8 h-8 opacity-20"/>
+                <Badge>{grade.grade || 'N/A'}</Badge>
               </div>
-              <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
-                 <div><p className="text-muted-foreground">Name</p><p className="font-bold">{userData?.fullName}</p></div>
-                 <div><p className="text-muted-foreground">Enrollment No.</p><p className="font-bold">{userData?.enrollmentNumber || 'N/A'}</p></div>
-                 <div><p className="text-muted-foreground">CGPA</p><p className="font-bold">{cgpa}</p></div>
-              </div>
-              <table className="w-full text-sm border-collapse border">
-                 <thead><tr className="bg-muted/20"><th className="border p-2">Sem</th><th className="border p-2">Course</th><th className="border p-2">Cr</th><th className="border p-2">Grade</th></tr></thead>
-                 <tbody>
-                    {semesters.flatMap(s => s.grades.map((g: any) => (
-                      <tr key={g.id}>
-                         <td className="border p-2 text-center">{s.semester}</td>
-                         <td className="border p-2">{g.courseCode}</td>
-                         <td className="border p-2 text-center">{g.credits}</td>
-                         <td className="border p-2 text-center font-bold">{g.grade}</td>
-                      </tr>
-                    )))}
-                 </tbody>
-              </table>
-           </div>
-        </TabsContent>
-      </Tabs>
-    </div>
+            ))
+          )}
+        </div>
+      </div>
+    </motion.div>
   );
 }

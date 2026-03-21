@@ -19,10 +19,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
 import { toast } from 'sonner';
+import { usePermissions } from '@/hooks/usePermissions';
+import api from '@/lib/api';
 
 const container = {
   hidden: { opacity: 0 },
@@ -39,6 +38,7 @@ const item = {
 
 export function CollegeAdminDashboard() {
   const navigate = useNavigate();
+  const { user, loading: authLoading, isAdmin } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -52,63 +52,36 @@ export function CollegeAdminDashboard() {
   const [recentAdmissions, setRecentAdmissions] = useState<any[]>([]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
+    if (authLoading) return;
 
-      try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userData = userDoc.data();
-        const orgId = userData?.organizationId;
+    if (!user) {
+      navigate('/auth', { replace: true });
+      return;
+    }
 
-        if (!orgId) {
-          // Fallback or handle error
-          console.warn("No organization ID found for user");
-        }
+    if (!isAdmin) {
+      toast.error('Access denied');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
 
-        await fetchDashboardData(orgId);
-      } catch (error) {
-        console.error("Error loading dashboard:", error);
-        toast.error("Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    });
+    void fetchDashboardData();
+  }, [authLoading, user, isAdmin, navigate]);
 
-    return () => unsubscribe();
-  }, [navigate]);
-
-  const fetchDashboardData = async (orgId?: string) => {
+  const fetchDashboardData = async () => {
     try {
-      // 1. Fetch Users
-      let usersQuery = collection(db, 'users');
-      // If we had orgId logic fully strict, we'd filter here:
-      // if (orgId) usersQuery = query(collection(db, 'users'), where('organizationId', '==', orgId));
-      // For now, fetching all or filtering if orgId is present to match AdminDashboard logic
-      const usersSnapshot = await getDocs(orgId 
-        ? query(collection(db, 'users'), where('organizationId', '==', orgId)) 
-        : collection(db, 'users')
-      );
-      
-      const users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
+      type ApiResponse<T> = { success: boolean; data: T; meta?: { total?: number } };
+      const [usersResponse, coursesResponse] = await Promise.all([
+        api.get<ApiResponse<any[]>>('/users', { params: { limit: 200, offset: 0 } }),
+        api.get<ApiResponse<any[]>>('/courses', { params: { limit: 200, offset: 0 } }),
+      ]);
+
+      const users = usersResponse.data.data || [];
       const studentCount = users.filter(u => u.role === 'student').length;
       const facultyCount = users.filter(u => u.role === 'faculty').length;
 
-      // 2. Fetch Courses
-      const coursesSnapshot = await getDocs(orgId
-        ? query(collection(db, 'courses'), where('organizationId', '==', orgId))
-        : collection(db, 'courses')
-      );
-      const coursesCount = coursesSnapshot.size;
-
-      // 3. Fetch Fees
-      const feesSnapshot = await getDocs(collection(db, 'feeRecords'));
-      const fees = feesSnapshot.docs.map(doc => doc.data());
-      const totalCollected = fees
-        .filter((f: any) => f.status === 'paid')
-        .reduce((sum, f: any) => sum + (Number(f.amount) || 0), 0);
+      const coursesCount = coursesResponse.data.meta?.total ?? (coursesResponse.data.data || []).length;
+      const totalCollected = 0;
 
       setStats({
         totalStudents: studentCount,
@@ -141,13 +114,15 @@ export function CollegeAdminDashboard() {
       // 5. Recent Admissions (Newest students)
       const recentStudents = users
         .filter(u => u.role === 'student')
-        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
         .slice(0, 5);
       
       setRecentAdmissions(recentStudents);
 
     } catch (e) {
       console.error("Fetch error:", e);
+      toast.error('Failed to load dashboard data');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -314,7 +289,7 @@ export function CollegeAdminDashboard() {
                                         key={student.id}
                                         name={student.fullName}
                                         department={student.department || 'N/A'}
-                                        date={student.createdAt ? new Date(student.createdAt.seconds * 1000).toLocaleDateString() : 'N/A'}
+                                      date={student.createdAt ? new Date(student.createdAt).toLocaleDateString() : 'N/A'}
                                         status={student.status === 'active' ? 'approved' : 'pending'}
                                     />
                                 ))

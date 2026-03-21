@@ -179,9 +179,9 @@ const values = [
 
 const faqs = [
   {
-    question: "What makes OmniFlow different from other college management systems?",
+    question: "What makes PEC different from other college management systems?",
     answer:
-      "OmniFlow is built by educators and technologists who actually understand college operations. Unlike generic ERPs, we focus on the real pain points - from simplifying attendance tracking to automating fee reminders. Everything is designed to save you time, not add more complexity.",
+      "PEC is built by educators and technologists who actually understand college operations. Unlike generic ERPs, we focus on the real pain points - from simplifying attendance tracking to automating fee reminders. Everything is designed to save you time, not add more complexity.",
   },
   {
     question: "How quickly can we get started?",
@@ -191,7 +191,7 @@ const faqs = [
   {
     question: "Will this work with our existing tools?",
     answer:
-      "Yes! OmniFlow integrates seamlessly with popular tools you're already using - Google Classroom, payment gateways, library systems, and more. If you have a specific system, our team will build custom integrations to make everything work together.",
+      "Yes! PEC integrates seamlessly with popular tools you're already using - Google Classroom, payment gateways, library systems, and more. If you have a specific system, our team will build custom integrations to make everything work together.",
   },
   {
     question: "How secure is student and institutional data?",
@@ -204,14 +204,14 @@ const faqs = [
       "Our support team is available 24/7 via chat, email, and phone. You also get access to video tutorials, detailed guides, and a community forum. Premium plans include a dedicated account manager who knows your college inside out.",
   },
   {
-    question: "Can OmniFlow grow with our institution?",
+    question: "Can PEC grow with our institution?",
     answer:
-      "Absolutely. Whether you're a small college today or planning to expand to multiple campuses, OmniFlow scales automatically. Add more departments, students, or features anytime without worrying about performance or additional setup.",
+      "Absolutely. Whether you're a small college today or planning to expand to multiple campuses, PEC scales automatically. Add more departments, students, or features anytime without worrying about performance or additional setup.",
   },
   {
     question: "Can we try it before committing?",
     answer:
-      "Yes! Get a 14-day free trial with full feature access - no credit card needed. Want to see it in action first? Book a personalized demo where we'll show you exactly how OmniFlow solves your college's specific challenges.",
+      "Yes! Get a 14-day free trial with full feature access - no credit card needed. Want to see it in action first? Book a personalized demo where we'll show you exactly how PEC solves your college's specific challenges.",
   },
   {
     question: "Do you provide training for our staff and faculty?",
@@ -230,7 +230,7 @@ export function About() {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-xl">OmniFlow</span>
+            <span className="font-bold text-xl">PEC</span>
           </Link>
           <div className="flex items-center gap-4">
             <Button variant="ghost" asChild>
@@ -280,7 +280,7 @@ export function About() {
             variants={item}
             className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto"
           >
-            OmniFlow combines student management, academics, finance, attendance,
+            PEC combines student management, academics, finance, attendance,
             and placements into a unified system designed for modern educational
             institutions.
           </motion.p>
@@ -353,12 +353,12 @@ export function About() {
                 className="text-3xl md:text-4xl font-bold mb-6"
                 style={{ fontFamily: "'Monument Extended', serif" }}
               >
-                Why Institutions Choose OmniFlow
+                Why Institutions Choose PEC
               </h2>
               <p className="text-muted-foreground mb-8">
                 Built by educators and technologists who understand the challenges
                 of running modern educational institutions. Here's what makes
-                OmniFlow different.
+                PEC different.
               </p>
 
               <div className="space-y-6">
@@ -456,7 +456,7 @@ export function About() {
               Our Values
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              The principles that guide everything we do at OmniFlow.
+              The principles that guide everything we do at PEC.
             </p>
           </motion.div>
 
@@ -635,7 +635,7 @@ export function About() {
       {/* Footer */}
       <footer className="py-8 px-6 border-t border-border">
         <div className="container mx-auto text-center text-sm text-muted-foreground">
-          <p>© 2024 OmniFlow. All rights reserved.</p>
+          <p>© 2024 PEC. All rights reserved.</p>
         </div>
       </footer>
     </div>

@@ -7,7 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { deleteMessage, toggleStarMessage } from "@/lib/messages.service";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "sonner";
 
 interface Props {
@@ -31,7 +31,7 @@ export function MessageActions({
   
   const isOwnMessage = user?.uid === senderId;
   const userRole = user?.role as string;
-  const isAdmin = userRole === "admin" || userRole === "super_admin";
+  const isAdmin = userRole === "admin" || userRole === "college_admin";
   const canDelete = isOwnMessage || isAdmin;
 
   const handleDelete = async () => {

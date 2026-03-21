@@ -3,7 +3,7 @@ import { Image, Video, Paperclip, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { uploadMedia, validateFileSize, getFileType } from "@/lib/cloudinary.service";
 import { sendMediaMessage } from "@/lib/messages.service";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "sonner";
 
 interface Props {

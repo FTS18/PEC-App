@@ -26,9 +26,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import QRAttendanceGenerator from '@/components/attendance/QRAttendanceGenerator';
 import FacultyScheduleManager from '@/components/timetable/FacultyScheduleManager';
-import { onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import api from '@/lib/api';
 import { toast } from 'sonner';
 
 const container = {
@@ -46,43 +45,63 @@ const item = {
 
 export function FacultyDashboard() {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [showScheduleManager, setShowScheduleManager] = useState(false);
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userData, setUserData] = useState<any>(null);
+  const [stats, setStats] = useState({ activeCount: 0, studentCount: 0 });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
+    if (authLoading) return;
 
+    if (!user || user.role !== 'faculty') {
+      navigate('/auth', { replace: true });
+      return;
+    }
+
+    void (async () => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userInfo = userDoc.data();
-        setUserData(userInfo);
+        type ApiResponse<T> = { success: boolean; data: T; meta?: any };
 
-        // Fetch courses for this faculty's organization
-        const coursesQuery = query(
-          collection(db, 'courses'),
-          where('organizationId', '==', userInfo?.organizationId)
+        const [coursesRes, enrollmentsRes] = await Promise.all([
+          api.get<ApiResponse<any>>('/courses', { params: { limit: 200, offset: 0 } }),
+          api.get<ApiResponse<any>>('/enrollments', { params: { limit: 200, offset: 0 } }),
+        ]);
+
+        const allCourses = coursesRes.data.data || [];
+        const allEnrollments = enrollmentsRes.data.data || [];
+
+        // Filter courses by instructor name
+        const facultyCourses = allCourses.filter((c: any) => 
+          c.instructor && user.fullName && c.instructor.toLowerCase().includes(user.fullName.toLowerCase())
         );
-        const coursesSnapshot = await getDocs(coursesQuery);
-        const coursesData = coursesSnapshot.docs.map(doc => ({ 
-          id: doc.id, 
-          ...doc.data() 
-        }));
-        setCourses(coursesData);
+
+        setCourses(facultyCourses);
+
+        const uniqueStudents = new Set(
+          allEnrollments
+            .filter((e: any) => facultyCourses.some((c: any) => c.id === e.courseId))
+            .map((e: any) => e.studentId)
+        );
+
+        setStats({
+          activeCount: facultyCourses.length,
+          studentCount: uniqueStudents.size,
+        });
+
+        if (facultyCourses.length > 0) {
+          setSelectedCourse(facultyCourses[0]);
+        }
       } catch (error) {
         console.error('Error fetching faculty data:', error);
         toast.error('Failed to load courses');
       } finally {
         setLoading(false);
       }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    })();
+  }, [authLoading, user, navigate]);
 
   const handleGenerateQR = () => {
     if (!selectedCourse) {
@@ -138,13 +157,13 @@ export function FacultyDashboard() {
         <StatCard
           icon={BookOpen}
           label="Active Courses"
-          value="4"
+          value={String(stats.activeCount)}
           subtext="This semester"
         />
         <StatCard
           icon={Users}
           label="Total Students"
-          value="245"
+          value={String(stats.studentCount)}
           subtext="Across all courses"
         />
         <StatCard

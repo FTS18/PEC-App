@@ -14,7 +14,7 @@ const posts = [
   {
     id: 2,
     title: "Migrating from Legacy Systems: A Success Story",
-    excerpt: "Learn how a top university migrated to OmniFlow in just 2 weeks.",
+    excerpt: "Learn how a top university migrated to PEC in just 2 weeks.",
     date: "Jan 10, 2024",
     author: "Mike Chen",
     category: "Case Study",
@@ -52,7 +52,7 @@ export function Blog() {
           transition={{ delay: 0.1 }}
           className="text-xl text-muted-foreground"
         >
-          Insights, updates, and stories from the OmniFlow team.
+          Insights, updates, and stories from the PEC team.
         </motion.p>
       </div>
 

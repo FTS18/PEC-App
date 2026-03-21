@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/config/firebase';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Mail, Phone, Building2, Calendar, User, BookOpen, ClipboardCheck, FileText, Award, CreditCard, Receipt, Wrench, ShieldAlert, UtensilsCrossed, Briefcase, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Mail, Phone, Building2, Calendar, User, BookOpen, ClipboardCheck, Award, CreditCard, Receipt, Wrench, ShieldAlert, UtensilsCrossed, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import api from '@/lib/api';
 
 export default function UserDetail() {
   const { userId } = useParams();
@@ -16,121 +15,75 @@ export default function UserDetail() {
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [grades, setGrades] = useState<any[]>([]);
   const [attendance, setAttendance] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
   const [hostelIssues, setHostelIssues] = useState<any[]>([]);
   const [profileData, setProfileData] = useState<any>(null);
   const [canteenOrders, setCanteenOrders] = useState<any[]>([]);
-  const [placementApps, setPlacementApps] = useState<any[]>([]);
 
   useEffect(() => {
     const fetchAllData = async () => {
       try {
-        // Fetch user
-        const userDoc = await getDoc(doc(db, 'users', userId!));
-        if (!userDoc.exists()) {
+        if (!userId) {
+          navigate('/users');
+          return;
+        }
+
+        type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+
+        const userResponse = await api.get(`/users/${userId}`);
+        const userData = userResponse.data?.success ? userResponse.data.data : userResponse.data;
+
+        if (!userData) {
           toast.error('User not found');
           navigate('/users');
           return;
         }
-        const userData = { id: userDoc.id, ...userDoc.data() } as any;
+
         setUser(userData);
+        setProfileData(userData);
 
-        // Fetch role-specific profile
-        let profileTable = '';
-        if (userData.role === 'student') profileTable = 'studentProfiles';
-        else if (userData.role === 'faculty') profileTable = 'facultyProfiles';
-        else if (userData.role === 'college_admin') profileTable = 'collegeAdminProfiles';
-        else if (userData.role === 'placement_officer') profileTable = 'placementOfficerProfiles';
-        else if (userData.role === 'recruiter') profileTable = 'recruiterProfiles';
-
-        if (profileTable) {
-          const profileDoc = await getDoc(doc(db, profileTable, userId!));
-          if (profileDoc.exists()) {
-            setProfileData(profileDoc.data());
-          }
-        }
-
-        // Fetch student-specific data
         if (userData.role === 'student') {
-          // Fetch enrollments
-          const enrollmentsQuery = query(collection(db, 'enrollments'), where('studentId', '==', userId));
-          const enrollmentsSnap = await getDocs(enrollmentsQuery);
-          const enrollmentsData = await Promise.all(
-            enrollmentsSnap.docs.map(async (enrollDoc) => {
-              const enrollment = { id: enrollDoc.id, ...enrollDoc.data() } as any;
-              if (enrollment.courseId) {
-                const courseDoc = await getDoc(doc(db, 'courses', enrollment.courseId));
-                return {
-                  ...enrollment,
-                  courseName: courseDoc.data()?.name || 'Unknown Course',
-                  courseCode: courseDoc.data()?.code || 'N/A',
-                };
-              }
-              return { ...enrollment, courseName: 'Unknown Course', courseCode: 'N/A' };
-            })
-          );
+          const [
+            enrollmentsResult,
+            gradesResult,
+            attendanceResult,
+            coursesResult,
+          ] = await Promise.all([
+            api.get<ApiResponse<any[]>>('/enrollments', {
+              params: { limit: 200, offset: 0, studentId: userId },
+            }),
+            api.get<ApiResponse<any[]>>('/examinations/grades', {
+              params: { limit: 200, offset: 0, studentId: userId },
+            }),
+            api.get<ApiResponse<any[]>>('/attendance', {
+              params: { limit: 200, offset: 0, studentId: userId },
+            }),
+            api.get<ApiResponse<any[]>>('/courses', {
+              params: { limit: 200, offset: 0 },
+            }),
+          ]);
+
+          const enrollmentsData = enrollmentsResult.data.data || [];
+          const gradesRaw = gradesResult.data.data || [];
+          const attendanceData = attendanceResult.data.data || [];
+          const courses = coursesResult.data.data || [];
+
+          const courseMap = new Map(courses.map((course: any) => [course.id, course]));
+          const gradesData = gradesRaw.map((grade: any) => {
+            const course = courseMap.get(grade.courseId);
+            return {
+              ...grade,
+              courseName: grade.courseName || course?.name || 'Unknown Course',
+              courseCode: grade.courseCode || course?.code || 'N/A',
+            };
+          });
+
           setEnrollments(enrollmentsData);
-
-          // Fetch grades
-          const gradesQuery = query(collection(db, 'grades'), where('studentId', '==', userId));
-          const gradesSnap = await getDocs(gradesQuery);
-          const gradesData = await Promise.all(
-            gradesSnap.docs.map(async (gradeDoc) => {
-              const grade = { id: gradeDoc.id, ...gradeDoc.data() } as any;
-              // Use courseName and courseCode from grade if available
-              if (grade.courseName && grade.courseCode) {
-                return grade;
-              }
-              // Otherwise try to fetch from courses collection
-              if (grade.courseId) {
-                try {
-                  const courseDoc = await getDoc(doc(db, 'courses', grade.courseId));
-                  if (courseDoc.exists()) {
-                    return {
-                      ...grade,
-                      courseName: courseDoc.data()?.name || grade.courseName || 'Unknown Course',
-                      courseCode: courseDoc.data()?.code || grade.courseCode || 'N/A',
-                    };
-                  }
-                } catch (error) {
-                  console.error('Error fetching course:', error);
-                }
-              }
-              return { ...grade, courseName: grade.courseName || 'Unknown Course', courseCode: grade.courseCode || 'N/A' };
-            })
-          );
           setGrades(gradesData);
-
-          // Fetch attendance
-          const attendanceQuery = query(collection(db, 'attendance'), where('studentId', '==', userId));
-          const attendanceSnap = await getDocs(attendanceQuery);
-          setAttendance(attendanceSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-          // Fetch assignments
-          const assignmentsQuery = query(collection(db, 'submissions'), where('studentId', '==', userId));
-          const assignmentsSnap = await getDocs(assignmentsQuery);
-          setAssignments(assignmentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-          // Fetch Finance/Payments
-          const paymentsQuery = query(collection(db, 'payments'), where('studentId', '==', userId));
-          const paymentsSnap = await getDocs(paymentsQuery);
-          setPayments(paymentsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-          // Fetch Hostel Issues
-          const hostelQuery = query(collection(db, 'hostelIssues'), where('studentId', '==', userId));
-          const hostelSnap = await getDocs(hostelQuery);
-          setHostelIssues(hostelSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-          // Fetch Canteen Orders
-          const canteenQuery = query(collection(db, 'canteenOrders'), where('studentId', '==', userId));
-          const canteenSnap = await getDocs(canteenQuery);
-          setCanteenOrders(canteenSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-          // Fetch Placement Applications
-          const placementQuery = query(collection(db, 'placementApplications'), where('studentId', '==', userId));
-          const placementSnap = await getDocs(placementQuery);
-          setPlacementApps(placementSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          setAttendance(attendanceData);
+          setPayments([]);
+          setHostelIssues([]);
+          setCanteenOrders([]);
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -141,7 +94,7 @@ export default function UserDetail() {
     };
 
     fetchAllData();
-  }, [userId]);
+  }, [userId, navigate]);
 
   if (loading) {
     return (
@@ -158,7 +111,6 @@ export default function UserDetail() {
 
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
-      case 'super_admin': return 'destructive';
       case 'college_admin': return 'default';
       case 'faculty': return 'secondary';
       case 'student': return 'outline';
@@ -168,7 +120,7 @@ export default function UserDetail() {
 
   const formatDate = (date: any) => {
     if (!date) return 'N/A';
-    // Handle Firestore Timestamp
+    // Handle backend timestamp shape
     if (date?.seconds) {
       return new Date(date.seconds * 1000).toLocaleDateString();
     }
@@ -417,39 +369,6 @@ export default function UserDetail() {
             )}
           </div>
 
-          {/* Assignments */}
-          <div className="card-elevated p-6">
-            <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
-              <FileText className="w-5 h-5" />
-              Assignment Submissions ({assignments.length})
-            </h2>
-            {assignments.length > 0 ? (
-              <div className="grid gap-3">
-                {assignments.map((assignment) => (
-                  <div key={assignment.id} className="p-4 border border-border rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-foreground">{assignment.assignmentTitle || 'Assignment'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Submitted: {formatDate(assignment.submittedAt)}
-                        </p>
-                      </div>
-                      <Badge variant={assignment.status === 'graded' ? 'default' : 'secondary'}>
-                        {assignment.status || 'submitted'}
-                      </Badge>
-                    </div>
-                    {assignment.marks && (
-                      <p className="mt-2 text-sm text-foreground">
-                        Score: {assignment.marks}/{assignment.totalMarks || 100}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-4">No assignments submitted</p>
-            )}
-          </div>
         </>
       )}
 
@@ -536,45 +455,6 @@ export default function UserDetail() {
             <div className="text-center py-8 bg-muted/20 rounded-lg flex flex-col items-center">
               <ShieldAlert className="w-10 h-10 text-muted-foreground/30 mb-2" />
               <p className="text-muted-foreground">No hostel issues reported</p>
-            </div>
-          )}
-        </motion.div>
-      )}
-
-      {/* Placement Applications */}
-      {user.role === 'student' && (
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card-elevated p-6"
-        >
-          <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
-            <Briefcase className="w-5 h-5 text-indigo-500" />
-            Placement Applications ({placementApps.length})
-          </h2>
-          {placementApps.length > 0 ? (
-            <div className="space-y-3">
-              {placementApps.map((app) => (
-                <div key={app.id} className="p-4 border border-border rounded-lg flex items-center justify-between">
-                  <div className="flex gap-3">
-                    <div className="p-2 rounded-full bg-indigo-500/10">
-                      <Briefcase className="w-4 h-4 text-indigo-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">{app.jobTitle || 'Job Application'}</p>
-                      <p className="text-sm text-muted-foreground">{app.companyName}</p>
-                    </div>
-                  </div>
-                  <Badge variant={app.status === 'placed' ? 'success' : app.status === 'rejected' ? 'destructive' : 'secondary'}>
-                    {app.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 bg-muted/20 rounded-lg flex flex-col items-center">
-              <Briefcase className="w-10 h-10 text-muted-foreground/30 mb-2" />
-              <p className="text-muted-foreground">No placement applications yet</p>
             </div>
           )}
         </motion.div>

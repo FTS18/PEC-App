@@ -3,9 +3,9 @@ import { Send, Paperclip, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { MediaUpload } from '@/components/chat/MediaUpload';
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/config/firebase";
-import { useAuth } from "@/hooks/useAuth";
+import { collection, getDocs, query, where } from '@/lib/dataClient';
+
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { toast } from 'sonner';
@@ -69,7 +69,7 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 
   const fetchUsers = async () => {
     try {
-      const q = query(collection(db, "users"), where("organizationId", "==", user?.organizationId));
+      const q = query(collection(({} as any), "users"), where("organizationId", "==", user?.organizationId));
       const snap = await getDocs(q);
       const users = snap.docs
         .map(doc => ({ 

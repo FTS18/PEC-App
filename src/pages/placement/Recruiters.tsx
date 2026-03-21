@@ -41,20 +41,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { db } from '@/config/firebase';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  getDocs,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-} from 'firebase/firestore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -99,7 +85,7 @@ export default function Recruiters() {
   });
 
   useEffect(() => {
-    const q = query(collection(db, 'recruiter_companies'), orderBy('name', 'asc'));
+    const q = query(collection(({} as any), 'recruiter_companies'), orderBy('name', 'asc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RecruiterCompany));
       setCompanies(data);
@@ -114,7 +100,7 @@ export default function Recruiters() {
   }, [isAdmin, isPlacementOfficer]);
 
   useEffect(() => {
-    const unsubJobs = onSnapshot(query(collection(db, 'jobs'), where('status', '==', 'open')), (snap) => {
+    const unsubJobs = onSnapshot(query(collection(({} as any), 'jobs'), where('status', '==', 'open')), (snap) => {
       const counts: Record<string, number> = {};
       snap.docs.forEach(doc => {
         const rid = doc.data().recruiterId;
@@ -126,7 +112,7 @@ export default function Recruiters() {
       setJobCounts(counts);
     });
 
-    const unsubHired = onSnapshot(query(collection(db, 'applications'), where('status', '==', 'hired')), (snap) => {
+    const unsubHired = onSnapshot(query(collection(({} as any), 'applications'), where('status', '==', 'hired')), (snap) => {
       const counts: Record<string, number> = {};
       snap.docs.forEach(doc => {
         const rid = doc.data().recruiterId;
@@ -145,7 +131,7 @@ export default function Recruiters() {
   const syncRecruiters = async () => {
     setSyncing(true);
     try {
-      const usersQ = query(collection(db, 'users'), where('role', '==', 'recruiter'));
+      const usersQ = query(collection(({} as any), 'users'), where('role', '==', 'recruiter'));
       const userSnap = await getDocs(usersQ);
       
       let syncedCount = 0;
@@ -154,7 +140,7 @@ export default function Recruiters() {
         const existing = companies.find(c => c.contactEmail === userData.email);
         
         if (!existing) {
-          await addDoc(collection(db, 'recruiter_companies'), {
+          await addDoc(collection(({} as any), 'recruiter_companies'), {
             name: userData.company || userData.fullName.split(' ')[0] + ' Corp',
             industry: 'Technology',
             location: 'India',
@@ -185,13 +171,13 @@ export default function Recruiters() {
     e.preventDefault();
     try {
       if (editingCompany) {
-        await updateDoc(doc(db, 'recruiter_companies', editingCompany.id), {
+        await updateDoc(doc(({} as any), 'recruiter_companies', editingCompany.id), {
           ...formData,
           updatedAt: serverTimestamp(),
         });
         toast.success('Company updated successfully');
       } else {
-        await addDoc(collection(db, 'recruiter_companies'), {
+        await addDoc(collection(({} as any), 'recruiter_companies'), {
           ...formData,
           totalHires: 0,
           openJobs: 0,
@@ -208,7 +194,7 @@ export default function Recruiters() {
 
   const handleUpdateStatus = async (id: string, newStatus: RecruiterCompany['status']) => {
     try {
-      await updateDoc(doc(db, 'recruiter_companies', id), {
+      await updateDoc(doc(({} as any), 'recruiter_companies', id), {
         status: newStatus,
         updatedAt: serverTimestamp(),
       });
@@ -222,7 +208,7 @@ export default function Recruiters() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to remove this company?')) return;
     try {
-      await deleteDoc(doc(db, 'recruiter_companies', id));
+      await deleteDoc(doc(({} as any), 'recruiter_companies', id));
       toast.success('Company removed');
     } catch (error) {
       toast.error('Failed to remove company');
@@ -249,7 +235,7 @@ export default function Recruiters() {
     setSelectedCompanyHires(null);
     try {
       const q = query(
-        collection(db, 'applications'), 
+        collection(({} as any), 'applications'), 
         where('status', '==', 'hired'),
         where('companyName', '==', company.name)
       );

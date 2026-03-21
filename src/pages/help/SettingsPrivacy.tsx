@@ -43,7 +43,7 @@ The 'Profile Strength' bar on your dashboard will guide you through missing item
 • **In-App Notifications**: Real-time popups while you're using the platform.
 • **Email Digests**: Weekly or daily summaries of academic and campus activities.
 • **SMS Alerts**: reserved for urgent announcements like exam cancellations or security alerts.
-• **Browser Push**: Receive alerts even when OmniFlow is in a background tab.
+• **Browser Push**: Receive alerts even when PEC is in a background tab.
 
 Toggle these in **Settings > Notifications**.`
   },
@@ -52,7 +52,7 @@ Toggle these in **Settings > Notifications**.`
     title: 'Customizing Appearance', 
     description: 'Managing themes, color palettes, and accessibility modes', 
     readTime: '2 min',
-    content: `Make OmniFlow your own:
+    content: `Make PEC your own:
 
 • **Dark Mode**: Reduces eye strain in low-light environments.
 • **Light Mode**: High contrast for daylight use.

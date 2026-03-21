@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/common/AsyncState';
 
 interface Notification {
   id: string;
@@ -101,7 +102,7 @@ export default function Notifications() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -120,74 +121,70 @@ export default function Notifications() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         {/* Total Stats */}
-        <Card className="border-none shadow-lg bg-gradient-to-br from-blue-600 to-violet-600 text-white overflow-hidden relative group">
-          <CardContent className="pt-6 relative z-10">
+        <Card className="card-elevated">
+          <CardContent className="ui-card-pad">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm shrink-0">
-                <Bell className="w-5 h-5 md:w-6 md:h-6 text-white" />
+              <div className="p-2.5 rounded-md bg-primary/10 shrink-0">
+                <Bell className="w-5 h-5 text-primary" />
               </div>
               <div className="text-center sm:text-left">
-                <p className="text-2xl md:text-3xl font-bold">{notifications.length}</p>
-                <p className="text-[10px] md:text-sm text-blue-100 font-medium whitespace-nowrap">Total Notifications</p>
+                <p className="text-2xl font-bold text-foreground">{notifications.length}</p>
+                <p className="text-xs text-muted-foreground font-medium whitespace-nowrap">Total Notifications</p>
               </div>
             </div>
-            <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
           </CardContent>
         </Card>
 
         {/* Unread Stats */}
-        <Card className="border-none shadow-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white overflow-hidden relative group">
-          <CardContent className="pt-6 relative z-10">
+        <Card className="card-elevated">
+          <CardContent className="ui-card-pad">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm shrink-0">
-                <Bell className="w-5 h-5 md:w-6 md:h-6 text-white animate-pulse" />
+              <div className="p-2.5 rounded-md bg-warning/10 shrink-0">
+                <Bell className="w-5 h-5 text-warning" />
               </div>
               <div className="text-center sm:text-left">
-                <p className="text-2xl md:text-3xl font-bold">{unreadCount}</p>
-                <p className="text-[10px] md:text-sm text-amber-100 font-medium whitespace-nowrap">Unread Alerts</p>
+                <p className="text-2xl font-bold text-foreground">{unreadCount}</p>
+                <p className="text-xs text-muted-foreground font-medium whitespace-nowrap">Unread Alerts</p>
               </div>
             </div>
-            <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
           </CardContent>
         </Card>
 
         {/* Read Stats */}
-        <Card className="border-none shadow-lg bg-gradient-to-br from-emerald-500 to-teal-600 text-white overflow-hidden relative group">
-          <CardContent className="pt-6 relative z-10">
+        <Card className="card-elevated">
+          <CardContent className="ui-card-pad">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm shrink-0">
-                <Check className="w-5 h-5 md:w-6 md:h-6 text-white" />
+              <div className="p-2.5 rounded-md bg-success/10 shrink-0">
+                <Check className="w-5 h-5 text-success" />
               </div>
               <div className="text-center sm:text-left">
-                <p className="text-2xl md:text-3xl font-bold">{notifications.length - unreadCount}</p>
-                <p className="text-[10px] md:text-sm text-emerald-100 font-medium whitespace-nowrap">Read Messages</p>
+                <p className="text-2xl font-bold text-foreground">{notifications.length - unreadCount}</p>
+                <p className="text-xs text-muted-foreground font-medium whitespace-nowrap">Read Messages</p>
               </div>
             </div>
-            <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
           </CardContent>
         </Card>
 
         {/* Categories Stats */}
-        <Card className="border-none shadow-lg bg-gradient-to-br from-indigo-500 to-cyan-500 text-white overflow-hidden relative group">
-          <CardContent className="pt-6 relative z-10">
+        <Card className="card-elevated">
+          <CardContent className="ui-card-pad">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm shrink-0">
-                <Filter className="w-5 h-5 md:w-6 md:h-6 text-white" />
+              <div className="p-2.5 rounded-md bg-accent/10 shrink-0">
+                <Filter className="w-5 h-5 text-accent" />
               </div>
               <div className="text-center sm:text-left">
-                <p className="text-2xl md:text-3xl font-bold">4</p>
-                <p className="text-[10px] md:text-sm text-indigo-100 font-medium whitespace-nowrap">Active Categories</p>
+                <p className="text-2xl font-bold text-foreground">4</p>
+                <p className="text-xs text-muted-foreground font-medium whitespace-nowrap">Active Categories</p>
               </div>
             </div>
-            <div className="absolute -bottom-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:bg-white/20 transition-all" />
           </CardContent>
         </Card>
       </div>
 
       {/* Notifications List */}
-      <Card>
+      <Card className="card-elevated">
         <CardHeader>
           <CardTitle>All Notifications</CardTitle>
           <CardDescription>Click on a notification to mark it as read</CardDescription>
@@ -213,20 +210,17 @@ export default function Notifications() {
 
             <div className="space-y-3">
               {filteredNotifications.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Bell className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>No notifications to show</p>
-                </div>
+                <EmptyState title="No notifications" description="You’re all caught up." className="my-4" />
               ) : (
                 filteredNotifications.map((notification, index) => (
                   <motion.div
                     key={notification.id}
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    whileHover={{ scale: 1.01 }}
-                    transition={{ delay: index * 0.05 }}
+                    whileHover={{ scale: 1.003 }}
+                    transition={{ delay: index * 0.03, duration: 0.16 }}
                     className={cn(
-                      'flex items-start gap-4 p-4 rounded-xl border-l-[6px] shadow-sm cursor-pointer transition-all duration-200 group',
+                      'flex items-start gap-4 p-4 rounded-md border-l-[4px] shadow-sm cursor-pointer transition-all duration-150 group',
                       notification.read 
                         ? 'bg-card border-l-muted border-y border-r hover:border-r-border/80' 
                         : 'bg-gradient-to-r from-primary/5 to-transparent border-l-primary border-y border-r border-primary/10'

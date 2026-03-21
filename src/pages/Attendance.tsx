@@ -32,21 +32,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs,
-  doc,
-  getDoc,
-  addDoc,
-  updateDoc,
-  serverTimestamp,
-  orderBy,
-  Timestamp
-} from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
@@ -55,6 +40,8 @@ import BulkUpload from '@/components/BulkUpload';
 import * as XLSX from 'xlsx';
 import { exportAttendanceReport } from '@/lib/pdfExport';
 import PDFExportButton from '@/components/common/PDFExportButton';
+import { EmptyState, LoadingGrid } from '@/components/common/AsyncState';
+import api from '@/lib/api';
 
 interface AttendanceRecord {
   id: string;
@@ -77,6 +64,19 @@ interface CourseAttendance {
   percentage: number;
 }
 
+type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+
+const extractData = <T,>(response: any): T => {
+  if (response?.data?.data !== undefined) return response.data.data as T;
+  return response?.data as T;
+};
+
+const parseDateValue = (value: any): Date => {
+  if (!value) return new Date(NaN);
+  if (value?.toDate) return value.toDate();
+  return new Date(value);
+};
+
 export default function Attendance() {
   const navigate = useNavigate();
   const { isAdmin, isFaculty, isStudent, user, loading: authLoading } = usePermissions();
@@ -84,10 +84,10 @@ export default function Attendance() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
+    if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
     setLoading(false);
@@ -95,8 +95,9 @@ export default function Attendance() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6 md:space-y-8">
+        <div className="h-8 w-56 bg-muted rounded-md animate-pulse" />
+        <LoadingGrid count={3} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" itemClassName="h-28 rounded-md" />
       </div>
     );
   }
@@ -116,7 +117,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
   const [loading, setLoading] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-  const isAdmin = userRole === 'college_admin' || userRole === 'super_admin';
+  const isAdmin = userRole === 'college_admin';
 
   useEffect(() => {
     fetchCourses();
@@ -132,31 +133,13 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
 
   const fetchCourses = async () => {
     try {
-      const q = query(collection(db, 'courses'));
-      const snapshot = await getDocs(q);
-      let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const response = await api.get<ApiResponse<any[]>>('/courses', {
+        params: { limit: 200, offset: 0 },
+      });
+      let data = extractData<any[]>(response) || [];
       
-      // Filter for faculty using assignments
       if (!isAdmin && userId) {
-        const assignmentsQuery = query(
-          collection(db, 'facultyAssignments'),
-          where('facultyId', '==', userId)
-        );
-        const assignmentsSnap = await getDocs(assignmentsQuery);
-        
-        if (assignmentsSnap.docs.length > 0) {
-          // Faculty has assignments - show only assigned courses
-          const assignedCourseIds = assignmentsSnap.docs.map(doc => doc.data().courseId);
-          data = data.filter(course => assignedCourseIds.includes(course.id));
-        } else {
-          // No assignments - filter by department
-          // Get user department
-          const userDoc = await getDoc(doc(db, 'users', userId));
-          const userDept = userDoc.data()?.department;
-          if (userDept) {
-            data = data.filter(course => (course as any).department === userDept);
-          }
-        }
+        data = data.filter((course: any) => course.instructor === userId || course.facultyId === userId);
       }
       
       setCourses(data);
@@ -169,51 +152,41 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
   const fetchStudentAttendance = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Students enrolled in the course
-      const enrollmentsQ = query(collection(db, 'enrollments'), where('courseId', '==', selectedCourse), where('status', '==', 'active'));
-      const enrollmentsSnap = await getDocs(enrollmentsQ);
-      
-      const enrolledStudents = enrollmentsSnap.docs.map(d => ({
-        studentId: d.data().studentId,
-        enrollmentId: d.id
+      const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
+        params: { courseId: selectedCourse, status: 'active', limit: 100, offset: 0 },
+      });
+      const enrolledStudents = (extractData<any[]>(enrollmentsResponse) || []).map((item) => ({
+        studentId: item.studentId,
+        enrollmentId: item.id,
       }));
 
-      // 2. Fetch User Details
+      const usersResponse = await api.get<ApiResponse<any[]>>('/users', {
+        params: { role: 'student', limit: 100, offset: 0 },
+      });
+      const users = extractData<any[]>(usersResponse) || [];
+      const usersById = new Map(users.map((u: any) => [u.id, u]));
+
       const studentData = await Promise.all(
         enrolledStudents.map(async (en) => {
-          const userDoc = await getDoc(doc(db, 'users', en.studentId));
+          const userDoc = usersById.get(en.studentId);
           return {
             id: en.studentId,
-            name: userDoc.data()?.fullName || 'Unknown',
-            email: userDoc.data()?.email || '',
+            name: userDoc?.fullName || 'Unknown',
+            email: userDoc?.email || '',
             enrollmentId: en.enrollmentId
           };
         })
       );
 
-      // 3. Fetch Existing Attendance
-      const startOfDay = new Date(selectedDate);
-      startOfDay.setHours(0,0,0,0);
-      const endOfDay = new Date(selectedDate);
-      endOfDay.setHours(23,59,59,999);
-
-      // Simple query to avoid composite index requirement while building
-      const attendanceQ = query(
-        collection(db, 'attendance'),
-        where('courseId', '==', selectedCourse)
-      );
-      const attendanceSnap = await getDocs(attendanceQ);
-      
-      const existingRecords = attendanceSnap.docs.reduce((acc: any, doc) => {
-        const data = doc.data();
-        const recordDate = data.date?.toDate?.() || new Date(data.date);
-        if (recordDate >= startOfDay && recordDate <= endOfDay) {
-          acc[data.studentId] = { id: doc.id, ...data };
-        }
+      const attendanceResponse = await api.get<ApiResponse<any[]>>('/attendance', {
+        params: { subject: selectedCourse, date: selectedDate, limit: 100, offset: 0 },
+      });
+      const attendanceRows = extractData<any[]>(attendanceResponse) || [];
+      const existingRecords = attendanceRows.reduce((acc: any, record: any) => {
+        acc[record.studentId] = record;
         return acc;
       }, {});
 
-      // 4. Merge
       const merged = studentData.map(student => ({
         ...student,
         recordId: existingRecords[student.id]?.id,
@@ -241,17 +214,19 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
 
         const data = {
           studentId: student.id,
-          courseId: selectedCourse,
-          date: Timestamp.fromDate(new Date(selectedDate)),
+          subject: selectedCourse,
+          date: selectedDate,
           status: student.status,
-          markedBy: userId,
-          markedAt: serverTimestamp()
         };
 
         if (student.recordId) {
-           await updateDoc(doc(db, 'attendance', student.recordId), data);
+           await api.patch(`/attendance/${student.recordId}`, {
+            date: selectedDate,
+            status: student.status,
+            subject: selectedCourse,
+           });
         } else {
-           await addDoc(collection(db, 'attendance'), data);
+           await api.post('/attendance', data);
         }
       });
       await Promise.all(batchPromises);
@@ -269,50 +244,54 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
     let failed = 0;
     const errors: string[] = [];
 
+     const usersResponse = await api.get<ApiResponse<any[]>>('/users', {
+      params: { role: 'student', limit: 100, offset: 0 },
+     });
+     const users = extractData<any[]>(usersResponse) || [];
+
     for (const row of data) {
       try {
-        // Find Course
         const course = courses.find(c => c.code === row.courseCode);
         if (!course) throw new Error(`Course ${row.courseCode} not found`);
 
-        // Find Student
-        const usersQ = query(collection(db, 'users'), where('email', '==', row.studentEmail));
-        const usersSnap = await getDocs(usersQ);
-        if (usersSnap.empty) throw new Error(`Student ${row.studentEmail} not found`);
-        const studentId = usersSnap.docs[0].id;
+        const student = users.find((u: any) => u.email?.toLowerCase() === row.studentEmail?.toLowerCase());
+        if (!student) throw new Error(`Student ${row.studentEmail} not found`);
+        const studentId = student.id;
 
-        // Date
         const dateObj = new Date(row.date);
         if (isNaN(dateObj.getTime())) throw new Error(`Invalid date ${row.date}`);
 
-        // Status
         const status = row.status?.toLowerCase();
         if (!['present', 'absent', 'late'].includes(status)) throw new Error(`Invalid status ${status}`);
 
-        // Check Existing
-        const start = new Date(dateObj); start.setHours(0,0,0,0);
-        const end = new Date(dateObj); end.setHours(23,59,59,999);
-        const attQ = query(collection(db, 'attendance'), 
-           where('studentId', '==', studentId), 
-           where('courseId', '==', course.id),
-           where('date', '>=', Timestamp.fromDate(start)),
-           where('date', '<=', Timestamp.fromDate(end))
-        );
-        const attSnap = await getDocs(attQ);
+        const normalizedDate = dateObj.toISOString().split('T')[0];
+
+        const attResponse = await api.get<ApiResponse<any[]>>('/attendance', {
+         params: {
+          studentId,
+          subject: course.id,
+          date: normalizedDate,
+          limit: 1,
+          offset: 0,
+         }
+        });
+        const existingAttendance = extractData<any[]>(attResponse) || [];
 
         const recordData = {
            studentId,
-           courseId: course.id,
-           date: Timestamp.fromDate(dateObj),
+          subject: course.id,
+          date: normalizedDate,
            status,
-           markedBy: userId,
-           markedAt: serverTimestamp()
         };
 
-        if (!attSnap.empty) {
-           await updateDoc(doc(db, 'attendance', attSnap.docs[0].id), recordData);
+        if (existingAttendance.length > 0) {
+          await api.patch(`/attendance/${existingAttendance[0].id}`, {
+          status,
+          subject: course.id,
+          date: normalizedDate,
+          });
         } else {
-           await addDoc(collection(db, 'attendance'), recordData);
+          await api.post('/attendance', recordData);
         }
         success++;
       } catch (err) {
@@ -329,7 +308,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
   const sampleData = [{ studentEmail: 'student@example.com', courseCode: 'CS101', date: '2024-01-01', status: 'present' }];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Attendance Manager</h1>
@@ -365,7 +344,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
         </div>
       </div>
 
-      <div className="card-elevated p-6 space-y-4">
+      <div className="card-elevated ui-card-pad space-y-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <label className="text-sm font-medium mb-1 block">Select Course</label>
@@ -400,7 +379,14 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
                      </thead>
                      <tbody className="divide-y divide-border">
                        {students.length === 0 ? (
-                         <tr><td colSpan={2} className="p-4 text-center text-muted-foreground">No students enrolled</td></tr>
+                        <tr>
+                          <td colSpan={2} className="p-4">
+                            <EmptyState
+                              title="No students enrolled"
+                              description="Enroll students in this course to mark attendance."
+                            />
+                          </td>
+                        </tr>
                        ) : (
                          students.map(student => (
                            <tr key={student.id} className="hover:bg-muted/10">
@@ -486,24 +472,31 @@ function StudentAttendanceView({ userId }: { userId: string }) {
 
   const fetchData = async () => {
     try {
-      const recordsQ = query(collection(db, 'attendance'), where('studentId', '==', userId));
-      const recordsSnap = await getDocs(recordsQ);
-      const records = recordsSnap.docs.map(d => ({ id: d.id, ...d.data() })) as any[];
+      const recordsResponse = await api.get<ApiResponse<any[]>>('/attendance', {
+        params: { studentId: userId, limit: 200, offset: 0 },
+      });
+      const records = extractData<any[]>(recordsResponse) || [];
       setAttendanceRecords(records);
 
-      const enrollQ = query(collection(db, 'enrollments'), where('studentId', '==', userId), where('status', '==', 'active'));
-      const enrollSnap = await getDocs(enrollQ);
+      const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
+        params: { studentId: userId, status: 'active', limit: 100, offset: 0 },
+      });
+      const enrollments = extractData<any[]>(enrollmentsResponse) || [];
+
+      const coursesResponse = await api.get<ApiResponse<any[]>>('/courses', {
+        params: { limit: 100, offset: 0 },
+      });
+      const courses = extractData<any[]>(coursesResponse) || [];
+      const coursesById = new Map(courses.map((course: any) => [course.id, course]));
       
       const courseStats: CourseAttendance[] = [];
       let totalPresent = 0;
       let totalClasses = 0;
 
-      for (const d of enrollSnap.docs) {
-        const en = d.data();
-        const courseDoc = await getDoc(doc(db, 'courses', en.courseId));
-        const courseData = courseDoc.data();
+      for (const en of enrollments) {
+        const courseData = coursesById.get(en.courseId);
         
-        const cRecords = records.filter(r => r.courseId === en.courseId);
+        const cRecords = records.filter(r => r.subject === en.courseId);
         const present = cRecords.filter(r => r.status === 'present' || r.status === 'late').length;
         const absent = cRecords.filter(r => r.status === 'absent').length;
         const late = cRecords.filter(r => r.status === 'late').length;
@@ -541,24 +534,26 @@ function StudentAttendanceView({ userId }: { userId: string }) {
   };
 
   const filteredRecords = attendanceRecords.filter(record => {
-    if (selectedCourse !== 'all' && record.courseId !== selectedCourse) return false;
+    if (selectedCourse !== 'all' && record.subject !== selectedCourse) return false;
     if (selectedMonth !== 'all') {
-      const d = record.date?.toDate?.() || new Date(record.date);
+      const d = parseDateValue(record.date);
       if (d.getMonth() !== parseInt(selectedMonth)) return false;
     }
     return true;
   });
 
-  if (loading) return <div className="p-8 text-center text-muted-foreground">Loading...</div>;
+  if (loading) {
+    return <LoadingGrid count={4} className="grid gap-4 md:grid-cols-2" itemClassName="h-28 rounded-md" />;
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-foreground">My Attendance</h1>
         <p className="text-muted-foreground">Track your attendance metrics</p>
       </div>
 
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="card-elevated p-6">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="card-elevated ui-card-pad">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-semibold">Overall Attendance</h2>
           {overallPercentage < 75 && (
@@ -585,8 +580,10 @@ function StudentAttendanceView({ userId }: { userId: string }) {
         </div>
       </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-         {courseAttendance.map(c => (
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+         {courseAttendance.length === 0 ? (
+           <EmptyState title="No course attendance yet" description="Attendance by course will appear once records are marked." className="md:col-span-2 xl:col-span-3" />
+         ) : courseAttendance.map(c => (
            <div key={c.courseId} className="card-elevated p-4">
              <div className="flex justify-between mb-2">
                <div><p className="font-medium">{c.courseCode}</p><p className="text-xs text-muted-foreground">{c.courseName}</p></div>
@@ -598,24 +595,26 @@ function StudentAttendanceView({ userId }: { userId: string }) {
                 <span>{c.total} classes</span>
              </div>
            </div>
-         ))}
+        ))}
       </div>
 
        {/* Simplified Log View */}
-      <div className="card-elevated p-6">
+      <div className="card-elevated ui-card-pad">
         <div className="flex justify-between items-center mb-4">
            <h2 className="font-semibold">Attendance Log</h2>
            <Select value={selectedCourse} onValueChange={setSelectedCourse}><SelectTrigger className="w-40"><SelectValue placeholder="All" /></SelectTrigger><SelectContent><SelectItem value="all">All</SelectItem>{courseAttendance.map(c=><SelectItem key={c.courseId} value={c.courseId}>{c.courseCode}</SelectItem>)}</SelectContent></Select>
         </div>
         <div className="space-y-2">
-           {filteredRecords.length === 0 ? <p className="text-center text-muted-foreground py-4">No records found</p> : 
-             filteredRecords.sort((a,b)=>(b.date?.seconds||0) - (a.date?.seconds||0)).map(r => (
+           {filteredRecords.length === 0 ? <EmptyState title="No records found" description="Try another course filter." /> : 
+             filteredRecords
+               .sort((a,b) => parseDateValue(b.date).getTime() - parseDateValue(a.date).getTime())
+               .map(r => (
                <div key={r.id} className="flex justify-between items-center p-3 border rounded">
                  <div className="flex gap-3 items-center">
                    {r.status==='present'?<CheckCircle className="text-success w-5 h-5"/>:r.status==='late'?<Clock className="text-warning w-5 h-5"/>:<XCircle className="text-destructive w-5 h-5"/>}
                    <div>
-                     <p className="font-medium text-sm">{courseAttendance.find(c=>c.courseId===r.courseId)?.courseCode || 'Unknown'}</p>
-                     <p className="text-xs text-muted-foreground">{r.date?.toDate?.().toLocaleDateString()}</p>
+                     <p className="font-medium text-sm">{courseAttendance.find(c=>c.courseId===r.subject)?.courseCode || 'Unknown'}</p>
+                     <p className="text-xs text-muted-foreground">{parseDateValue(r.date).toLocaleDateString()}</p>
                    </div>
                  </div>
                  <Badge variant={r.status==='present'?'default':r.status==='late'?'secondary':'destructive'}>{r.status}</Badge>

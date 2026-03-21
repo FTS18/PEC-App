@@ -22,24 +22,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc,
-  deleteDoc,
-  doc,
-  getDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
 import { toast } from 'sonner';
 import BulkUpload from '@/components/BulkUpload';
 import * as XLSX from 'xlsx';
+import { usePermissions } from '@/hooks/usePermissions';
+import api from '@/lib/api';
 
 export default function Departments() {
   const navigate = useNavigate();
+  const { user, loading: authLoading, isAdmin } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -55,22 +46,21 @@ export default function Departments() {
   });
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
+    if (authLoading) return;
 
+    if (!user) {
+      navigate('/auth', { replace: true });
+      return;
+    }
+
+    if (!isAdmin) {
+      toast.error('Access denied. Admin only.');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    void (async () => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userData = userDoc.data();
-
-        if (userData?.role !== 'college_admin' && userData?.role !== 'super_admin') {
-          toast.error('Access denied. Admin only.');
-          navigate('/dashboard');
-          return;
-        }
-
         await fetchDepartments();
       } catch (error) {
         console.error('Error:', error);
@@ -78,15 +68,16 @@ export default function Departments() {
       } finally {
         setLoading(false);
       }
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
+    })();
+  }, [authLoading, user, isAdmin, navigate]);
 
   const fetchDepartments = async () => {
     try {
-      const deptsSnapshot = await getDocs(collection(db, 'departments'));
-      const deptsData = deptsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+      const response = await api.get<ApiResponse<any[]>>('/departments', {
+        params: { limit: 200, offset: 0 },
+      });
+      const deptsData = response.data.data || [];
       setDepartments(deptsData);
     } catch (error) {
       console.error('Error fetching departments:', error);
@@ -95,15 +86,11 @@ export default function Departments() {
 
   const handleCreate = async () => {
     try {
-      await addDoc(collection(db, 'departments'), {
-        ...deptForm,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+      await api.post('/departments', deptForm);
       toast.success('Department created successfully!');
       setShowDialog(false);
       resetForm();
-      fetchDepartments();
+      await fetchDepartments();
     } catch (error) {
       console.error('Error creating department:', error);
       toast.error('Failed to create department');
@@ -113,15 +100,12 @@ export default function Departments() {
   const handleUpdate = async () => {
     if (!editingDept) return;
     try {
-      await updateDoc(doc(db, 'departments', editingDept.id), {
-        ...deptForm,
-        updatedAt: serverTimestamp(),
-      });
+      await api.patch(`/departments/${editingDept.id}`, deptForm);
       toast.success('Department updated successfully!');
       setShowDialog(false);
       setEditingDept(null);
       resetForm();
-      fetchDepartments();
+      await fetchDepartments();
     } catch (error) {
       console.error('Error updating department:', error);
       toast.error('Failed to update department');
@@ -131,9 +115,9 @@ export default function Departments() {
   const handleDelete = async (deptId: string) => {
     if (!confirm('Are you sure you want to delete this department?')) return;
     try {
-      await deleteDoc(doc(db, 'departments', deptId));
+      await api.delete(`/departments/${deptId}`);
       toast.success('Department deleted successfully!');
-      fetchDepartments();
+      await fetchDepartments();
     } catch (error) {
       console.error('Error deleting department:', error);
       toast.error('Failed to delete department');
@@ -147,12 +131,11 @@ export default function Departments() {
 
     for (const row of data) {
       try {
-        await addDoc(collection(db, 'departments'), {
+        await api.post('/departments', {
           name: row.name,
           code: row.code,
           hod: row.hod || '',
           description: row.description || '',
-          createdAt: serverTimestamp(),
         });
         successCount++;
       } catch (error) {

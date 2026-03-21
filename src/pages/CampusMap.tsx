@@ -19,9 +19,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
-import { db } from '@/config/firebase';
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  db,
+  deleteDoc,
+  doc,
+  getDocs,
+  query,
+  updateDoc,
+  where,
+} from '@/lib/dataClient';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'sonner';
 
 interface MapRegion {
@@ -147,7 +156,7 @@ type ResizeHandle = 'nw' | 'ne' | 'sw' | 'se' | null;
 
 export default function CampusMap() {
   const { user } = useAuth();
-  const isAdmin = user?.role === 'college_admin' || user?.role === 'super_admin';
+  const isAdmin = user?.role === 'college_admin';
   
   const [regions, setRegions] = useState<MapRegion[]>([]);
   const [roads, setRoads] = useState<MapRoad[]>([]);
@@ -355,7 +364,7 @@ export default function CampusMap() {
       const regionData = { ...editingRegion, organizationId: user?.organizationId || '' };
 
       if (editingRegion.id && !editingRegion.id.startsWith('default-')) {
-        // Update existing Firestore region
+        // Update existing region record
         await updateDoc(doc(db, 'campusMapRegions', editingRegion.id), regionData);
         setRegions(prev => prev.map(r => r.id === editingRegion.id ? { ...regionData, id: editingRegion.id } : r));
         toast.success('Region updated!');
@@ -378,7 +387,6 @@ export default function CampusMap() {
   // Finish and save polyline road
   const finishRoad = () => {
 
-    
     if (!newRoad || !newRoad.points || newRoad.points.length < 2) {
       toast.error('Need at least 2 points to create a road');
       return;
@@ -392,9 +400,7 @@ export default function CampusMap() {
       width: newRoad.width || 2,
       organizationId: user?.organizationId || ''
     };
-    
 
-    
     // Add to state
     setRoads(prevRoads => {
       const newRoads = [...prevRoads, roadData];
@@ -410,7 +416,7 @@ export default function CampusMap() {
     toast.success('Road created! Click Save to persist.');
   };
 
-  // Save all changes to Firestore
+  // Save all changes to backend
   const saveAllChanges = async () => {
     if (!user?.organizationId) {
       toast.error('No organization ID');

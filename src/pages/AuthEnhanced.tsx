@@ -1,25 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  sendPasswordResetEmail,
-  onAuthStateChanged,
-} from 'firebase/auth';
-import { setDoc, doc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
-import { getRolePermissions } from '@/lib/rolePermissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Mail, Lock, User, Eye, EyeOff, Loader, AlertCircle, CheckCircle, Shield, X, Lightbulb, GraduationCap, Users, Building2, Briefcase } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, Loader, AlertCircle, CheckCircle, Shield, X, Lightbulb, GraduationCap, Users, Building2 } from 'lucide-react';
+import { authClient } from '@/lib/auth-client';
 
-type UserRole = 'student' | 'faculty' | 'college_admin' | 'placement_officer' | 'recruiter' | 'super_admin';
+type UserRole = 'student' | 'faculty' | 'college_admin';
 
 interface AuthFormData {
   email: string;
@@ -62,15 +52,27 @@ export default function AuthEnhanced() {
 
   // Check if user is already authenticated
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUserAuthenticated(true);
-        // Redirect after 2 seconds
-        setTimeout(() => navigate('/dashboard'), 2000);
-      }
-    });
+    let active = true;
 
-    return () => unsubscribe();
+    const restoreSession = async () => {
+      try {
+        await authClient.refreshAccessToken();
+        if (active) {
+          setUserAuthenticated(true);
+          setTimeout(() => navigate('/dashboard'), 500);
+        }
+      } catch {
+        if (active) {
+          setUserAuthenticated(false);
+        }
+      }
+    };
+
+    void restoreSession();
+
+    return () => {
+      active = false;
+    };
   }, [navigate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -123,41 +125,20 @@ export default function AuthEnhanced() {
     try {
       setLoading(true);
 
-      // Create user with Firebase Authentication
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-
-      // Create user document in Firestore with role: null
-      // User will select role in the next step
-      const userDocData = {
-        uid: userCredential.user.uid,
+      const payload = {
+        name: formData.fullName,
         email: formData.email,
-        fullName: formData.fullName,
-        role: null, // Role will be set in role selection page
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        // Profile data
-        profileComplete: false,
-        verified: false,
-        avatar: null,
-        status: 'active',
+        password: formData.password,
+        role: "student", // defaulting to student until role selection logic is built or handled
       };
 
-      await setDoc(doc(db, 'users', userCredential.user.uid), userDocData);
+      await authClient.signup(payload);
+      window.dispatchEvent(new Event("auth-change"));
 
-      setSuccess(`Account created successfully! Please select your role...`);
-      setTimeout(() => navigate('/role-selection'), 2000);
+      setSuccess(`Account created successfully!`);
+      setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err: any) {
-      if (err.code === 'auth/email-already-in-use') {
-        setError('Email already in use. Please sign in or use a different email.');
-      } else if (err.code === 'auth/weak-password') {
-        setError('Password is too weak. Please use a stronger password.');
-      } else {
-        setError(err.message || 'Failed to create account');
-      }
+      setError(err.message || 'Failed to create account');
     } finally {
       setLoading(false);
     }
@@ -179,93 +160,25 @@ export default function AuthEnhanced() {
 
     try {
       setLoading(true);
-      await signInWithEmailAndPassword(auth, formData.email, formData.password);
+      await authClient.login({ email: formData.email, password: formData.password });
+      window.dispatchEvent(new Event("auth-change"));
+
       setSuccess('Signing in...');
       setTimeout(() => navigate('/dashboard'), 1500);
     } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email. Please sign up.');
-      } else if (err.code === 'auth/wrong-password') {
-        setError('Incorrect password. Try again or reset your password.');
-      } else if (err.code === 'auth/too-many-login-attempts') {
-        setError('Too many login attempts. Please try again later.');
-      } else {
-        setError(err.message || 'Failed to sign in');
-      }
+      setError(err.message || 'Failed to sign in');
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleAuth = async (isSignUp: boolean) => {
-    setError('');
-    setSuccess('');
-
-    try {
-      setLoading(true);
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // Check if user exists in Firestore
-      const userDoc = doc(db, 'users', user.uid);
-
-      if (isSignUp) {
-        // Create new user document with role: null
-        const userDocData = {
-          uid: user.uid,
-          email: user.email,
-          fullName: user.displayName,
-          role: null, // Role will be set in role selection page
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-          profileComplete: false,
-          verified: false,
-          avatar: user.photoURL,
-          status: 'active',
-        };
-
-        await setDoc(userDoc, userDocData);
-        
-        setSuccess('Authenticated with Google! Please select your role...');
-        setTimeout(() => navigate('/role-selection'), 1500);
-      } else {
-        // Existing user signing in
-        setSuccess('Authenticated with Google! Redirecting...');
-        setTimeout(() => navigate('/dashboard'), 1500);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Google authentication failed');
-    } finally {
-      setLoading(false);
-    }
+    setError('Google authentication is not yet implemented on the backend.');
   };
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (!validateEmail(forgotEmail)) {
-      setError('Please enter a valid email');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await sendPasswordResetEmail(auth, forgotEmail);
-      setSuccess('Password reset email sent! Check your inbox.');
-      setForgotEmail('');
-      setTimeout(() => setActiveTab('signin'), 3000);
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        setError('No account found with this email.');
-      } else {
-        setError(err.message || 'Failed to send reset email');
-      }
-    } finally {
-      setLoading(false);
-    }
+    setError('Forgot password is not yet implemented on the backend.');
   };
 
   if (userAuthenticated) {
@@ -370,32 +283,6 @@ export default function AuthEnhanced() {
                   </div>
                 </button>
 
-                {/* Super Admin Credentials */}
-                <button
-                  onClick={() => fillCredentials('admin@pec.edu', 'Admin@123')}
-                  className="w-full bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 hover:bg-red-100 dark:hover:bg-red-950/50 transition-all cursor-pointer text-left"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
-                      <Shield className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-foreground mb-1">Super Admin</h3>
-                      <p className="text-xs text-muted-foreground mb-2">System Administrator</p>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Email:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">admin@pec.edu</code>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Password:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Admin@123</code>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-
                 {/* College Admin Credentials */}
                 <button
                   onClick={() => fillCredentials('registrar@pec.edu', 'Admin@123')}
@@ -422,31 +309,6 @@ export default function AuthEnhanced() {
                   </div>
                 </button>
 
-                {/* Recruiter Credentials */}
-                <button
-                  onClick={() => fillCredentials('placement@pec.edu', 'Placement@123')}
-                  className="w-full bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4 hover:bg-green-100 dark:hover:bg-green-950/50 transition-all cursor-pointer text-left"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0">
-                      <Briefcase className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-foreground mb-1">Recruiter</h3>
-                      <p className="text-xs text-muted-foreground mb-2">Campus Recruitment</p>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Email:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">placement@pec.edu</code>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Password:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Placement@123</code>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </button>
               </div>
 
               {/* Info Banner */}
@@ -483,7 +345,7 @@ export default function AuthEnhanced() {
       >
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome to OmniFlow</CardTitle>
+            <CardTitle className="text-2xl">Welcome to PEC</CardTitle>
             <CardDescription>Manage your educational institution</CardDescription>
           </CardHeader>
 

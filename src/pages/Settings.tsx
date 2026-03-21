@@ -31,12 +31,12 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, updateDoc, deleteField } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import api from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
+import { authClient } from '@/lib/auth-client';
+import { LoadingGrid } from '@/components/common/AsyncState';
 // Admin Settings
 import CollegeSettings from './admin/CollegeSettings';
 import PaymentSettings from './admin/PaymentSettings';
@@ -57,12 +57,20 @@ const connectedAccounts: ConnectedAccount[] = [
   { id: 'google', name: 'Google', icon: Mail, connected: false },
 ];
 
+const extractData = <T,>(payload: any): T => {
+  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
+    return payload.data as T;
+  }
+  return payload as T;
+};
+
 export default function Settings() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   const [profileData, setProfileData] = useState<any>(null);
+  const profilePrefsKey = user?.uid ? `profile-prefs:${user.uid}` : null;
 
   const [notifications, setNotifications] = useState({
     email: true,
@@ -78,7 +86,6 @@ export default function Settings() {
     profileVisible: true,
     showEmail: false,
     showPhone: false,
-    allowRecruiterContact: true,
   });
 
   // Accent color themes
@@ -87,7 +94,7 @@ export default function Settings() {
     { id: 'emerald', name: 'Emerald', color: '#10B981' },
     { id: 'sapphire', name: 'Sapphire', color: '#3B82F6' },
     { id: 'amethyst', name: 'Amethyst', color: '#8B5CF6' },
-    { id: 'coral', name: 'Coral', color: '#F97316' },
+    { id: 'coral', name: 'Gold', color: '#EAB308' },
   ];
 
   const [accentColor, setAccentColor] = useState(() => {
@@ -105,36 +112,24 @@ export default function Settings() {
   }, [accentColor]);
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
+    if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
 
     const loadUserData = async () => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userInfo = userDoc.data();
-        setUserData(userInfo);
+        const profileRes = await api.get('/auth/profile');
+        const profile = extractData<any>(profileRes.data) || {};
+        const localPrefs = profilePrefsKey
+          ? JSON.parse(localStorage.getItem(profilePrefsKey) || '{}')
+          : {};
+        const mergedProfile = { ...profile, ...localPrefs };
 
-        // Fetch role-specific profile
-        if (userInfo?.role === 'student') {
-          const profileDoc = await getDoc(doc(db, 'studentProfiles', user.uid));
-          setProfileData(profileDoc.data());
-        } else if (userInfo?.role === 'faculty') {
-          const profileDoc = await getDoc(doc(db, 'facultyProfiles', user.uid));
-          setProfileData(profileDoc.data());
-        } else if (userInfo?.role === 'college_admin') {
-          const profileDoc = await getDoc(doc(db, 'collegeAdminProfiles', user.uid));
-          setProfileData(profileDoc.data());
-        } else if (userInfo?.role === 'placement_officer') {
-          const profileDoc = await getDoc(doc(db, 'placementOfficerProfiles', user.uid));
-          setProfileData(profileDoc.data());
-        } else if (userInfo?.role === 'recruiter') {
-          const profileDoc = await getDoc(doc(db, 'recruiterProfiles', user.uid));
-          setProfileData(profileDoc.data());
-        }
+        setUserData(mergedProfile);
+        setProfileData(mergedProfile);
       } catch (error) {
         console.error('Error fetching user data:', error);
       } finally {
@@ -142,22 +137,83 @@ export default function Settings() {
       }
     };
 
-    loadUserData();
-  }, [authLoading, user, navigate]);
+    void loadUserData();
+  }, [authLoading, navigate, profilePrefsKey, user]);
+
+  const saveLocalProfilePrefs = (changes: Record<string, any>) => {
+    if (!profilePrefsKey) return;
+    const current = JSON.parse(localStorage.getItem(profilePrefsKey) || '{}');
+    localStorage.setItem(profilePrefsKey, JSON.stringify({ ...current, ...changes }));
+  };
+
+  const persistProfile = async (changes: Record<string, any>) => {
+    if (!user) return false;
+
+    const merged = {
+      ...(profileData || {}),
+      ...(userData || {}),
+      ...changes,
+    };
+
+    try {
+      const role = merged.role || userData?.role || user.role;
+      await api.post('/auth/complete-profile', {
+        role,
+        fullName: merged.fullName || merged.name || '',
+        enrollmentNumber: merged.enrollmentNumber,
+        department: merged.department,
+        semester: merged.semester,
+        employeeId: merged.employeeId,
+        designation: merged.designation,
+        phone: merged.phone,
+        dob: merged.dob,
+        address: merged.address,
+        bio: merged.bio,
+        specialization: merged.specialization,
+        qualifications: merged.qualifications,
+        githubUsername: merged.githubUsername || null,
+        linkedinUsername: merged.linkedinUsername || null,
+        isPublic: merged.isPublic !== false,
+      });
+
+      saveLocalProfilePrefs({
+        githubUsername: merged.githubUsername || null,
+        linkedinUsername: merged.linkedinUsername || null,
+        isPublic: merged.isPublic !== false,
+      });
+
+      setProfileData(merged);
+      setUserData((prev: any) => ({ ...prev, ...merged }));
+      return true;
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      return false;
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await authClient.logout();
+      window.dispatchEvent(new Event('auth-change'));
+      toast.success('Signed out successfully');
+      navigate('/auth', { replace: true });
+    } catch (error) {
+      console.error('Sign out error:', error);
+      toast.error('Failed to sign out');
+    }
+  };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading settings...</p>
-        </div>
+      <div className="space-y-6 md:space-y-8">
+        <div className="h-8 w-56 bg-muted rounded-md animate-pulse" />
+        <LoadingGrid count={3} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" itemClassName="h-28 rounded-md" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Settings</h1>
@@ -217,7 +273,7 @@ export default function Settings() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            <div className="card-elevated p-6">
+            <div className="card-elevated ui-card-pad">
               <h3 className="font-semibold text-foreground mb-6">Personal Information</h3>
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
@@ -255,7 +311,7 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="card-elevated p-6">
+            <div className="card-elevated ui-card-pad">
               <h3 className="font-semibold text-foreground mb-6">Preferences</h3>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
@@ -297,7 +353,7 @@ export default function Settings() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            <div className="card-elevated p-6">
+            <div className="card-elevated ui-card-pad">
               <h3 className="font-semibold text-foreground mb-2">Accent Color</h3>
               <p className="text-sm text-muted-foreground mb-6">
                 Choose your preferred accent color for buttons, links, and highlights.
@@ -331,7 +387,7 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="card-elevated p-6">
+            <div className="card-elevated ui-card-pad">
               <h3 className="font-semibold text-foreground mb-2">Theme</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Light and dark modes are automatically managed by your system preferences.
@@ -348,7 +404,7 @@ export default function Settings() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            <div className="card-elevated p-6">
+            <div className="card-elevated ui-card-pad">
               <h3 className="font-semibold text-foreground mb-6">Notification Channels</h3>
               <div className="space-y-4">
                 {[
@@ -377,7 +433,7 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="card-elevated p-6">
+            <div className="card-elevated ui-card-pad">
               <h3 className="font-semibold text-foreground mb-6">Notification Types</h3>
               <div className="space-y-4">
                 {[
@@ -409,7 +465,7 @@ export default function Settings() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card-elevated p-6"
+            className="card-elevated ui-card-pad"
           >
             <h3 className="font-semibold text-foreground mb-6">Privacy Settings</h3>
             <div className="space-y-4">
@@ -433,14 +489,8 @@ export default function Settings() {
                   checked={profileData?.isPublic !== false}
                   onCheckedChange={async (checked) => {
                     try {
-                      const collectionName = userData?.role === 'student' ? 'studentProfiles' : 
-                                            userData?.role === 'faculty' ? 'facultyProfiles' : 'users'; // Fallback
-                      
-                      await updateDoc(doc(db, collectionName, user!.uid), {
-                        isPublic: checked
-                      });
-                      
-                      setProfileData({ ...profileData, isPublic: checked });
+                      const ok = await persistProfile({ isPublic: checked });
+                      if (!ok) throw new Error('Unable to persist');
                       toast.success(`Profile is now ${checked ? 'Public' : 'Private'}`);
                     } catch (error) {
                       toast.error('Failed to update privacy');
@@ -452,7 +502,6 @@ export default function Settings() {
               {[
                 { key: 'showEmail', label: 'Show Email', description: 'Display email on public profile' },
                 { key: 'showPhone', label: 'Show Phone', description: 'Display phone on public profile' },
-                { key: 'allowRecruiterContact', label: 'Recruiter Contact', description: 'Allow recruiters to contact you directly' },
               ].map((item) => (
                 <div key={item.key} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                   <div>
@@ -476,7 +525,7 @@ export default function Settings() {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="card-elevated p-6"
+            className="card-elevated ui-card-pad"
           >
             <h3 className="font-semibold text-foreground mb-6">Connected Accounts</h3>
             <div className="space-y-4">
@@ -501,20 +550,8 @@ export default function Settings() {
                     size="sm"
                     onClick={async () => {
                       try {
-                        const user = auth.currentUser;
-                        if (!user) return;
-                        
-                        const collectionName = userData?.role === 'student' ? 'studentProfiles' : 
-                                              userData?.role === 'faculty' ? 'facultyProfiles' :
-                                              userData?.role === 'college_admin' ? 'collegeAdminProfiles' :
-                                              userData?.role === 'placement_officer' ? 'placementOfficerProfiles' :
-                                              'recruiterProfiles';
-                        
-                        await updateDoc(doc(db, collectionName, user.uid), {
-                          githubUsername: deleteField(),
-                        });
-                        
-                        setProfileData({ ...profileData, githubUsername: null });
+                        const ok = await persistProfile({ githubUsername: null });
+                        if (!ok) throw new Error('Unable to persist');
                         toast.success('GitHub disconnected');
                       } catch (err) {
                         toast.error('Failed to disconnect');
@@ -531,20 +568,9 @@ export default function Settings() {
                       if (!username) return;
                       
                       try {
-                        const user = auth.currentUser;
-                        if (!user) return;
-                        
-                        const collectionName = userData?.role === 'student' ? 'studentProfiles' : 
-                                              userData?.role === 'faculty' ? 'facultyProfiles' :
-                                              userData?.role === 'college_admin' ? 'collegeAdminProfiles' :
-                                              userData?.role === 'placement_officer' ? 'placementOfficerProfiles' :
-                                              'recruiterProfiles';
-                        
-                        await updateDoc(doc(db, collectionName, user.uid), {
-                          githubUsername: username.replace('@', ''),
-                        });
-                        
-                        setProfileData({ ...profileData, githubUsername: username.replace('@', '') });
+                        const normalized = username.replace('@', '').trim();
+                        const ok = await persistProfile({ githubUsername: normalized });
+                        if (!ok) throw new Error('Unable to persist');
                         toast.success('GitHub connected!');
                       } catch (err) {
                         toast.error('Failed to connect GitHub');
@@ -578,20 +604,8 @@ export default function Settings() {
                     size="sm"
                     onClick={async () => {
                       try {
-                        const user = auth.currentUser;
-                        if (!user) return;
-                        
-                        const collectionName = userData?.role === 'student' ? 'studentProfiles' : 
-                                              userData?.role === 'faculty' ? 'facultyProfiles' :
-                                              userData?.role === 'college_admin' ? 'collegeAdminProfiles' :
-                                              userData?.role === 'placement_officer' ? 'placementOfficerProfiles' :
-                                              'recruiterProfiles';
-                        
-                        await updateDoc(doc(db, collectionName, user.uid), {
-                          linkedinUsername: deleteField(),
-                        });
-                        
-                        setProfileData({ ...profileData, linkedinUsername: null });
+                        const ok = await persistProfile({ linkedinUsername: null });
+                        if (!ok) throw new Error('Unable to persist');
                         toast.success('LinkedIn disconnected');
                       } catch (err) {
                         toast.error('Failed to disconnect');
@@ -608,20 +622,9 @@ export default function Settings() {
                       if (!username) return;
                       
                       try {
-                        const user = auth.currentUser;
-                        if (!user) return;
-                        
-                        const collectionName = userData?.role === 'student' ? 'studentProfiles' : 
-                                              userData?.role === 'faculty' ? 'facultyProfiles' :
-                                              userData?.role === 'college_admin' ? 'collegeAdminProfiles' :
-                                              userData?.role === 'placement_officer' ? 'placementOfficerProfiles' :
-                                              'recruiterProfiles';
-                        
-                        await updateDoc(doc(db, collectionName, user.uid), {
-                          linkedinUsername: username.replace('@', ''),
-                        });
-                        
-                        setProfileData({ ...profileData, linkedinUsername: username.replace('@', '') });
+                        const normalized = username.replace('@', '').trim();
+                        const ok = await persistProfile({ linkedinUsername: normalized });
+                        if (!ok) throw new Error('Unable to persist');
                         toast.success('LinkedIn connected!');
                       } catch (err) {
                         toast.error('Failed to connect LinkedIn');
@@ -644,7 +647,7 @@ export default function Settings() {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6"
           >
-            <div className="card-elevated p-6">
+            <div className="card-elevated ui-card-pad">
               <h3 className="font-semibold text-foreground mb-6">Change Password</h3>
               <div className="space-y-4 max-w-md">
                 <div>
@@ -663,7 +666,7 @@ export default function Settings() {
               </div>
             </div>
 
-            <div className="card-elevated p-6">
+            <div className="card-elevated ui-card-pad">
               <h3 className="font-semibold text-foreground mb-6">Two-Factor Authentication</h3>
               <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30">
                 <div>
@@ -679,15 +682,21 @@ export default function Settings() {
               </Button>
             </div>
 
-            <div className="card-elevated p-6 border-destructive/50">
+            <div className="card-elevated ui-card-pad border-destructive/50">
               <h3 className="font-semibold text-destructive mb-4">Danger Zone</h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Once you delete your account, there is no going back. Please be certain.
               </p>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="outline" onClick={() => void handleSignOut()}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Sign Out
+                </Button>
               <Button variant="destructive">
                 <LogOut className="w-4 h-4 mr-2" />
                 Delete Account
               </Button>
+              </div>
             </div>
           </motion.div>
         </TabsContent>

@@ -34,15 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { db } from '@/config/firebase';
-import {
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'sonner';
 import type { PlacementSettings } from '@/types';
 
@@ -93,7 +85,7 @@ export default function PlacementSettingsPage({ embedded }: Props) {
   useEffect(() => {
     const loadSettings = async () => {
       try {
-        const settingsRef = doc(db, 'placementSettings', 'general');
+        const settingsRef = doc(({} as any), 'placementSettings', 'general');
         const docSnap = await getDoc(settingsRef);
         
         if (docSnap.exists()) {
@@ -113,7 +105,7 @@ export default function PlacementSettingsPage({ embedded }: Props) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const settingsRef = doc(db, 'placementSettings', 'general');
+      const settingsRef = doc(({} as any), 'placementSettings', 'general');
       await setDoc(settingsRef, {
         ...settings,
         updatedAt: serverTimestamp(),

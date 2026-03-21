@@ -1,4 +1,4 @@
-import { usePermissions } from './usePermissions';
+import { usePermissions } from "./usePermissions";
 
 /**
  * Department-based filtering hook
@@ -8,7 +8,7 @@ export function useDepartmentFilter() {
   const { user, isAdmin, isFaculty, isPlacementOfficer } = usePermissions();
 
   /**
-   * Get department filter for Firestore queries
+  * Get department filter for backend queries
    * Admin: No filter (see all)
    * Faculty/Placement: Filter by their department
    * Student: Filter by their department
@@ -43,11 +43,13 @@ export function useDepartmentFilter() {
   /**
    * Filter an array of items by department
    */
-  const filterByDepartment = <T extends { department?: string }>(items: T[]): T[] => {
+  const filterByDepartment = <T extends { department?: string }>(
+    items: T[],
+  ): T[] => {
     if (isAdmin || isPlacementOfficer) return items; // No filter
     const userDept = (user as any)?.department;
     if (!userDept) return [];
-    return items.filter(item => item.department === userDept);
+    return items.filter((item) => item.department === userDept);
   };
 
   return {

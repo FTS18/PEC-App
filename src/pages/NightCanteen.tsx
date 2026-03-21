@@ -13,14 +13,14 @@ import {
   Search,
   Filter
 } from 'lucide-react';
-import { db, auth } from '@/config/firebase';
-import { collection, query, getDocs, addDoc, serverTimestamp, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, getDocs, addDoc, serverTimestamp, where, onSnapshot } from '@/lib/dataClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { ImageWithBlur } from '@/components/ui/image-with-blur';
 import { Skeleton } from '@/components/ui/skeleton';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface CanteenItem {
   id: string;
@@ -38,6 +38,7 @@ interface CartItem extends CanteenItem {
 }
 
 export function NightCanteen() {
+  const { user } = usePermissions();
   const [items, setItems] = useState<CanteenItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -53,7 +54,7 @@ export function NightCanteen() {
   useEffect(() => {
     const fetchItems = async () => {
       try {
-        const q = query(collection(db, 'canteenItems'), where('isAvailable', '==', true));
+        const q = query(collection(({} as any), 'canteenItems'), where('isAvailable', '==', true));
         const snapshot = await getDocs(q);
         setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CanteenItem)));
       } catch (error) {
@@ -68,10 +69,10 @@ export function NightCanteen() {
   }, []);
 
   useEffect(() => {
-    if (view === 'orders' && auth.currentUser) {
+    if (view === 'orders' && user) {
       const q = query(
-        collection(db, 'canteenOrders'),
-        where('studentId', '==', auth.currentUser.uid)
+        collection(({} as any), 'canteenOrders'),
+        where('studentId', '==', user.uid)
       );
       
       const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -85,7 +86,7 @@ export function NightCanteen() {
 
       return () => unsubscribe();
     }
-  }, [view]);
+  }, [view, user]);
 
   const addToCart = (item: CanteenItem) => {
     setCart(prev => {
@@ -127,10 +128,9 @@ export function NightCanteen() {
 
     setIsPlacingOrder(true);
     try {
-      const user = auth.currentUser;
       const orderData = {
         studentId: user?.uid,
-        studentName: user?.displayName || user?.email?.split('@')[0],
+        studentName: user?.fullName || user?.name || user?.email?.split('@')[0],
         hostelRoom,
         items: cart.map(i => ({
           itemId: i.id,
@@ -143,7 +143,7 @@ export function NightCanteen() {
         timestamp: serverTimestamp()
       };
 
-      await addDoc(collection(db, 'canteenOrders'), orderData);
+      await addDoc(collection(({} as any), 'canteenOrders'), orderData);
       setCart([]);
       setHostelRoom('');
       toast.success('Order placed successfully!');
@@ -456,3 +456,5 @@ export function NightCanteen() {
     </div>
   );
 }
+
+export default NightCanteen;

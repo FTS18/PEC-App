@@ -73,11 +73,11 @@ export function SystemConfig() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="platform-name">Platform Name</Label>
-              <Input id="platform-name" defaultValue="OmniFlow" className="mt-1" />
+              <Input id="platform-name" defaultValue="PEC" className="mt-1" />
             </div>
             <div>
               <Label htmlFor="support-email">Support Email</Label>
-              <Input id="support-email" type="email" defaultValue="support@OmniFlow.edu" className="mt-1" />
+              <Input id="support-email" type="email" defaultValue="support@PEC.edu" className="mt-1" />
             </div>
             <div>
               <Label htmlFor="timezone">Default Timezone</Label>
@@ -213,7 +213,7 @@ export function SystemConfig() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="smtp-host">SMTP Host</Label>
-              <Input id="smtp-host" defaultValue="smtp.OmniFlow.edu" className="mt-1" />
+              <Input id="smtp-host" defaultValue="smtp.PEC.edu" className="mt-1" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -236,7 +236,7 @@ export function SystemConfig() {
             </div>
             <div>
               <Label htmlFor="from-email">From Email</Label>
-              <Input id="from-email" defaultValue="noreply@OmniFlow.edu" className="mt-1" />
+              <Input id="from-email" defaultValue="noreply@PEC.edu" className="mt-1" />
             </div>
           </div>
         </motion.div>

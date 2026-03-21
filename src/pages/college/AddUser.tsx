@@ -57,7 +57,6 @@ export function AddUser() {
               <SelectItem value="student">Student</SelectItem>
               <SelectItem value="faculty">Faculty</SelectItem>
               <SelectItem value="staff">Staff</SelectItem>
-              <SelectItem value="placement_officer">Placement Officer</SelectItem>
             </SelectContent>
           </Select>
         </div>

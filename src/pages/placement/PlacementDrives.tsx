@@ -45,19 +45,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { db } from '@/config/firebase';
-import {
-  collection,
-  query,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  Timestamp,
-} from 'firebase/firestore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -98,7 +85,7 @@ export default function PlacementDrives() {
   });
 
   useEffect(() => {
-    const q = query(collection(db, 'placement_drives'), orderBy('date', 'desc'));
+    const q = query(collection(({} as any), 'placement_drives'), orderBy('date', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setDrives(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Drive)));
       setLoading(false);
@@ -116,10 +103,10 @@ export default function PlacementDrives() {
       };
 
       if (editingDrive) {
-        await updateDoc(doc(db, 'placement_drives', editingDrive.id), data);
+        await updateDoc(doc(({} as any), 'placement_drives', editingDrive.id), data);
         toast.success('Drive updated successfully');
       } else {
-        await addDoc(collection(db, 'placement_drives'), {
+        await addDoc(collection(({} as any), 'placement_drives'), {
           ...data,
           createdAt: serverTimestamp(),
           registeredCount: 0,
@@ -137,7 +124,7 @@ export default function PlacementDrives() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this drive?')) return;
     try {
-      await deleteDoc(doc(db, 'placement_drives', id));
+      await deleteDoc(doc(({} as any), 'placement_drives', id));
       toast.success('Drive deleted');
     } catch (error) {
       toast.error('Failed to delete drive');

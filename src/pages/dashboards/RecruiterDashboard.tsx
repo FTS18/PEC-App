@@ -21,16 +21,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { db, auth } from '@/config/firebase';
-import { 
-  collection, 
-  query, 
-  where, 
-  onSnapshot, 
-  orderBy, 
-  limit 
-} from 'firebase/firestore';
 import { Link } from 'react-router-dom';
+import { onSnapshot, query, collection, where } from '@/lib/dataClient';
+import { usePermissions } from '@/hooks/usePermissions';
 
 const container = {
   hidden: { opacity: 0 },
@@ -46,6 +39,7 @@ const item = {
 };
 
 export function RecruiterDashboard() {
+  const { user } = usePermissions();
   const [stats, setStats] = useState({
     activeJobs: 0,
     totalApps: 0,
@@ -57,12 +51,11 @@ export function RecruiterDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const user = auth.currentUser;
     if (!user) return;
 
     // Active Jobs
     const unsubJobs = onSnapshot(
-      query(collection(db, 'jobs'), where('recruiterId', '==', user.uid)),
+      query(collection(({} as any), 'jobs'), where('recruiterId', '==', user.uid)),
       (snap) => {
         setStats(prev => ({ ...prev, activeJobs: snap.size }));
         setJobs(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -71,7 +64,7 @@ export function RecruiterDashboard() {
 
     // Applications & Stats
     const unsubApps = onSnapshot(
-      query(collection(db, 'applications'), where('recruiterId', '==', user.uid)),
+      query(collection(({} as any), 'applications'), where('recruiterId', '==', user.uid)),
       (snap) => {
         const apps = snap.docs.map(doc => doc.data());
         setStats(prev => ({
@@ -89,7 +82,7 @@ export function RecruiterDashboard() {
       unsubJobs();
       unsubApps();
     };
-  }, []);
+  }, [user]);
 
   if (loading) {
     return (

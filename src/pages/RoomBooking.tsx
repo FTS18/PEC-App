@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, MapPin, Clock, Plus, Loader2, Filter } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
-import { db } from '../config/firebase';
+
 import {
   collection,
   query,
@@ -13,7 +13,7 @@ import {
   doc,
   where,
   orderBy,
-} from 'firebase/firestore';
+} from '@/lib/dataClient';
 import type { Room as RoomType, RoomBooking as RoomBookingType } from '../types';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,7 +30,7 @@ const roomTypes = ['Classroom', 'Laboratory', 'Meeting Room', 'Seminar Hall', 'C
 export default function RoomBooking() {
   const { user } = useAuth();
   const { role } = usePermissions();
-  const isAdmin = role === 'college_admin' || role === 'super_admin';
+  const isAdmin = role === 'college_admin';
   const [rooms, setRooms] = useState<RoomType[]>([]);
   const [bookings, setBookings] = useState<RoomBookingType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +57,7 @@ export default function RoomBooking() {
 
   // Fetch rooms
   useEffect(() => {
-    const roomsRef = collection(db, 'rooms');
+    const roomsRef = collection(({} as any), 'rooms');
     const unsubscribe = onSnapshot(
       query(roomsRef, orderBy('name')),
       (snapshot) => {
@@ -75,7 +75,7 @@ export default function RoomBooking() {
 
   // Fetch bookings for selected date
   useEffect(() => {
-    const bookingsRef = collection(db, 'roomBookings');
+    const bookingsRef = collection(({} as any), 'roomBookings');
     const dateStart = new Date(selectedDate);
     const dateEnd = new Date(selectedDate);
     dateEnd.setDate(dateEnd.getDate() + 1);
@@ -105,13 +105,13 @@ export default function RoomBooking() {
   );
 
   const handleAddRoom = async () => {
-    if (role !== 'college_admin' && role !== 'super_admin') {
+    if (role !== 'college_admin') {
       toast.error('You do not have permission to add rooms');
       return;
     }
 
     try {
-      await addDoc(collection(db, 'rooms'), {
+      await addDoc(collection(({} as any), 'rooms'), {
         ...newRoom,
         createdAt: new Date(),
         isAvailable: true,
@@ -157,7 +157,7 @@ export default function RoomBooking() {
       }
 
       const bookingDate = new Date(selectedDate);
-      await addDoc(collection(db, 'roomBookings'), {
+      await addDoc(collection(({} as any), 'roomBookings'), {
         roomId,
         userId: user.uid,
         date: bookingDate,
@@ -188,7 +188,7 @@ export default function RoomBooking() {
 
   const handleApproveBooking = async (bookingId: string) => {
     try {
-      await updateDoc(doc(db, 'roomBookings', bookingId), {
+      await updateDoc(doc(({} as any), 'roomBookings', bookingId), {
         status: 'approved',
       });
       toast.success('Booking approved');
@@ -200,7 +200,7 @@ export default function RoomBooking() {
 
   const handleRejectBooking = async (bookingId: string) => {
     try {
-      await deleteDoc(doc(db, 'roomBookings', bookingId));
+      await deleteDoc(doc(({} as any), 'roomBookings', bookingId));
       toast.success('Booking rejected');
     } catch (error) {
       console.error('Error rejecting booking:', error);

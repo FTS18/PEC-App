@@ -1,10 +1,9 @@
-import { User } from '@/types';
+import { User } from "@/types";
 
 /**
  * Permission utility functions for role-based access control
  * Provides consistent permission checking across the application
  */
-
 export interface UserPermissions {
   // View permissions
   canViewDashboard: boolean;
@@ -14,7 +13,7 @@ export interface UserPermissions {
   canAccessReports: boolean;
   canAccessAdmin: boolean;
 
-  // Manage permissions  
+  // Manage permissions
   canEditProfile: boolean;
   canManageCourses: boolean;
   canManageUsers: boolean;
@@ -33,8 +32,8 @@ export function getUserPermissions(user: User | null): UserPermissions {
   }
 
   // If permissions are already in user object, return them
-  if (user.permissions) {
-    return user.permissions as UserPermissions;
+  if ((user as any).permissions) {
+    return (user as any).permissions as UserPermissions;
   }
 
   // Otherwise, derive from role
@@ -69,8 +68,9 @@ export function getRolePermissions(role: string): UserPermissions {
   const basePermissions = getDefaultPermissions();
 
   switch (role) {
-    case 'super_admin':
-    case 'college_admin':
+    case "college_admin":
+    case "admin":
+    case "moderator":
       return {
         ...basePermissions,
         canViewDashboard: true,
@@ -88,35 +88,25 @@ export function getRolePermissions(role: string): UserPermissions {
         canManageInstitution: true,
       };
 
-    case 'faculty':
+    case "faculty":
       return {
         ...basePermissions,
         canViewDashboard: true,
         canAccessCourses: true,
+        canAccessFinance: true,
+        canAccessPlacements: true,
         canAccessReports: true,
+        canAccessAdmin: true,
         canEditProfile: true,
         canManageCourses: true,
-      };
-
-    case 'placement_officer':
-      return {
-        ...basePermissions,
-        canViewDashboard: true,
-        canAccessPlacements: true,
-        canAccessReports: true,
-        canEditProfile: true,
+        canManageUsers: true,
+        canManageFinance: true,
         canManagePlacements: true,
+        canManageRecruiters: true,
+        canManageInstitution: true,
       };
 
-    case 'recruiter':
-      return {
-        ...basePermissions,
-        canViewDashboard: true,
-        canAccessPlacements: true,
-        canEditProfile: true,
-      };
-
-    case 'student':
+    case "student":
       return {
         ...basePermissions,
         canViewDashboard: true,
@@ -132,38 +122,40 @@ export function getRolePermissions(role: string): UserPermissions {
 }
 
 /**
- * Check if user is admin (super_admin or college_admin)
+ * Check if user is admin
  */
 export function isAdmin(user: User | null): boolean {
-  return user?.role === 'super_admin' || user?.role === 'college_admin';
+  return ["college_admin", "admin", "moderator", "faculty"].includes(
+    user?.role || "",
+  );
 }
 
 /**
  * Check if user is faculty
  */
 export function isFaculty(user: User | null): boolean {
-  return user?.role === 'faculty';
+  return user?.role === "faculty";
 }
 
 /**
  * Check if user is student
  */
 export function isStudent(user: User | null): boolean {
-  return user?.role === 'student';
+  return user?.role === "student";
 }
 
 /**
  * Check if user is placement officer
  */
 export function isPlacementOfficer(user: User | null): boolean {
-  return user?.role === 'placement_officer';
+  return false;
 }
 
 /**
  * Check if user is recruiter
  */
 export function isRecruiter(user: User | null): boolean {
-  return user?.role === 'recruiter';
+  return false;
 }
 
 /**

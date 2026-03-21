@@ -1,68 +1,35 @@
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
-import { hasPermission, RolePermissions } from '@/lib/rolePermissions';
+import { useHasPermission } from '@/features/auth/hooks/useAuth';
+import { RolePermissions } from '@/features/auth/lib/rolePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, Lock } from 'lucide-react';
+import { AlertCircle, Lock, Loader2 } from 'lucide-react';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredPermission: keyof RolePermissions;
+  requiredPermission?: keyof RolePermissions;
   fallback?: ReactNode;
 }
 
 export function ProtectedRoute({ children, requiredPermission, fallback }: ProtectedRouteProps) {
   const navigate = useNavigate();
-  const [isAuthorized, setIsAuthorized] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user, loading } = useAuth();
+  const hasPermission = requiredPermission ? useHasPermission(requiredPermission) : true;
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
+    if (!loading && !user) {
+      navigate('/auth', { replace: true });
+    }
+  }, [loading, user, navigate]);
 
-      setCurrentUser(user);
-
-      try {
-        // Get user document from Firestore
-        const userDocRef = doc(db, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-
-        if (!userDoc.exists()) {
-          navigate('/auth');
-          return;
-        }
-
-        const userData = userDoc.data();
-        const userPermissions = userData.permissions as RolePermissions;
-
-        // Check if user has required permission
-        if (hasPermission(userPermissions, requiredPermission)) {
-          setIsAuthorized(true);
-        }
-      } catch (error) {
-        console.error('Error fetching user permissions:', error);
-        navigate('/auth');
-      } finally {
-        setIsLoading(false);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [navigate, requiredPermission]);
-
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent mx-auto mb-4"></div>
+            <Loader2 className="w-8 h-8 animate-spin text-accent mx-auto mb-4" />
             <p className="text-muted-foreground">Verifying access...</p>
           </CardContent>
         </Card>
@@ -70,7 +37,30 @@ export function ProtectedRoute({ children, requiredPermission, fallback }: Prote
     );
   }
 
-  if (!isAuthorized) {
+  if (!user) {
+    return (
+      fallback || (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <AlertCircle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+              <CardTitle>Authentication Required</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                You need to be signed in to access this resource.
+              </p>
+              <Button onClick={() => navigate('/auth', { replace: true })} className="w-full">
+                Go to Login
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )
+    );
+  }
+
+  if (requiredPermission && !hasPermission) {
     return (
       fallback || (
         <div className="min-h-screen flex items-center justify-center p-4">
@@ -86,7 +76,7 @@ export function ProtectedRoute({ children, requiredPermission, fallback }: Prote
                   You don't have permission to access this resource. Please contact your administrator if you believe this is an error.
                 </p>
               </div>
-              <Button onClick={() => navigate('/dashboard')} className="w-full">
+              <Button onClick={() => navigate('/dashboard', { replace: true })} className="w-full">
                 Go to Dashboard
               </Button>
             </CardContent>

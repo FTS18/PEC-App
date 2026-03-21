@@ -19,17 +19,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { db } from '@/config/firebase';
+import { Link } from 'react-router-dom';
 import { 
+  onSnapshot, 
   collection, 
   query, 
-  getDocs, 
   where, 
   orderBy, 
-  limit,
-  onSnapshot
-} from 'firebase/firestore';
-import { Link } from 'react-router-dom';
+  limit 
+} from '@/lib/dataClient';
 
 const container = {
   hidden: { opacity: 0 },
@@ -57,31 +55,31 @@ export function PlacementOfficerDashboard() {
 
   useEffect(() => {
     // Real-time stats
-    const unsubJobs = onSnapshot(collection(db, 'jobs'), (snap) => {
+    const unsubJobs = onSnapshot(collection(({} as any), 'jobs'), (snap: any) => {
       setStats(prev => ({ ...prev, jobs: snap.size }));
     });
 
-    const unsubRecruiters = onSnapshot(collection(db, 'recruiter_companies'), (snap) => {
+    const unsubRecruiters = onSnapshot(collection(({} as any), 'recruiter_companies'), (snap: any) => {
       setStats(prev => ({ ...prev, recruiters: snap.size }));
     });
 
-    const unsubApps = onSnapshot(query(collection(db, 'applications'), where('status', '==', 'hired')), (snap) => {
+    const unsubApps = onSnapshot(query(collection(({} as any), 'applications'), where('status', '==', 'hired')), (snap: any) => {
       setStats(prev => ({ ...prev, placed: snap.size }));
     });
 
     // Recent Placements
     const unsubRecent = onSnapshot(
-      query(collection(db, 'applications'), where('status', '==', 'hired'), orderBy('updatedAt', 'desc'), limit(4)),
-      (snap) => {
-        setRecentPlacements(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      query(collection(({} as any), 'applications'), where('status', '==', 'hired'), orderBy('updatedAt', 'desc'), limit(4)),
+      (snap: any) => {
+        setRecentPlacements(snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
       }
     );
 
     // Upcoming Drives
     const unsubDrives = onSnapshot(
-      query(collection(db, 'placement_drives'), where('status', '==', 'upcoming'), orderBy('date', 'asc'), limit(4)),
-      (snap) => {
-        setUpcomingDrives(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      query(collection(({} as any), 'placement_drives'), where('status', '==', 'upcoming'), orderBy('date', 'asc'), limit(4)),
+      (snap: any) => {
+        setUpcomingDrives(snap.docs.map((doc: any) => ({ id: doc.id, ...doc.data() })));
         setLoading(false);
       }
     );
@@ -188,8 +186,8 @@ export function PlacementOfficerDashboard() {
                     key={drive.id}
                     company={drive.companyName}
                     role={drive.role}
-                    date={drive.date.toDate().toLocaleDateString()}
-                    slots={1} // Default or actual slots
+                    date={drive.date?.toDate ? drive.date.toDate().toLocaleDateString() : new Date(drive.date).toLocaleDateString()}
+                    slots={1}
                     registered={drive.registeredCount || 0}
                     status={drive.status === 'upcoming' ? 'confirmed' : 'pending'}
                   />
@@ -219,7 +217,7 @@ export function PlacementOfficerDashboard() {
                     name={app.studentName}
                     company={app.companyName}
                     role={app.jobTitle}
-                    package={"₹12L"} // Placeholder for package
+                    package={"₹12L"}
                   />
                 ))
               )}

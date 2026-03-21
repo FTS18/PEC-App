@@ -15,8 +15,8 @@ import {
   Loader2,
   ChevronRight,
 } from 'lucide-react';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { doc, getDoc, collection, query, where, getDocs } from '@/lib/dataClient';
+
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -51,7 +51,7 @@ export function DepartmentDetail() {
       try {
         setLoading(true);
         // Fetch department details
-        const deptDoc = await getDoc(doc(db, 'departments', id));
+        const deptDoc = await getDoc(doc(({} as any), 'departments', id));
         if (!deptDoc.exists()) {
           toast.error('Department not found');
           navigate('/departments');
@@ -64,7 +64,7 @@ export function DepartmentDetail() {
 
         // Fetch faculty members
         const facultyQuery = query(
-          collection(db, 'users'),
+          collection(({} as any), 'users'),
           where('role', '==', 'faculty'),
           where('department', '==', departmentName)
         );
@@ -73,7 +73,7 @@ export function DepartmentDetail() {
 
         // Fetch students
         const studentsQuery = query(
-          collection(db, 'users'),
+          collection(({} as any), 'users'),
           where('role', '==', 'student'),
           where('department', '==', departmentName)
         );
@@ -82,7 +82,7 @@ export function DepartmentDetail() {
 
         // Fetch courses
         const coursesQuery = query(
-          collection(db, 'courses'),
+          collection(({} as any), 'courses'),
           where('department', '==', departmentName)
         );
         const coursesSnap = await getDocs(coursesQuery);
@@ -90,7 +90,7 @@ export function DepartmentDetail() {
 
         // Fetch timetable
         const timetableQuery = query(
-          collection(db, 'timetable'),
+          collection(({} as any), 'timetable'),
           where('department', '==', departmentName)
         );
         const timetableSnap = await getDocs(timetableQuery);

@@ -43,7 +43,7 @@ export function Contact() {
             <Mail className="w-6 h-6 text-foreground mt-1 flex-shrink-0" />
             <div>
               <h3 className="font-semibold text-foreground mb-1">Email</h3>
-              <p className="text-muted-foreground">support@omniflow.app</p>
+              <p className="text-muted-foreground">support@pec.app</p>
             </div>
           </div>
 

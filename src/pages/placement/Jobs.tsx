@@ -47,23 +47,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { db } from '@/config/firebase';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  getDocs,
-  getDoc,
-  doc,
-  serverTimestamp,
-  Timestamp,
-  setDoc,
-} from 'firebase/firestore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -95,7 +78,7 @@ export default function Jobs() {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
 
-  /* New Application Flow State */
+  // New Application Flow State
   const [applicationDialogOpen, setApplicationDialogOpen] = useState(false);
   const [confirmingJob, setConfirmingJob] = useState<Job | null>(null);
   const [hasResume, setHasResume] = useState(false);
@@ -111,7 +94,7 @@ export default function Jobs() {
     const checkUserProfile = async () => {
       if (!user?.uid || isRecruiter) return;
       try {
-        const profileRef = doc(db, 'placementProfiles', user.uid);
+        const profileRef = doc(({} as any), 'placementProfiles', user.uid);
         const profileSnap = await getDoc(profileRef);
         if (profileSnap.exists()) {
           const data = profileSnap.data();
@@ -150,9 +133,9 @@ export default function Jobs() {
 
     let q;
     if (isRecruiter) {
-      q = query(collection(db, 'jobs'), where('recruiterId', '==', user.uid), orderBy('postedAt', 'desc'));
+      q = query(collection(({} as any), 'jobs'), where('recruiterId', '==', user.uid), orderBy('postedAt', 'desc'));
     } else {
-      q = query(collection(db, 'jobs'), orderBy('postedAt', 'desc'));
+      q = query(collection(({} as any), 'jobs'), orderBy('postedAt', 'desc'));
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -173,7 +156,7 @@ export default function Jobs() {
     const loadAppliedJobs = async () => {
       try {
         const appQuery = query(
-          collection(db, 'applications'),
+          collection(({} as any), 'applications'),
           where('studentId', '==', user.uid)
         );
         const snapshot = await getDocs(appQuery);
@@ -198,10 +181,10 @@ export default function Jobs() {
       };
 
       if (editingJob) {
-        await updateDoc(doc(db, 'jobs', editingJob.id), data);
+        await updateDoc(doc(({} as any), 'jobs', editingJob.id), data);
         toast.success('Job updated successfully');
       } else {
-        await addDoc(collection(db, 'jobs'), {
+        await addDoc(collection(({} as any), 'jobs'), {
           ...data,
           recruiterId: user?.uid,
           postedAt: serverTimestamp(),
@@ -249,11 +232,11 @@ export default function Jobs() {
            await new Promise(resolve => setTimeout(resolve, 1500));
            
            // Mock Upload URL
-           resumeUrlToUse = `https://firebasestorage.googleapis.com/v0/b/omniflow-demo/o/resumes%2F${user.uid}_${Date.now()}.pdf?alt=media`;
+           resumeUrlToUse = `/media/resumes/${user.uid}_${Date.now()}.pdf`;
            
            // If they chose to make public, update their profile
            if (isResumePublic) {
-               await updateDoc(doc(db, 'placementProfiles', user.uid), {
+               await updateDoc(doc(({} as any), 'placementProfiles', user.uid), {
                    resumeUrl: resumeUrlToUse,
                    resumeUpdatedAt: serverTimestamp(),
                    isResumePublic: true
@@ -275,7 +258,7 @@ export default function Jobs() {
     try {
       // Create application
       const applicationId = crypto.randomUUID();
-      await setDoc(doc(db, 'job_applications', applicationId), {
+      await setDoc(doc(({} as any), 'job_applications', applicationId), {
         id: applicationId,
         jobId: confirmingJob.id,
         jobTitle: confirmingJob.title || 'Untitled Position',
@@ -309,7 +292,7 @@ export default function Jobs() {
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this job posting?')) return;
     try {
-      await deleteDoc(doc(db, 'jobs', id));
+      await deleteDoc(doc(({} as any), 'jobs', id));
       toast.success('Job deleted');
     } catch (error) {
       toast.error('Failed to delete job');
@@ -331,8 +314,6 @@ export default function Jobs() {
     });
     setEditingJob(null);
   };
-
-
 
   // Helper to get deterministic but nice images for jobs
   const getCompanyImage = (company: string, title: string) => {

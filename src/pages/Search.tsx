@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -8,7 +8,6 @@ import {
   Calendar, 
   FileText, 
   ChevronRight,
-  Loader2,
   Building2,
   BookOpen
 } from 'lucide-react';
@@ -17,10 +16,17 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { db } from '@/config/firebase';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import api from '@/lib/api';
 import { searchableRoutes } from '@/utils/searchableRoutes';
 import { LayoutDashboard } from 'lucide-react';
+import { SearchResultsSkeleton } from '@/components/ui/skeletons';
+
+const extractData = <T,>(payload: any): T => {
+  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
+    return payload.data as T;
+  }
+  return payload as T;
+};
 
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -47,46 +53,65 @@ export default function Search() {
     setLoading(true);
 
     try {
-      // Parallel search across collections
-      // Note: Firestore doesn't support full-text search natively without extensions like Algolia.
-      // We'll use simple prefix matching or client-side filtering for this demo.
-      // ideally we would use a dedicated search service.
-      
-      const usersRef = collection(db, 'users');
-      const jobsRef = collection(db, 'jobs');
-      const drivesRef = collection(db, 'placement_drives');
-
-      const subjectsRef = collection(db, 'courses');
-
-      // Basic query - specific improvements would need backend search engine
-      const [usersSnap, jobsSnap, drivesSnap, subjectsSnap] = await Promise.all([
-        getDocs(query(usersRef, limit(20))),
-        getDocs(query(jobsRef, orderBy('postedAt', 'desc'), limit(20))),
-        getDocs(query(drivesRef, orderBy('date', 'desc'), limit(20))),
-        getDocs(query(subjectsRef, limit(20)))
+      const [usersRes, jobsRes, subjectsRes] = await Promise.allSettled([
+        api.get('/users', { params: { limit: 200, offset: 0 } }),
+        api.get('/jobs', { params: { limit: 200, offset: 0 } }),
+        api.get('/courses', { params: { limit: 200, offset: 0 } }),
       ]);
 
-      const lowerTerm = term.toLowerCase();
+      const lowerTerm = term.trim().toLowerCase();
+      const users =
+        usersRes.status === 'fulfilled'
+          ? extractData<any[]>(usersRes.value.data) || []
+          : [];
+      const jobs =
+        jobsRes.status === 'fulfilled'
+          ? extractData<any[]>(jobsRes.value.data) || []
+          : [];
+      const subjects =
+        subjectsRes.status === 'fulfilled'
+          ? extractData<any[]>(subjectsRes.value.data) || []
+          : [];
 
-      const filteredUsers = usersSnap.docs
-        .map(d => ({ id: d.id, ...d.data() } as any))
-        .filter(u => u.fullName?.toLowerCase().includes(lowerTerm) || u.email?.toLowerCase().includes(lowerTerm));
+      const filteredUsers = users
+        .map((u: any) => ({
+          ...u,
+          fullName: u.fullName || u.name || '',
+        }))
+        .filter((u: any) =>
+          String(u.fullName || '').toLowerCase().includes(lowerTerm) ||
+          String(u.email || '').toLowerCase().includes(lowerTerm),
+        );
 
-      const filteredJobs = jobsSnap.docs
-        .map(d => ({ id: d.id, ...d.data() } as any))
-        .filter(j => j.title?.toLowerCase().includes(lowerTerm) || j.companyName?.toLowerCase().includes(lowerTerm));
-      
-      const filteredDrives = drivesSnap.docs
-        .map(d => ({ id: d.id, ...d.data() } as any))
-        .filter(d => d.companyName?.toLowerCase().includes(lowerTerm) || d.role?.toLowerCase().includes(lowerTerm));
+      const filteredJobs = jobs.filter(
+        (j: any) =>
+          String(j.title || '').toLowerCase().includes(lowerTerm) ||
+          String(j.company || j.companyName || '').toLowerCase().includes(lowerTerm),
+      );
 
-      const filteredSubjects = subjectsSnap.docs
-        .map(d => ({ id: d.id, ...d.data() } as any))
-        .filter(c => c.name?.toLowerCase().includes(lowerTerm) || c.code?.toLowerCase().includes(lowerTerm));
+      const filteredDrives = filteredJobs
+        .map((job: any) => ({
+          id: `drive-${job.id}`,
+          companyName: job.company || job.companyName,
+          role: job.title,
+          date: job.deadline,
+          location: job.location,
+        }))
+        .sort((a: any, b: any) => {
+          const left = new Date(a.date || 0).getTime();
+          const right = new Date(b.date || 0).getTime();
+          return left - right;
+        });
+
+      const filteredSubjects = subjects.filter(
+        (c: any) =>
+          String(c.name || '').toLowerCase().includes(lowerTerm) ||
+          String(c.code || '').toLowerCase().includes(lowerTerm),
+      );
 
       const filteredPages = searchableRoutes.filter(route => 
          route.title.toLowerCase().includes(lowerTerm) || 
-         route.keywords.some(k => k.includes(lowerTerm))
+         route.keywords.some(k => k.toLowerCase().includes(lowerTerm))
       );
 
       setResults({
@@ -124,6 +149,16 @@ export default function Search() {
     show: { opacity: 1, y: 0 }
   };
 
+  const hasResults = useMemo(
+    () =>
+      results.users.length > 0 ||
+      results.jobs.length > 0 ||
+      results.drives.length > 0 ||
+      results.pages.length > 0 ||
+      results.subjects.length > 0,
+    [results],
+  );
+
   return (
     <div className="space-y-6">
       {/* Search Header */}
@@ -146,9 +181,7 @@ export default function Search() {
       </div>
 
       {loading ? (
-        <div className="flex justify-center p-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <SearchResultsSkeleton />
       ) : (
         <motion.div 
           variants={container}
@@ -156,7 +189,7 @@ export default function Search() {
           animate="show"
           className="max-w-5xl mx-auto space-y-8"
         >
-          {(!results.users.length && !results.jobs.length && !results.drives.length && !results.pages.length && !results.subjects.length) ? (
+          {!hasResults ? (
             <div className="text-center py-12 text-muted-foreground">
               No results found for "{initialQuery}"
             </div>

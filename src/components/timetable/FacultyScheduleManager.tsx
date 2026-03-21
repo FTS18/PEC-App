@@ -5,9 +5,9 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
-import { collection, addDoc, updateDoc, doc, query, where, getDocs, serverTimestamp, writeBatch } from 'firebase/firestore';
-import { db, auth } from '@/config/firebase';
+import { collection, addDoc, updateDoc, doc, query, where, getDocs, serverTimestamp, writeBatch } from '@/lib/dataClient';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Calendar, Clock, MapPin, Plus, Edit, Bell } from 'lucide-react';
 
 interface FacultyScheduleManagerProps {
@@ -17,6 +17,7 @@ interface FacultyScheduleManagerProps {
 
 export function FacultyScheduleManager({ courses, onScheduleAdded }: FacultyScheduleManagerProps) {
   const { toast } = useToast();
+  const { user } = usePermissions();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -32,7 +33,6 @@ export function FacultyScheduleManager({ courses, onScheduleAdded }: FacultySche
 
   const handleAddExtraClass = async () => {
     try {
-      const user = auth.currentUser;
       if (!user || !formData.courseId || !formData.date || !formData.startTime || !formData.endTime) {
         toast({
           title: 'Missing Information',
@@ -49,7 +49,7 @@ export function FacultyScheduleManager({ courses, onScheduleAdded }: FacultySche
 
       // Check for conflicts
       const conflictQuery = query(
-        collection(db, 'timetable'),
+        collection(({} as any), 'timetable'),
         where('facultyId', '==', user.uid),
         where('date', '==', formData.date),
         where('startTime', '<=', formData.endTime),
@@ -68,11 +68,11 @@ export function FacultyScheduleManager({ courses, onScheduleAdded }: FacultySche
       }
 
       // Add to timetable
-      await addDoc(collection(db, 'timetable'), {
+      await addDoc(collection(({} as any), 'timetable'), {
         courseId: formData.courseId,
         courseName: course.name,
         facultyId: user.uid,
-        facultyName: user.displayName || 'Faculty',
+        facultyName: user.fullName || user.name || 'Faculty',
         date: formData.date,
         day: new Date(formData.date).toLocaleDateString('en-US', { weekday: 'long' }),
         startTime: formData.startTime,
@@ -85,13 +85,13 @@ export function FacultyScheduleManager({ courses, onScheduleAdded }: FacultySche
       });
 
       // Send notifications to enrolled students
-      const batch = writeBatch(db);
+      const batch = writeBatch(({} as any));
       
       // Find students in this course's department and semester
       // Note: This is a simplified logic. In a real app, you'd check specific course enrollment.
       if (course.department && course.semester) {
         const studentsQuery = query(
-          collection(db, 'users'),
+          collection(({} as any), 'users'),
           where('role', '==', 'student'),
           where('department', '==', course.department),
           where('semester', '==', course.semester)
@@ -100,7 +100,7 @@ export function FacultyScheduleManager({ courses, onScheduleAdded }: FacultySche
         const studentsSnap = await getDocs(studentsQuery);
         
         studentsSnap.forEach((studentDoc) => {
-          const notifRef = doc(collection(db, 'notifications'));
+          const notifRef = doc(collection(({} as any), 'notifications'));
           batch.set(notifRef, {
             userId: studentDoc.id,
             title: `${formData.type === 'extra' ? 'Extra Class' : 'Makeup Class'} Scheduled`,

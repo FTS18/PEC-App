@@ -236,7 +236,6 @@ export function LandingPage() {
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
 
-
   // GSAP Scroll Animations
   useEffect(() => {
     // Check for reduced motion preference
@@ -305,7 +304,7 @@ export function LandingPage() {
                 whileTap={{ scale: 0.95 }}
                 className="flex items-center gap-3 cursor-pointer"
               >
-                <img src="/logo.png" alt="OmniFlow" className="h-12 w-auto" />
+                <img src="/logo.png" alt="PEC" className="h-12 w-auto" />
               </motion.div>
             </Link>
             <div className="hidden md:flex items-center gap-2">
@@ -460,7 +459,7 @@ export function LandingPage() {
               <iframe
                 src="/demo-dashboard"
                 className="rounded-none w-full h-[700px] border-4 border-black bg-neutral-900"
-                title="OmniFlow Dashboard Demo"
+                title="PEC Dashboard Demo"
                 scrolling="no"
               />
 
@@ -566,8 +565,6 @@ export function LandingPage() {
         </div>
       </section>
 
-
-
       {/* Logo Scroll - Dark BG with Image */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden min-h-[50vh] flex items-center snap-start">
         <div className="absolute inset-0 z-0 bg-orange-600">
@@ -584,7 +581,7 @@ export function LandingPage() {
           >
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6" style={{ fontFamily: "'Monument Extended', serif" }}>
               Why{" "}
-              <span className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">OmniFlow</span>
+              <span className="text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]">PEC</span>
             </h2>
             <p className="text-xl text-white/90 font-medium max-w-2xl mx-auto">
               The all-in-one platform trusted by leading institutions
@@ -1663,7 +1660,7 @@ export function LandingPage() {
               <span className="bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-400 bg-clip-text text-transparent">Frequently Asked Questions</span>
             </h2>
             <p className="text-lg text-white/80">
-              Everything you need to know about getting started with OmniFlow
+              Everything you need to know about getting started with PEC
             </p>
           </motion.div>
 
@@ -1678,16 +1675,16 @@ export function LandingPage() {
                 a: "Yes! We support data import from Excel, CSV, and other ERP systems. Our team handles the migration at no extra cost.",
               },
               {
-                q: "What systems can OmniFlow integrate with?",
+                q: "What systems can PEC integrate with?",
                 a: "We support Google Workspace, Microsoft 365, Canvas LMS, and any system with REST API. Custom integrations available.",
               },
               {
                 q: "Is there an API we can use?",
-                a: "Yes, OmniFlow has a comprehensive REST API with full documentation. Perfect for custom development.",
+                a: "Yes, PEC has a comprehensive REST API with full documentation. Perfect for custom development.",
               },
               {
-                q: "Is OmniFlow GDPR compliant?",
-                a: "Yes, OmniFlow is fully GDPR and FERPA compliant. All data is encrypted at rest and in transit. We're SOC 2 Type II certified.",
+                q: "Is PEC GDPR compliant?",
+                a: "Yes, PEC is fully GDPR and FERPA compliant. All data is encrypted at rest and in transit. We're SOC 2 Type II certified.",
               },
               {
                 q: "What about data backup and recovery?",
@@ -1853,7 +1850,7 @@ export function LandingPage() {
               <Link to="/">
                 <div className="flex items-center gap-3 mb-6 hover:opacity-80 transition-opacity">
                   <span className="text-2xl font-bold text-white">
-                    OmniFlow
+                    PEC
                   </span>
                 </div>
               </Link>
@@ -1926,7 +1923,7 @@ export function LandingPage() {
             className="pt-8 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6"
           >
             <p className="text-sm text-white/50">
-              © 2025 OmniFlow. All rights reserved.
+              © 2025 PEC. All rights reserved.
             </p>
             <div className="flex items-center gap-6">
               {[

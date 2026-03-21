@@ -66,3 +66,43 @@ export function DashboardSkeleton() {
     </div>
   )
 }
+
+export function AppShellSkeleton() {
+  return (
+    <div className="min-h-screen bg-background p-6">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="space-y-3">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-5 w-80" />
+        </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+        </div>
+        <div className="space-y-4">
+          <Skeleton className="h-12 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+          <Skeleton className="h-20 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function SearchResultsSkeleton() {
+  return (
+    <div className="max-w-5xl mx-auto space-y-8">
+      <div className="grid gap-4 md:grid-cols-3">
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+        <Skeleton className="h-32 rounded-2xl" />
+      </div>
+      <div className="space-y-4">
+        <JobCardSkeleton />
+        <JobCardSkeleton />
+      </div>
+    </div>
+  )
+}

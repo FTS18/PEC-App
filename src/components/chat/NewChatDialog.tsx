@@ -10,7 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { findUserByEmail, createOrFindDMRoom } from "@/lib/chatRooms.service";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "sonner";
 
 interface Props {

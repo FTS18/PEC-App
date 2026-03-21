@@ -15,9 +15,8 @@ import {
   Download,
   Crown,
   MoreVertical,
-  Shield,
 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -35,30 +34,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc,
-  doc,
-  getDoc,
-  serverTimestamp,
-  query,
-  where,
-} from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
 import { toast } from 'sonner';
 import BulkUpload from '@/components/BulkUpload';
 import * as XLSX from 'xlsx';
-import { getOrgIdFromSlug, isSuperAdmin } from '@/lib/orgHelpers';
+import api from '@/lib/api';
+import { usePermissions } from '@/hooks/usePermissions';
 
 export default function Faculty() {
   const navigate = useNavigate();
-  const { orgSlug } = useParams<{ orgSlug: string }>();
+  const { isAdmin, user, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState('');
   const [faculty, setFaculty] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -76,42 +61,33 @@ export default function Faculty() {
   });
 
   const handleBulkImport = async (data: any[]) => {
+    const CHUNK_SIZE = 40;
     let successCount = 0;
     let failCount = 0;
     const errors: string[] = [];
 
-    for (const row of data) {
-      try {
-        const orgId = await getOrgIdFromSlug(orgSlug);
+    for (let i = 0; i < data.length; i += CHUNK_SIZE) {
+      const chunk = data.slice(i, i + CHUNK_SIZE);
+      const requests = chunk.map(async (row: any) => {
+        try {
+          await api.post('/users', {
+            fullName: row.fullName || row.name,
+            email: row.email,
+            role: 'faculty',
+            department: row.department || undefined,
+            employeeId: row.employeeId || undefined,
+            designation: row.designation || undefined,
+            specialization: row.specialization || undefined,
+            phone: row.phone || undefined,
+          });
+          successCount += 1;
+        } catch (error) {
+          failCount += 1;
+          errors.push(`${row.email || row.fullName || row.name || 'row'}: ${(error as Error).message}`);
+        }
+      });
 
-        const userRef = await addDoc(collection(db, 'users'), {
-          fullName: row.fullName || row.name,
-          email: row.email,
-          role: 'faculty',
-          organizationId: orgId,
-          profileComplete: true,
-          status: 'active',
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
-
-        await addDoc(collection(db, 'facultyProfiles'), {
-          uid: userRef.id,
-          fullName: row.fullName || row.name,
-          email: row.email,
-          employeeId: row.employeeId || '',
-          department: row.department || '',
-          designation: row.designation || '',
-          specialization: row.specialization || '',
-          phone: row.phone || '',
-          createdAt: serverTimestamp(),
-        });
-
-        successCount++;
-      } catch (error) {
-        failCount++;
-        errors.push(`${row.email}: ${(error as Error).message}`);
-      }
+      await Promise.all(requests);
     }
 
     await fetchFaculty();
@@ -160,23 +136,21 @@ export default function Faculty() {
   ];
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
+    if (authLoading) return;
 
+    if (!user) {
+      navigate('/auth', { replace: true });
+      return;
+    }
+
+    if (!isAdmin) {
+      toast.error('Access denied. Admin only.');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    void (async () => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userData = userDoc.data();
-        setUserRole(userData?.role || '');
-
-        if (userData?.role !== 'college_admin' && userData?.role !== 'super_admin') {
-          toast.error('Access denied. Admin only.');
-          navigate('/dashboard');
-          return;
-        }
-
         await fetchFaculty();
       } catch (error) {
         console.error('Error:', error);
@@ -184,47 +158,21 @@ export default function Faculty() {
       } finally {
         setLoading(false);
       }
-    });
-
-    return () => unsubscribe();
-  }, [navigate]);
+    })();
+  }, [authLoading, user, isAdmin, navigate]);
 
   const fetchFaculty = async () => {
     try {
-      let allUsers: any[] = [];
+      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+      const response = await api.get<ApiResponse<any[]>>('/users', {
+        params: {
+          limit: 200,
+          offset: 0,
+          role: 'faculty',
+        },
+      });
 
-      // Get organization ID for filtering
-      const orgId = await getOrgIdFromSlug(orgSlug);
-
-      if (!orgId || isSuperAdmin(userRole)) {
-        // Super admin or no org: show all
-        const usersSnapshot = await getDocs(collection(db, 'users'));
-        allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      } else {
-        // Filter by organization
-        const usersQuery = query(
-          collection(db, 'users'),
-          where('organizationId', '==', orgId)
-        );
-        const usersSnapshot = await getDocs(usersQuery);
-        allUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      }
-
-      const facultyUsers = allUsers.filter(u => u.role === 'faculty');
-      
-      const facultyWithProfiles = await Promise.all(
-        facultyUsers.map(async (user) => {
-          try {
-            const profileDoc = await getDoc(doc(db, 'facultyProfiles', user.id));
-            const profileData = profileDoc.data();
-            return { ...user, ...profileData };
-          } catch {
-            return user;
-          }
-        })
-      );
-      
-      setFaculty(facultyWithProfiles);
+      setFaculty(response.data.data || []);
     } catch (error) {
       console.error('Error fetching faculty:', error);
     }
@@ -232,30 +180,21 @@ export default function Faculty() {
 
   const handleCreate = async () => {
     try {
-      const orgId = await getOrgIdFromSlug(orgSlug);
-
-      const userRef = await addDoc(collection(db, 'users'), {
+      await api.post('/users', {
         fullName: facultyForm.fullName,
         email: facultyForm.email,
         role: 'faculty',
-        organizationId: orgId,
-        profileComplete: true,
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      await addDoc(collection(db, 'facultyProfiles'), {
-        uid: userRef.id,
-        ...facultyForm,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        department: facultyForm.department || undefined,
+        employeeId: facultyForm.employeeId || undefined,
+        designation: facultyForm.designation || undefined,
+        specialization: facultyForm.specialization || undefined,
+        phone: facultyForm.phone || undefined,
       });
 
       toast.success('Faculty member created successfully!');
       setShowDialog(false);
       resetForm();
-      fetchFaculty();
+      await fetchFaculty();
     } catch (error) {
       console.error('Error creating faculty:', error);
       toast.error('Failed to create faculty');
@@ -265,22 +204,21 @@ export default function Faculty() {
   const handleUpdate = async () => {
     if (!editingFaculty) return;
     try {
-      await updateDoc(doc(db, 'users', editingFaculty.id), {
+      await api.patch(`/users/${editingFaculty.id}`, {
         fullName: facultyForm.fullName,
         email: facultyForm.email,
-        updatedAt: serverTimestamp(),
-      });
-
-      await updateDoc(doc(db, 'facultyProfiles', editingFaculty.id), {
-        ...facultyForm,
-        updatedAt: serverTimestamp(),
+        department: facultyForm.department || undefined,
+        employeeId: facultyForm.employeeId || undefined,
+        designation: facultyForm.designation || undefined,
+        specialization: facultyForm.specialization || undefined,
+        phone: facultyForm.phone || undefined,
       });
 
       toast.success('Faculty updated successfully!');
       setShowDialog(false);
       setEditingFaculty(null);
       resetForm();
-      fetchFaculty();
+      await fetchFaculty();
     } catch (error) {
       console.error('Error updating faculty:', error);
       toast.error('Failed to update faculty');
@@ -290,10 +228,9 @@ export default function Faculty() {
   const handleDelete = async (facultyId: string) => {
     if (!confirm('Are you sure you want to delete this faculty member?')) return;
     try {
-      await deleteDoc(doc(db, 'users', facultyId));
-      await deleteDoc(doc(db, 'facultyProfiles', facultyId));
+      await api.delete(`/users/${facultyId}`);
       toast.success('Faculty deleted successfully!');
-      fetchFaculty();
+      await fetchFaculty();
     } catch (error) {
       console.error('Error deleting faculty:', error);
       toast.error('Failed to delete faculty');
@@ -307,45 +244,37 @@ export default function Faculty() {
     }
     
     try {
-      // Update faculty profile with HOD designation
-      await updateDoc(doc(db, 'facultyProfiles', fac.id), {
+      await api.patch(`/users/${fac.id}`, {
+        fullName: fac.fullName,
+        email: fac.email,
+        role: 'faculty',
+        department: fac.department,
+        employeeId: fac.employeeId || undefined,
         designation: 'Head of Department',
-        isHOD: true,
-        updatedAt: serverTimestamp(),
+        specialization: fac.specialization || undefined,
+        phone: fac.phone || undefined,
       });
 
-      // Update the department to set this faculty as HOD
-      const deptQuery = query(collection(db, 'departments'), where('name', '==', fac.department));
-      const deptSnap = await getDocs(deptQuery);
-      
-      if (!deptSnap.empty) {
-        const deptDoc = deptSnap.docs[0];
-        await updateDoc(doc(db, 'departments', deptDoc.id), {
-          hodId: fac.id,
-          hodName: fac.fullName,
-          updatedAt: serverTimestamp(),
+      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+      const deptResponse = await api.get<ApiResponse<any[]>>('/departments', {
+        params: { limit: 200, offset: 0, search: fac.department },
+      });
+
+      const match = (deptResponse.data.data || []).find(
+        (department: any) => department?.name?.toLowerCase() === String(fac.department).toLowerCase(),
+      );
+
+      if (match?.id) {
+        await api.patch(`/departments/${match.id}`, {
+          hod: fac.fullName,
         });
       }
 
       toast.success(`${fac.fullName} promoted to HOD of ${fac.department}!`);
-      fetchFaculty();
+      await fetchFaculty();
     } catch (error) {
       console.error('Error promoting to HOD:', error);
       toast.error('Failed to promote to HOD');
-    }
-  };
-
-  const promoteToPlacementOfficer = async (fac: any) => {
-    try {
-      await updateDoc(doc(db, 'users', fac.id), {
-        role: 'placement_officer',
-        updatedAt: serverTimestamp(),
-      });
-      toast.success(`${fac.fullName} is now a Placement Officer!`);
-      fetchFaculty();
-    } catch (error) {
-      console.error('Error promoting to TPO:', error);
-      toast.error('Failed to promote to Placement Officer');
     }
   };
 
@@ -504,10 +433,6 @@ export default function Faculty() {
                             <DropdownMenuItem onClick={() => promoteToHOD(fac)}>
                               <Crown className="w-4 h-4 mr-2 text-yellow-500" />
                               Promote to HOD
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => promoteToPlacementOfficer(fac)}>
-                              <Shield className="w-4 h-4 mr-2 text-blue-500" />
-                              Make Placement Officer
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(fac.id)}>

@@ -50,20 +50,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { db } from '@/config/firebase';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  updateDoc,
-  doc,
-  serverTimestamp,
-  getDoc,
-  getDocs,
-  addDoc
-} from 'firebase/firestore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -105,9 +91,9 @@ export default function PlacementApplications() {
 
     let q;
     if (isRecruiter) {
-      q = query(collection(db, 'applications'), where('recruiterId', '==', user.uid), orderBy('appliedAt', 'desc'));
+      q = query(collection(({} as any), 'applications'), where('recruiterId', '==', user.uid), orderBy('appliedAt', 'desc'));
     } else {
-      q = query(collection(db, 'applications'), orderBy('appliedAt', 'desc'));
+      q = query(collection(({} as any), 'applications'), orderBy('appliedAt', 'desc'));
     }
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -123,7 +109,7 @@ export default function PlacementApplications() {
 
   const handleUpdateStatus = async (id: string, newStatus: Application['status']) => {
     try {
-      await updateDoc(doc(db, 'applications', id), {
+      await updateDoc(doc(({} as any), 'applications', id), {
         status: newStatus,
         updatedAt: serverTimestamp(),
       });
@@ -137,7 +123,7 @@ export default function PlacementApplications() {
     if (!currentAppForNote) return;
     
     try {
-      await updateDoc(doc(db, 'applications', currentAppForNote.id), {
+      await updateDoc(doc(({} as any), 'applications', currentAppForNote.id), {
         notes: noteContent,
         updatedAt: serverTimestamp(),
       });
@@ -193,7 +179,7 @@ export default function PlacementApplications() {
     try {
       // 1. Check if room exists
       const q = query(
-        collection(db, 'rooms'), 
+        collection(({} as any), 'rooms'), 
         where('participants', 'array-contains', user.uid),
         orderBy('lastMessageAt', 'desc')
       );
@@ -209,7 +195,7 @@ export default function PlacementApplications() {
         roomId = existingRoom.id;
       } else {
         // 2. Create new room
-        const roomRef = await addDoc(collection(db, 'rooms'), {
+        const roomRef = await addDoc(collection(({} as any), 'rooms'), {
           type: 'dm',
           participants: [user.uid, studentId],
           participantNames: [user.fullName || 'Recruiter', studentName],
@@ -244,7 +230,7 @@ export default function PlacementApplications() {
       if (applications.length === 0) return;
       
       const studentIds = [...new Set(applications.map(app => app.studentId))];
-      // Chunking (Firestore 'in' limit is 10)
+      // Chunking to stay within backend filter limits
       const chunks = [];
       for(let i = 0; i < studentIds.length; i += 10) {
         chunks.push(studentIds.slice(i, i+10));
@@ -254,7 +240,7 @@ export default function PlacementApplications() {
 
       for (const chunk of chunks) {
         try {
-          const q = query(collection(db, 'placementProfiles'), where('__name__', 'in', chunk));
+          const q = query(collection(({} as any), 'placementProfiles'), where('__name__', 'in', chunk));
           const snapshot = await getDocs(q);
           snapshot.docs.forEach(doc => {
             newProfiles[doc.id] = doc.data();
@@ -317,6 +303,14 @@ export default function PlacementApplications() {
       }
       return b.appliedAt?.toMillis() - a.appliedAt?.toMillis();
     });
+
+  const departments = Array.from(
+    new Set(
+      filteredAndSortedApps
+        .map((application) => application.studentDepartment)
+        .filter(Boolean)
+    )
+  ).sort();
 
   if (loading) {
     return (
@@ -422,11 +416,11 @@ export default function PlacementApplications() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Departments</SelectItem>
-              <SelectItem value="Computer Science & Engineering">CSE</SelectItem>
-              <SelectItem value="Electronics & Communication Engineering">ECE</SelectItem>
-              <SelectItem value="Mechanical Engineering">Mechanical</SelectItem>
-              <SelectItem value="Electrical Engineering">Electrical</SelectItem>
-              <SelectItem value="Civil Engineering">Civil</SelectItem>
+              {departments.map((department) => (
+                <SelectItem key={department} value={department}>
+                  {department}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>

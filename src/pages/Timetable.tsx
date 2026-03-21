@@ -34,26 +34,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { onAuthStateChanged } from "firebase/auth";
-import {
-  collection,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  getDoc,
-  serverTimestamp,
-  query,
-  where,
-} from "firebase/firestore";
-import { auth, db } from "@/config/firebase";
+import api from "@/lib/api";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   generateFullTimetable,
   type CourseSchedule,
 } from "@/lib/timetableGenerator";
+import { EmptyState, LoadingGrid } from '@/components/common/AsyncState';
 
 const DAYS = [
   "Monday",
@@ -74,6 +62,52 @@ const TIME_SLOTS = [
   "15:00-16:00",
   "16:00-17:00",
 ];
+
+type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+const MAX_PAGE_SIZE = 200;
+
+const extractData = <T,>(response: any): T => {
+  if (response?.data?.data !== undefined) return response.data.data as T;
+  return response?.data as T;
+};
+
+const parseTimeSlot = (timeSlot: string) => {
+  const [startTime, endTime] = timeSlot.split("-");
+  return { startTime, endTime };
+};
+
+const fetchAllPages = async <T,>(
+  path: string,
+  params: Record<string, unknown> = {},
+): Promise<T[]> => {
+  const firstResponse = await api.get<ApiResponse<T[]>>(path, {
+    params: { ...params, limit: MAX_PAGE_SIZE, offset: 0 },
+  });
+  const firstItems = extractData<T[]>(firstResponse) || [];
+  const total = Number(firstResponse?.data?.meta?.total ?? firstItems.length);
+
+  if (total <= MAX_PAGE_SIZE) {
+    return firstItems;
+  }
+
+  const remainingOffsets: number[] = [];
+  for (let offset = MAX_PAGE_SIZE; offset < total; offset += MAX_PAGE_SIZE) {
+    remainingOffsets.push(offset);
+  }
+
+  const remainingResponses = await Promise.all(
+    remainingOffsets.map((offset) =>
+      api.get<ApiResponse<T[]>>(path, {
+        params: { ...params, limit: MAX_PAGE_SIZE, offset },
+      }),
+    ),
+  );
+
+  return [
+    ...firstItems,
+    ...remainingResponses.flatMap((response) => extractData<T[]>(response) || []),
+  ];
+};
 
 export default function Timetable() {
   const navigate = useNavigate();
@@ -101,10 +135,10 @@ export default function Timetable() {
   const [studentEnrollments, setStudentEnrollments] = useState<string[]>([]);
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
+    if (authLoading) return; // Wait for ({} as any) to load
 
     if (!user) {
-      navigate("/auth");
+      navigate('/auth', { replace: true });
       return;
     }
 
@@ -112,14 +146,11 @@ export default function Timetable() {
       try {
         await fetchData();
         if (user.role === "student" && user.uid) {
-          const enrollmentsQuery = query(
-            collection(db, "enrollments"),
-            where("studentId", "==", user.uid)
-          );
-          const enrollmentsSnap = await getDocs(enrollmentsQuery);
-          const courseIds = enrollmentsSnap.docs.map(
-            (doc) => (doc.data() as any).courseId
-          );
+          const enrollments = await fetchAllPages<any>('/enrollments', {
+            studentId: user.uid,
+            status: 'active',
+          });
+          const courseIds = enrollments.map((item: any) => item.courseId);
           setStudentEnrollments(courseIds);
         }
       } catch (error) {
@@ -135,66 +166,31 @@ export default function Timetable() {
 
   const fetchData = async () => {
     try {
-      // Fetch courses filtered by organization
-      const orgId = user?.organizationId;
-      const coursesQuery = orgId 
-        ? query(collection(db, "courses"), where("organizationId", "==", orgId))
-        : collection(db, "courses");
-      const coursesSnapshot = await getDocs(coursesQuery);
-      let coursesData = coursesSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      let coursesData = await fetchAllPages<any>('/courses');
 
-      // Filter courses for faculty
       if (isFaculty && user?.uid) {
-        // Check if faculty has assignments
-        const assignmentsQuery = query(
-          collection(db, "facultyAssignments"),
-          where("facultyId", "==", user.uid)
+        coursesData = coursesData.filter(
+          (course: any) => course.instructor === user.uid || course.facultyId === user.uid
         );
-        const assignmentsSnap = await getDocs(assignmentsQuery);
-
-        if (assignmentsSnap.docs.length > 0) {
-          // Faculty has assignments - show only assigned courses
-          const assignedCourseIds = assignmentsSnap.docs.map(
-            (doc) => doc.data().courseId
-          );
-          coursesData = coursesData.filter((course) =>
-            assignedCourseIds.includes(course.id)
-          );
-        } else {
-          // No assignments - filter by department
-          const userDept = (user as any)?.department;
-          if (userDept) {
-            coursesData = coursesData.filter(
-              (course) => (course as any).department === userDept
-            );
-          }
-        }
       }
 
       setCourses(coursesData);
 
-      // Fetch timetable entries
-      const timetableSnapshot = await getDocs(collection(db, "timetable"));
+      const timetableItems = await fetchAllPages<any>('/timetable');
       const timetableData: any = {};
 
-      // Get filtered course IDs for timetable filtering
       const allowedCourseIds = coursesData.map((c) => c.id);
 
-      timetableSnapshot.docs.forEach((doc) => {
-        const data = doc.data();
-
-        // Only include timetable entries for faculty's courses
-        if (allowedCourseIds.includes(data.courseId)) {
-          const key = `${data.day}-${data.timeSlot}`;
+      timetableItems.forEach((item: any) => {
+        if (allowedCourseIds.includes(item.courseId)) {
+          const timeSlot = item.timeSlot || `${item.startTime}-${item.endTime}`;
+          const key = `${item.day}-${timeSlot}`;
           if (!timetableData[key]) {
             timetableData[key] = [];
           }
           timetableData[key].push({
-            id: doc.id,
-            ...data,
+            ...item,
+            timeSlot,
           });
         }
       });
@@ -224,36 +220,44 @@ export default function Timetable() {
           const specificSlot = existingSlot.find(
             (s: any) => s.courseCode === row.courseCode
           );
+          const { startTime, endTime } = parseTimeSlot(row.timeSlot);
           if (specificSlot) {
-            await updateDoc(doc(db, "timetable", specificSlot.id), {
+            await api.patch(`/timetable/${specificSlot.id}`, {
               courseId: course.id,
               courseName: course.name,
               courseCode: course.code,
+              day: row.day,
+              startTime,
+              endTime,
               room: row.room || "TBD",
-              updatedAt: serverTimestamp(),
             });
           } else {
-            await addDoc(collection(db, "timetable"), {
+            await api.post('/timetable', {
               day: row.day,
-              timeSlot: row.timeSlot,
+              startTime,
+              endTime,
               courseId: course.id,
               courseName: course.name,
               courseCode: course.code,
+              facultyId: course.facultyId || course.instructor || undefined,
+              facultyName: course.facultyName || course.instructorName || undefined,
               room: row.room || "TBD",
               department: course.department,
-              createdAt: serverTimestamp(),
             });
           }
         } else {
-          await addDoc(collection(db, "timetable"), {
+          const { startTime, endTime } = parseTimeSlot(row.timeSlot);
+          await api.post('/timetable', {
             day: row.day,
-            timeSlot: row.timeSlot,
+            startTime,
+            endTime,
             courseId: course.id,
             courseName: course.name,
             courseCode: course.code,
+            facultyId: course.facultyId || course.instructor || undefined,
+            facultyName: course.facultyName || course.instructorName || undefined,
             room: row.room || "TBD",
             department: course.department,
-            createdAt: serverTimestamp(),
           });
         }
         successCount++;
@@ -301,17 +305,16 @@ export default function Timetable() {
 
     setGenerating(true);
     try {
-      // Fetch all courses
-      const coursesSnapshot = await getDocs(collection(db, "courses"));
-      const allCourses: CourseSchedule[] = coursesSnapshot.docs.map((doc) => ({
-        courseId: doc.id,
-        courseName: doc.data().name,
-        courseCode: doc.data().code,
-        facultyId: doc.data().facultyId || "",
-        facultyName: doc.data().facultyName || "",
-        department: (doc.data().department || "").trim(),
-        semester: doc.data().semester || 1,
-        credits: doc.data().credits || 3,
+      const allCoursesRaw = await fetchAllPages<any>('/courses');
+      const allCourses: CourseSchedule[] = allCoursesRaw.map((course: any) => ({
+        courseId: course.id,
+        courseName: course.name,
+        courseCode: course.code,
+        facultyId: course.facultyId || course.instructor || "",
+        facultyName: course.facultyName || course.instructorName || course.instructor || "",
+        department: (course.department || "").trim(),
+        semester: course.semester || 1,
+        credits: course.credits || 3,
       }));
 
       // Get all unique departments
@@ -325,20 +328,27 @@ export default function Timetable() {
         departments
       );
 
-      // Clear existing timetable
-      const existingTimetable = await getDocs(collection(db, "timetable"));
-      const deletePromises = existingTimetable.docs.map((doc) =>
-        deleteDoc(doc.ref)
-      );
+      const existingTimetable = await fetchAllPages<any>('/timetable');
+      const deletePromises = existingTimetable.map((item: any) => api.delete(`/timetable/${item.id}`));
       await Promise.all(deletePromises);
 
-      // Add new entries
-      const addPromises = entries.map((entry) =>
-        addDoc(collection(db, "timetable"), {
-          ...entry,
-          createdAt: serverTimestamp(),
-        })
-      );
+      const addPromises = entries.map((entry) => {
+        const { startTime, endTime } = parseTimeSlot(entry.timeSlot);
+        return api.post('/timetable', {
+          day: entry.day,
+          startTime,
+          endTime,
+          courseId: entry.courseId,
+          courseName: entry.courseName,
+          courseCode: entry.courseCode,
+          facultyId: entry.facultyId || undefined,
+          facultyName: entry.facultyName || undefined,
+          department: entry.department,
+          room: entry.room || 'TBD',
+          semester: entry.semester || undefined,
+          batch: entry.batch || undefined,
+        });
+      });
       await Promise.all(addPromises);
 
       await fetchData(); // Refresh display
@@ -403,13 +413,18 @@ export default function Timetable() {
       );
 
       if (existingEntry) {
-        await updateDoc(doc(db, "timetable", existingEntry.id), {
-          updatedAt: serverTimestamp(),
+        const { startTime, endTime } = parseTimeSlot(timeSlot);
+        await api.patch(`/timetable/${existingEntry.id}`, {
+          day,
+          startTime,
+          endTime,
         });
       } else {
-        await addDoc(collection(db, "timetable"), {
+        const { startTime, endTime } = parseTimeSlot(timeSlot);
+        await api.post('/timetable', {
           day,
-          timeSlot,
+          startTime,
+          endTime,
           courseId: draggedCourse.id,
           courseName: draggedCourse.name,
           courseCode: draggedCourse.code,
@@ -417,7 +432,6 @@ export default function Timetable() {
           facultyName: draggedCourse.facultyName || "",
           department: draggedCourse.department,
           room: "TBD",
-          createdAt: serverTimestamp(),
         });
       }
 
@@ -444,7 +458,7 @@ export default function Timetable() {
   const handleDeleteSlot = async (slotId: string) => {
     if (!confirm("Remove this class from timetable?")) return;
     try {
-      await deleteDoc(doc(db, "timetable", slotId));
+      await api.delete(`/timetable/${slotId}`);
       toast.success("Slot removed!");
       fetchData();
     } catch (error) {
@@ -479,8 +493,11 @@ export default function Timetable() {
 
     try {
       if (selectedSlot.id) {
-        // Editing an existing record
-        await updateDoc(doc(db, "timetable", selectedSlot.id), {
+        const { startTime, endTime } = parseTimeSlot(selectedSlot.timeSlot);
+        await api.patch(`/timetable/${selectedSlot.id}`, {
+          day: selectedSlot.day,
+          startTime,
+          endTime,
           courseId: course.id,
           courseName: course.name,
           courseCode: course.code,
@@ -488,13 +505,13 @@ export default function Timetable() {
           facultyName: course.facultyName || "",
           department: course.department,
           room: slotForm.room,
-          updatedAt: serverTimestamp(),
         });
       } else {
-        // Adding new record to this slot
-        await addDoc(collection(db, "timetable"), {
+        const { startTime, endTime } = parseTimeSlot(selectedSlot.timeSlot);
+        await api.post('/timetable', {
           day: selectedSlot.day,
-          timeSlot: selectedSlot.timeSlot,
+          startTime,
+          endTime,
           courseId: course.id,
           courseName: course.name,
           courseCode: course.code,
@@ -502,7 +519,6 @@ export default function Timetable() {
           facultyName: course.facultyName || "",
           department: course.department,
           room: slotForm.room,
-          createdAt: serverTimestamp(),
         });
       }
 
@@ -533,17 +549,15 @@ export default function Timetable() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading timetable...</p>
-        </div>
+      <div className="space-y-6 md:space-y-8">
+        <div className="h-8 w-56 bg-muted rounded-md animate-pulse" />
+        <LoadingGrid count={3} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" itemClassName="h-28 rounded-md" />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 md:gap-6">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Timetable</h1>
@@ -608,7 +622,7 @@ export default function Timetable() {
 
       {/* Available Courses (Admin Only) */}
       {isAdmin && (
-        <div className="card-elevated p-6">
+        <div className="card-elevated ui-card-pad">
           <h3 className="font-semibold text-lg text-foreground mb-4 flex items-center gap-2">
             <GripVertical className="w-5 h-5" />
             Available Courses (Drag to Schedule)
@@ -640,7 +654,7 @@ export default function Timetable() {
       )}
 
       {/* Department Filter (Role-Based) - Hidden on Mobile for Students */}
-      <div className={`card-elevated p-4 ${user?.role === 'student' ? 'hidden md:block' : ''}`}>
+      <div className={`card-elevated ui-card-pad ${user?.role === 'student' ? 'hidden md:block' : ''}`}>
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -701,7 +715,7 @@ export default function Timetable() {
       </div>
 
       {/* Mobile View (Cards) - "Shoe Type Shi" Design */}
-      <div className="md:hidden space-y-6">
+      <div className="md:hidden space-y-5">
         {/* Day Selector */}
         <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar snap-x">
           {DAYS.map((day) => (
@@ -982,6 +996,11 @@ export default function Timetable() {
             ))}
           </tbody>
         </table>
+        {Object.keys(timetable).length === 0 && (
+          <div className="p-4">
+            <EmptyState title="No timetable entries" description="Add slots manually or use auto-generate." />
+          </div>
+        )}
       </div>
 
       {/* Edit Slot Dialog (Admin) */}

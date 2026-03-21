@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { Database, Laptop, Calculator, Microscope, Palette, Globe, Book, Activity } from 'lucide-react';
 
@@ -12,6 +12,11 @@ interface ImageWithBlurProps extends React.ImgHTMLAttributes<HTMLImageElement> {
 export function ImageWithBlur({ src, alt, className, fallbackColor = "bg-muted", ...props }: ImageWithBlurProps) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
+  const fallbackAvatarSrc = useMemo(
+    () =>
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(alt)}&background=random&size=400&font-size=0.33`,
+    [alt],
+  );
 
   useEffect(() => {
     const img = new Image();
@@ -24,9 +29,12 @@ export function ImageWithBlur({ src, alt, className, fallbackColor = "bg-muted",
      return (
         <div className={cn(`w-full h-full flex items-center justify-center ${fallbackColor} text-muted-foreground/50`, className)}>
             <img 
-              src={`https://ui-avatars.com/api/?name=${alt}&background=random&size=400&font-size=0.33`} 
+              src={fallbackAvatarSrc}
               alt={alt}
               className="w-full h-full object-cover opacity-80" 
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
             />
         </div>
      )
@@ -43,11 +51,14 @@ export function ImageWithBlur({ src, alt, className, fallbackColor = "bg-muted",
       <img
         src={src}
         alt={alt}
-        loading="lazy"
+        loading={props.loading ?? "lazy"}
+        decoding="async"
+        referrerPolicy="no-referrer"
         className={cn(
           "w-full h-full object-cover transition-all duration-700 ease-in-out scale-105",
           loaded ? "grayscale-0 blur-0 scale-100" : "grayscale blur-lg"
         )}
+        sizes={props.sizes ?? "(max-width: 768px) 100vw, 50vw"}
         {...props}
       />
     </div>

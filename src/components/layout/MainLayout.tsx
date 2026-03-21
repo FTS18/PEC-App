@@ -1,21 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router-dom';
-import { Sidebar } from './Sidebar';
-import { useLocation } from 'react-router-dom';
-import { Header } from './Header';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
-import type { User } from '@/types';
+import { Sidebar } from './Sidebar';
+import { Header } from './Header';
 import FloatingAIChat from '../FloatingAIChat';
 import { BottomNav } from './BottomNav';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import type { UserRole } from '@/types';
 
 
 
 export function MainLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { orgSlug } = useParams<{ orgSlug: string }>();
   const { user, loading, isAuthenticated } = useAuth();
   
   // Initialize from localStorage, default to false
@@ -26,6 +24,10 @@ export function MainLayout() {
   
   const [isMobile, setIsMobile] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [densityMode, setDensityMode] = useState<'comfortable' | 'compact'>(() => {
+    const saved = localStorage.getItem('uiDensityMode');
+    return saved === 'compact' ? 'compact' : 'comfortable';
+  });
 
   useEffect(() => {
     const handleResize = () => {
@@ -47,18 +49,33 @@ export function MainLayout() {
   }, [sidebarCollapsed]);
 
   useEffect(() => {
-    if (!loading && (!isAuthenticated || !user)) {
-      navigate('/auth', { replace: true });
+    localStorage.setItem('uiDensityMode', densityMode);
+    document.documentElement.setAttribute('data-density', densityMode);
+  }, [densityMode]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    if (!isAuthenticated || !user) {
+      if (location.pathname !== '/auth') {
+        navigate('/auth', { replace: true });
+      }
+      return;
     }
-    
-    if (!loading && user && !user.role) {
-      navigate('/role-selection', { replace: true });
+
+    if (!user.role) {
+      if (location.pathname !== '/role-selection') {
+        navigate('/role-selection', { replace: true });
+      }
+      return;
     }
-    
-    if (!loading && user && !user.profileComplete) {
-      navigate('/onboarding', { replace: true });
+
+    if (!user.profileComplete) {
+      if (location.pathname !== '/onboarding') {
+        navigate('/onboarding', { replace: true });
+      }
     }
-  }, [loading, isAuthenticated, user, navigate]);
+  }, [loading, isAuthenticated, user, navigate, location.pathname]);
 
   // Close mobile menu on navigation
   useEffect(() => {
@@ -82,12 +99,10 @@ export function MainLayout() {
     return null;
   }
 
-  // Determine effective role for sidebar display
-  // If super admin is viewing a specific organization, show college_admin sidebar
-  const effectiveRole = (user.role === 'super_admin' && orgSlug) ? 'college_admin' : user.role;
+  const effectiveRole = user.role;
 
   return (
-    <div className="min-h-screen bg-background relative overflow-x-hidden">
+    <div className="min-h-screen relative isolate overflow-x-hidden">
       {/* Atmosphere Mesh Gradient */}
       <div className="mesh-gradient-bg">
         <div className="mesh-gradient-item mesh-1" />
@@ -115,15 +130,18 @@ export function MainLayout() {
         sidebarCollapsed={sidebarCollapsed} 
         isMobile={isMobile}
         onMenuClick={() => setMobileMenuOpen(true)}
+        densityMode={densityMode}
+        onDensityModeChange={setDensityMode}
       />
       <main
         className={cn(
-          'pt-16 min-h-screen transition-all duration-300',
+          'pt-16 min-h-screen transition-all duration-150 relative overflow-hidden',
           isMobile ? 'pl-0' : (sidebarCollapsed ? 'pl-16' : 'pl-64'),
           isMobile && user.role === 'student' && 'pb-16'
         )}
       >
-        <div className={location.pathname.endsWith("/chat") ? "p-0" : "p-4 lg:p-6"}>
+        <div className="mesh-content-overlay" aria-hidden="true" />
+        <div className={cn(location.pathname.endsWith("/chat") ? "p-0" : "p-4 md:p-5 lg:p-6 ui-section-gap", "relative z-10")}>
           <Outlet />
           {!location.pathname.endsWith("/chat") && <FloatingAIChat />}
         </div>

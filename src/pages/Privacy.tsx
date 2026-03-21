@@ -22,7 +22,7 @@ export function Privacy() {
           <section>
             <h2 className="text-2xl font-bold mb-4">Introduction</h2>
             <p className="text-muted-foreground leading-relaxed">
-              OmniFlow ("we", "us", "our" or "Company") operates the omniflow.app website and the OmniFlow application.
+              PEC ("we", "us", "our" or "Company") operates the pec.app website and the PEC application.
               This page informs you of our policies regarding the collection, use, and disclosure of personal data when
               you use our Service and the choices you have associated with that data.
             </p>
@@ -49,7 +49,7 @@ export function Privacy() {
           <section>
             <h2 className="text-2xl font-bold mb-4">Contact Us</h2>
             <p className="text-muted-foreground leading-relaxed">
-              If you have any questions about this Privacy Policy, please contact us at privacy@omniflow.app
+              If you have any questions about this Privacy Policy, please contact us at privacy@pec.app
             </p>
           </section>
         </motion.div>

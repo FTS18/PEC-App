@@ -32,7 +32,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { onAuthStateChanged } from 'firebase/auth';
 import { 
   collection, 
   getDocs, 
@@ -44,8 +43,7 @@ import {
   serverTimestamp,
   query,
   where,
-} from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+} from '@/lib/dataClient';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
 import BulkUpload from '@/components/BulkUpload';
@@ -78,7 +76,7 @@ export default function Finance() {
 
     for (const row of data) {
       try {
-        await addDoc(collection(db, 'feeRecords'), {
+        await addDoc(collection(({} as any), 'feeRecords'), {
           studentId: row.studentId,
           amount: parseFloat(row.amount),
           description: row.description,
@@ -137,10 +135,10 @@ export default function Finance() {
   ];
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
+    if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
 
@@ -164,9 +162,9 @@ export default function Finance() {
       // Fetch fee records
       let feeSnapshot;
       if (isAdmin) {
-        feeSnapshot = await getDocs(collection(db, 'feeRecords'));
+        feeSnapshot = await getDocs(collection(({} as any), 'feeRecords'));
       } else {
-        const q = query(collection(db, 'feeRecords'), where('studentId', '==', user.uid));
+        const q = query(collection(({} as any), 'feeRecords'), where('studentId', '==', user.uid));
         feeSnapshot = await getDocs(q);
       }
       const fees = feeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -177,10 +175,10 @@ export default function Finance() {
         // Fetch students filtered by organization
         const orgId = user?.organizationId;
         const usersQuery = orgId
-          ? query(collection(db, 'users'),
+          ? query(collection(({} as any), 'users'),
                   where('organizationId', '==', orgId),
                   where('role', '==', 'student'))
-          : query(collection(db, 'users'), where('role', '==', 'student'));
+          : query(collection(({} as any), 'users'), where('role', '==', 'student'));
         const usersSnapshot = await getDocs(usersQuery);
         const studentUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setStudents(studentUsers);
@@ -192,7 +190,7 @@ export default function Finance() {
 
   const handleCreate = async () => {
     try {
-      await addDoc(collection(db, 'feeRecords'), {
+      await addDoc(collection(({} as any), 'feeRecords'), {
         ...feeForm,
         createdAt: serverTimestamp(),
       });
@@ -209,7 +207,7 @@ export default function Finance() {
   const handleUpdate = async () => {
     if (!editingFee) return;
     try {
-      await updateDoc(doc(db, 'feeRecords', editingFee.id), {
+      await updateDoc(doc(({} as any), 'feeRecords', editingFee.id), {
         ...feeForm,
         updatedAt: serverTimestamp(),
       });
@@ -227,7 +225,7 @@ export default function Finance() {
   const handleDelete = async (feeId: string) => {
     if (!confirm('Are you sure you want to delete this fee record?')) return;
     try {
-      await deleteDoc(doc(db, 'feeRecords', feeId));
+      await deleteDoc(doc(({} as any), 'feeRecords', feeId));
       toast.success('Fee record deleted successfully!');
       fetchData();
     } catch (error) {

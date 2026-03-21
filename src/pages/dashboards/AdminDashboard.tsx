@@ -3,7 +3,6 @@ import { motion } from 'framer-motion';
 import {
   Users,
   BookOpen,
-  DollarSign,
   Settings,
   Plus,
   Edit,
@@ -48,36 +47,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc,
-  doc,
-  getDoc,
-  query,
-  where,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import api from '@/lib/api';
 import { toast } from 'sonner';
 
 export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
   const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
   
   // State for different entities
   const [courses, setCourses] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [feeRecords, setFeeRecords] = useState<any[]>([]);
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalFaculty: 0,
     totalCourses: 0,
-    totalRevenue: 0,
   });
 
   // Course Dialog states
@@ -106,36 +92,26 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
     semester: 1,
   });
 
-  // Fee Dialog states
-  const [showFeeDialog, setShowFeeDialog] = useState(false);
-  const [feeForm, setFeeForm] = useState({
-    studentId: '',
-    amount: 0,
-    description: '',
-    dueDate: '',
-    category: 'tuition',
-  });
-
-  const isAdmin = userData?.role === 'college_admin' || userData?.role === 'super_admin';
+  const isAdmin = ['college_admin', 'super_admin', 'admin', 'moderator'].includes(user?.role || '');
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
+    if (authLoading) return;
 
+    if (!user) {
+      navigate('/auth', { replace: true });
+      return;
+    }
+
+    setUserData(user);
+
+    if (!isAdmin) {
+      toast.error('Access denied. Admin only.');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    void (async () => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        const userInfo = userDoc.data();
-        setUserData(userInfo);
-
-        if (userInfo?.role !== 'college_admin' && userInfo?.role !== 'super_admin') {
-          toast.error('Access denied. Admin only.');
-          navigate('/dashboard');
-          return;
-        }
-
         await fetchAdminData();
       } catch (error) {
         console.error('Error fetching admin data:', error);
@@ -143,60 +119,32 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
       } finally {
         setLoading(false);
       }
-    });
-
-    return () => unsubscribe();
-  }, [navigate, viewingOrgId]);
+    })();
+  }, [authLoading, user, isAdmin, navigate, viewingOrgId]);
 
   const fetchAdminData = async () => {
     try {
-      // Determine which organization's data to fetch
-      const targetOrgId = viewingOrgId || userData?.organizationId;
+      type ApiResponse<T> = { success: boolean; data: T; meta?: { total?: number } };
 
-      // if (!targetOrgId) {
-      //   toast.error('No organization selected');
-      //   return;
-      // }
+      const [coursesRes, usersRes] = await Promise.all([
+        api.get<ApiResponse<any[]>>('/courses', { params: { limit: 200, offset: 0 } }),
+        api.get<ApiResponse<any[]>>('/users', { params: { limit: 200, offset: 0 } }),
+      ]);
 
-      // Fetch courses - filter by organization using Firestore query
-      const coursesQuery = query(
-        collection(db, 'courses'),
-        where('organizationId', '==', targetOrgId)
-      );
-      const coursesSnapshot = await getDocs(coursesQuery);
-      const coursesData = coursesSnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
-      } as any));
+      const coursesData = coursesRes.data.data || [];
       setCourses(coursesData);
 
-      // Fetch users - filter by organization using Firestore query
-      const usersQuery = query(
-        collection(db, 'users'),
-        where('organizationId', '==', targetOrgId)
-      );
-      const usersSnapshot = await getDocs(usersQuery);
-      const usersData = usersSnapshot.docs.map(doc => ({ 
-        id: doc.id, 
-        ...doc.data() 
-      } as any));
+      const usersData = usersRes.data.data || [];
       setUsers(usersData);
-
-      // Fetch fee records
-      const feeSnapshot = await getDocs(collection(db, 'feeRecords'));
-      const feeData = feeSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-      setFeeRecords(feeData);
 
       // Calculate stats
       const students = (usersData as any[]).filter(u => u.role === 'student').length;
       const faculty = (usersData as any[]).filter(u => u.role === 'faculty').length;
-      const revenue = (feeData as any[]).filter(f => f.status === 'paid').reduce((sum, f) => sum + (f.amount || 0), 0);
       
       setStats({
         totalStudents: students,
         totalFaculty: faculty,
         totalCourses: coursesData.length,
-        totalRevenue: revenue,
       });
     } catch (error) {
       console.error('Error fetching admin data:', error);
@@ -206,17 +154,19 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
   // Course CRUD
   const handleCreateCourse = async () => {
     try {
-      await addDoc(collection(db, 'courses'), {
-        ...courseForm,
-        enrolledStudents: 0,
-        schedule: [],
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      await api.post('/courses', {
+        code: courseForm.code,
+        name: courseForm.name,
+        credits: Number(courseForm.credits),
+        instructor: courseForm.facultyName,
+        department: courseForm.department,
+        semester: Number(courseForm.semester),
+        status: 'active',
       });
       toast.success('Course created successfully!');
       setShowCourseDialog(false);
       resetCourseForm();
-      fetchAdminData();
+      await fetchAdminData();
     } catch (error) {
       console.error('Error creating course:', error);
       toast.error('Failed to create course');
@@ -226,15 +176,19 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
   const handleUpdateCourse = async () => {
     if (!editingCourse) return;
     try {
-      await updateDoc(doc(db, 'courses', editingCourse.id), {
-        ...courseForm,
-        updatedAt: serverTimestamp(),
+      await api.patch(`/courses/${editingCourse.id}`, {
+        code: courseForm.code,
+        name: courseForm.name,
+        credits: Number(courseForm.credits),
+        instructor: courseForm.facultyName,
+        department: courseForm.department,
+        semester: Number(courseForm.semester),
       });
       toast.success('Course updated successfully!');
       setShowCourseDialog(false);
       setEditingCourse(null);
       resetCourseForm();
-      fetchAdminData();
+      await fetchAdminData();
     } catch (error) {
       console.error('Error updating course:', error);
       toast.error('Failed to update course');
@@ -244,9 +198,9 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
   const handleDeleteCourse = async (courseId: string) => {
     if (!confirm('Are you sure you want to delete this course?')) return;
     try {
-      await deleteDoc(doc(db, 'courses', courseId));
+      await api.delete(`/courses/${courseId}`);
       toast.success('Course deleted successfully!');
-      fetchAdminData();
+      await fetchAdminData();
     } catch (error) {
       console.error('Error deleting course:', error);
       toast.error('Failed to delete course');
@@ -256,17 +210,18 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
   // User CRUD
   const handleCreateUser = async () => {
     try {
-      await addDoc(collection(db, 'users'), {
-        ...userForm,
-        profileComplete: true,
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+      await api.post('/users', {
+        fullName: userForm.fullName,
+        email: userForm.email,
+        role: userForm.role,
+        department: userForm.department || undefined,
+        enrollmentNumber: userForm.enrollmentNumber || undefined,
+        semester: Number(userForm.semester),
       });
       toast.success('User created successfully!');
       setShowUserDialog(false);
       resetUserForm();
-      fetchAdminData();
+      await fetchAdminData();
     } catch (error) {
       console.error('Error creating user:', error);
       toast.error('Failed to create user');
@@ -276,15 +231,19 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
   const handleUpdateUser = async () => {
     if (!editingUser) return;
     try {
-      await updateDoc(doc(db, 'users', editingUser.id), {
-        ...userForm,
-        updatedAt: serverTimestamp(),
+      await api.patch(`/users/${editingUser.id}`, {
+        fullName: userForm.fullName,
+        email: userForm.email,
+        role: userForm.role,
+        department: userForm.department || undefined,
+        enrollmentNumber: userForm.enrollmentNumber || undefined,
+        semester: Number(userForm.semester),
       });
       toast.success('User updated successfully!');
       setShowUserDialog(false);
       setEditingUser(null);
       resetUserForm();
-      fetchAdminData();
+      await fetchAdminData();
     } catch (error) {
       console.error('Error updating user:', error);
       toast.error('Failed to update user');
@@ -294,42 +253,12 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
   const handleDeleteUser = async (userId: string) => {
     if(!confirm('Are you sure you want to delete this user?')) return;
     try {
-      await deleteDoc(doc(db, 'users', userId));
+      await api.delete(`/users/${userId}`);
       toast.success('User deleted successfully!');
-      fetchAdminData();
+      await fetchAdminData();
     } catch (error) {
       console.error('Error deleting user:', error);
       toast.error('Failed to delete user');
-    }
-  };
-
-  // Fee CRUD
-  const handleCreateFee = async () => {
-    try {
-      await addDoc(collection(db, 'feeRecords'), {
-        ...feeForm,
-        status: 'pending',
-        createdAt: serverTimestamp(),
-      });
-      toast.success('Fee record created successfully!');
-      setShowFeeDialog(false);
-      resetFeeForm();
-      fetchAdminData();
-    } catch (error) {
-      console.error('Error creating fee:', error);
-      toast.error('Failed to create fee record');
-    }
-  };
-
-  const handleDeleteFee = async (feeId: string) => {
-    if (!confirm('Are you sure you want to delete this fee record?')) return;
-    try {
-      await deleteDoc(doc(db, 'feeRecords', feeId));
-      toast.success('Fee record deleted successfully!');
-      fetchAdminData();
-    } catch (error) {
-      console.error('Error deleting fee:', error);
-      toast.error('Failed to delete fee record');
     }
   };
 
@@ -354,16 +283,6 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
       department: '',
       enrollmentNumber: '',
       semester: 1,
-    });
-  };
-
-  const resetFeeForm = () => {
-    setFeeForm({
-      studentId: '',
-      amount: 0,
-      description: '',
-      dueDate: '',
-      category: 'tuition',
     });
   };
 
@@ -490,26 +409,6 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
           </div>
         </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }} 
-          transition={{ delay: 0.15 }} 
-          className="card-elevated p-5 cursor-pointer hover:border-primary/50 transition-colors"
-           onClick={() => {
-            const tabsTrigger = document.querySelector('[value="fees"]');
-            if (tabsTrigger instanceof HTMLElement) tabsTrigger.click();
-          }}
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-foreground/10">
-              <DollarSign className="w-5 h-5 text-foreground" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Revenue</p>
-              <p className="text-2xl font-bold text-foreground">₹{stats.totalRevenue.toLocaleString()}</p>
-            </div>
-          </div>
-        </motion.div>
       </div>
 
       {/* Tabs */}
@@ -517,7 +416,6 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
         <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden flex-nowrap tabs-list-scroll">
           <TabsTrigger value="courses"><BookOpen className="w-4 h-4 mr-2" />Courses</TabsTrigger>
           <TabsTrigger value="users"><Users className="w-4 h-4 mr-2" />Users</TabsTrigger>
-          <TabsTrigger value="fees"><DollarSign className="w-4 h-4 mr-2" />Fees</TabsTrigger>
           <TabsTrigger value="analytics"><BarChart3 className="w-4 h-4 mr-2" />Analytics</TabsTrigger>
         </TabsList>
 
@@ -614,55 +512,6 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
                               <Edit className="w-4 h-4" />
                             </Button>
                             <Button variant="ghost" size="sm" onClick={() => handleDeleteUser(user.id)}>
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* Fees Tab */}
-        <TabsContent value="fees" className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <Input placeholder="Search fees..." className="max-w-sm w-full" />
-            <Button onClick={() => { resetFeeForm(); setShowFeeDialog(true); }} className="w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" />Add Fee Record
-            </Button>
-          </div>
-
-          <div className="card-elevated overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px]">
-                <thead className="bg-muted/30 border-b border-border">
-                  <tr>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Student ID</th>
-                    <th className="text-left p-4 text-sm font-medium text-muted-foreground">Description</th>
-                    <th className="text-center p-4 text-sm font-medium text-muted-foreground">Amount</th>
-                    <th className="text-center p-4 text-sm font-medium text-muted-foreground">Status</th>
-                    <th className="text-right p-4 text-sm font-medium text-muted-foreground">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {feeRecords.length === 0 ? (
-                    <tr><td colSpan={5} className="p-8 text-center text-muted-foreground">No fee records found</td></tr>
-                  ) : (
-                    feeRecords.map((fee) => (
-                      <tr key={fee.id} className="hover:bg-muted/20">
-                        <td className="p-4 font-medium text-foreground">{fee.studentId}</td>
-                        <td className="p-4 text-muted-foreground">{fee.description}</td>
-                        <td className="p-4 text-center font-medium">₹{fee.amount?.toLocaleString()}</td>
-                        <td className="p-4 text-center">
-                          <Badge variant={fee.status === 'paid' ? 'default' : 'destructive'}>{fee.status}</Badge>
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button variant="ghost" size="sm" onClick={() => handleDeleteFee(fee.id)}>
                               <Trash2 className="w-4 h-4 text-destructive" />
                             </Button>
                           </div>
@@ -852,53 +701,6 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
         </DialogContent>
       </Dialog>
 
-      {/* Fee Dialog */}
-      <Dialog open={showFeeDialog} onOpenChange={setShowFeeDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Fee Record</DialogTitle>
-            <DialogDescription>Add a new fee record for a student</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">Student ID</label>
-              <Input value={feeForm.studentId} onChange={(e) => setFeeForm({ ...feeForm, studentId: e.target.value })} placeholder="User ID from users table" className="mt-1" />
-            </div>
-            <div>
-              <label className="text-sm font-medium">Description</label>
-              <Input value={feeForm.description} onChange={(e) => setFeeForm({ ...feeForm, description: e.target.value })} placeholder="Tuition Fee - Fall 2024" className="mt-1" />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium">Amount</label>
-                <Input type="number" value={feeForm.amount} onChange={(e) => setFeeForm({ ...feeForm, amount: parseInt(e.target.value) })} placeholder="50000" className="mt-1" />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Category</label>
-                <Select value={feeForm.category} onValueChange={(value) => setFeeForm({ ...feeForm, category: value })}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="tuition">Tuition</SelectItem>
-                    <SelectItem value="hostel">Hostel</SelectItem>
-                    <SelectItem value="exam">Exam</SelectItem>
-                    <SelectItem value="library">Library</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Due Date</label>
-              <Input type="date" value={feeForm.dueDate} onChange={(e) => setFeeForm({ ...feeForm, dueDate: e.target.value })} className="mt-1" />
-            </div>
-            <div className="flex gap-2 pt-4">
-              <Button onClick={handleCreateFee} className="flex-1">Create Fee Record</Button>
-              <Button variant="outline" onClick={() => { setShowFeeDialog(false); resetFeeForm(); }}>Cancel</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

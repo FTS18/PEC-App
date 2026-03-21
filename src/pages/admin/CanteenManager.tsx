@@ -19,19 +19,17 @@ import {
   Truck,
   MapPin,
 } from 'lucide-react';
-import { db } from '@/config/firebase';
 import { 
   collection, 
   query, 
-  getDocs, 
-  setDoc, 
+  onSnapshot, 
+  orderBy, 
   doc, 
+  setDoc, 
   deleteDoc, 
   updateDoc, 
-  serverTimestamp, 
-  onSnapshot,
-  orderBy
-} from 'firebase/firestore';
+  serverTimestamp 
+} from '@/lib/dataClient';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -74,13 +72,13 @@ export function CanteenManager() {
 
   useEffect(() => {
     // Real-time orders
-    const qOrders = query(collection(db, 'canteenOrders'), orderBy('timestamp', 'desc'));
+    const qOrders = query(collection(({} as any), 'canteenOrders'), orderBy('timestamp', 'desc'));
     const unsubscribeOrders = onSnapshot(qOrders, (snapshot) => {
       setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
 
     // Menu items
-    const qItems = query(collection(db, 'canteenItems'));
+    const qItems = query(collection(({} as any), 'canteenItems'));
     const unsubscribeItems = onSnapshot(qItems, (snapshot) => {
       setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CanteenItem)));
       setLoading(false);
@@ -100,7 +98,7 @@ export function CanteenManager() {
 
     try {
       const id = editingItem.id || editingItem.name.toLowerCase().replace(/\s+/g, '_');
-      await setDoc(doc(db, 'canteenItems', id), {
+      await setDoc(doc(({} as any), 'canteenItems', id), {
         ...editingItem,
         id,
         isAvailable: editingItem.isAvailable ?? true,
@@ -119,7 +117,7 @@ export function CanteenManager() {
   const handleDeleteItem = async (id: string) => {
     if (!confirm('Are you sure you want to delete this item?')) return;
     try {
-      await deleteDoc(doc(db, 'canteenItems', id));
+      await deleteDoc(doc(({} as any), 'canteenItems', id));
       toast.success('Item deleted');
     } catch (error) {
       toast.error('Failed to delete item');
@@ -128,7 +126,7 @@ export function CanteenManager() {
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     try {
-      await updateDoc(doc(db, 'canteenOrders', orderId), {
+      await updateDoc(doc(({} as any), 'canteenOrders', orderId), {
         status: newStatus
       });
       toast.success(`Order marked as ${newStatus}`);
@@ -421,7 +419,7 @@ export function CanteenManager() {
                         <Switch 
                           checked={item.isAvailable} 
                           onCheckedChange={async (v) => {
-                            await updateDoc(doc(db, 'canteenItems', item.id), { isAvailable: v });
+                            await updateDoc(doc(({} as any), 'canteenItems', item.id), { isAvailable: v });
                             toast.info(`${item.name} is now ${v ? 'Available' : 'Unavailable'}`);
                           }}
                         />
@@ -463,3 +461,5 @@ export function CanteenManager() {
     </div>
   );
 }
+
+export default CanteenManager;

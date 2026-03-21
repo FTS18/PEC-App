@@ -29,29 +29,14 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  getDoc,
-  serverTimestamp,
-  Timestamp,
-} from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useDepartmentFilter } from '@/hooks/useDepartmentFilter';
 import BulkUpload from '@/components/BulkUpload';
 import * as XLSX from 'xlsx';
 import { exportAssignmentReport } from '@/lib/pdfExport';
 import PDFExportButton from '@/components/common/PDFExportButton';
+import api from '@/lib/api';
 
 interface Assignment {
   id: string;
@@ -82,14 +67,13 @@ interface Submission {
 export default function Assignments() {
   const navigate = useNavigate();
   const { isAdmin, isFaculty, isStudent, user, loading: authLoading } = usePermissions();
-  const { filterByDepartment, canManageItem } = useDepartmentFilter();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
+    if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
     setLoading(false);
@@ -104,13 +88,13 @@ export default function Assignments() {
   }
 
   if (isAdmin || isFaculty) {
-    return <AssignmentsManager userId={user.uid} userRole={user.role} />;
+    return <AssignmentsManager userId={user.uid} userRole={user.role} userName={user.fullName || ''} />;
   }
 
   return <StudentAssignmentsView userId={user.uid} />;
 }
 
-function AssignmentsManager({ userId, userRole }: { userId: string; userRole: string }) {
+function AssignmentsManager({ userId, userRole, userName }: { userId: string; userRole: string; userName: string }) {
   const [courses, setCourses] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -143,30 +127,19 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
 
   const fetchCourses = async () => {
     try {
-      const q = query(collection(db, 'courses'));
-      const snap = await getDocs(q);
-      let data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      
-      // Filter for faculty using assignments
-      if (!isAdmin && userId) {
-        const assignmentsQuery = query(
-          collection(db, 'facultyAssignments'),
-          where('facultyId', '==', userId)
+      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+      const response = await api.get<ApiResponse<any[]>>('/courses', {
+        params: { limit: 200, offset: 0 },
+      });
+
+      let data = response.data.data || [];
+
+      if (!isAdmin && userName) {
+        data = data.filter((course: any) =>
+          String(course.instructor || '')
+            .toLowerCase()
+            .includes(userName.toLowerCase()),
         );
-        const assignmentsSnap = await getDocs(assignmentsQuery);
-        
-        if (assignmentsSnap.docs.length > 0) {
-          // Faculty has assignments - show only assigned courses
-          const assignedCourseIds = assignmentsSnap.docs.map(doc => doc.data().courseId);
-          data = data.filter(course => assignedCourseIds.includes(course.id));
-        } else {
-          // No assignments - filter by department
-          const userDoc = await getDoc(doc(db, 'users', userId));
-          const userDept = userDoc.data()?.department;
-          if (userDept) {
-            data = data.filter(course => course.department === userDept);
-          }
-        }
       }
       
       setCourses(data);
@@ -180,10 +153,14 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
       const courseIds = courses.map(c => c.id);
       if (courseIds.length === 0) return;
 
-      const assignmentsSnap = await getDocs(collection(db, 'assignments'));
-      const assignmentsData = assignmentsSnap.docs
-        .map(d => ({ id: d.id, ...d.data() } as Assignment))
-        .filter(a => courseIds.includes(a.courseId));
+      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+      const assignmentsResponse = await api.get<ApiResponse<Assignment[]>>('/assignments', {
+        params: { limit: 200, offset: 0 },
+      });
+
+      const assignmentsData = (assignmentsResponse.data.data || []).filter((assignment) =>
+        courseIds.includes(assignment.courseId),
+      );
       
       setAssignments(assignmentsData);
     } catch (error) {
@@ -194,26 +171,8 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
   const fetchSubmissions = async (assignmentId: string) => {
     setLoading(true);
     try {
-      const submissionsSnap = await getDocs(
-        query(collection(db, 'submissions'), where('assignmentId', '==', assignmentId))
-      );
-      
-      const submissionsData = await Promise.all(
-        submissionsSnap.docs.map(async (subDoc) => {
-          const subData = subDoc.data();
-          const studentDoc = await getDoc(doc(db, 'users', subData.studentId));
-          const studentData = studentDoc.data();
-          
-          return {
-            id: subDoc.id,
-            ...subData,
-            studentName: studentData?.fullName || 'Unknown',
-            studentEmail: studentData?.email || '',
-          } as Submission;
-        })
-      );
-      
-      setSubmissions(submissionsData);
+      setSubmissions([]);
+      toast.info('Submission tracking is not enabled on PostgreSQL backend yet.');
     } catch (error) {
       console.error('Error fetching submissions:', error);
     } finally {
@@ -228,14 +187,11 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
     }
 
     try {
-      const course = courses.find(c => c.id === assignmentForm.courseId);
-      await addDoc(collection(db, 'assignments'), {
-        ...assignmentForm,
-        courseName: course?.name,
-        courseCode: course?.code,
-        createdBy: userId,
-        dueDate: Timestamp.fromDate(new Date(assignmentForm.dueDate)),
-        createdAt: serverTimestamp(),
+      await api.post('/assignments', {
+        courseId: assignmentForm.courseId,
+        title: assignmentForm.title,
+        description: assignmentForm.description,
+        dueDate: new Date(assignmentForm.dueDate).toISOString(),
       });
       
       toast.success('Assignment created successfully');
@@ -252,12 +208,11 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
     if (!editingAssignment) return;
     
     try {
-      await updateDoc(doc(db, 'assignments', editingAssignment.id), {
+      await api.patch(`/assignments/${editingAssignment.id}`, {
         title: assignmentForm.title,
         description: assignmentForm.description,
-        dueDate: Timestamp.fromDate(new Date(assignmentForm.dueDate)),
-        maxMarks: assignmentForm.maxMarks,
-        updatedAt: serverTimestamp(),
+        dueDate: new Date(assignmentForm.dueDate).toISOString(),
+        courseId: assignmentForm.courseId,
       });
       
       toast.success('Assignment updated');
@@ -275,7 +230,7 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
     if (!confirm('Delete this assignment?')) return;
     
     try {
-      await deleteDoc(doc(db, 'assignments', id));
+      await api.delete(`/assignments/${id}`);
       toast.success('Assignment deleted');
       fetchAssignments();
     } catch (error) {
@@ -285,19 +240,7 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
   };
 
   const handleGradeSubmission = async (submissionId: string, marks: number, feedback: string) => {
-    try {
-      await updateDoc(doc(db, 'submissions', submissionId), {
-        marksObtained: marks,
-        feedback,
-        gradedBy: userId,
-        gradedAt: serverTimestamp(),
-      });
-      toast.success('Graded successfully');
-      if (selectedAssignment) fetchSubmissions(selectedAssignment);
-    } catch (error) {
-      console.error('Error grading:', error);
-      toast.error('Failed to grade');
-    }
+    toast.info('Grading submissions is not enabled on PostgreSQL backend yet.');
   };
 
   const handleBulkImport = async (data: any[]) => {
@@ -310,16 +253,11 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
         const course = courses.find(c => c.code === row.courseCode);
         if (!course) throw new Error(`Course ${row.courseCode} not found`);
 
-        await addDoc(collection(db, 'assignments'), {
+        await api.post('/assignments', {
           courseId: course.id,
-          courseName: course.name,
-          courseCode: course.code,
           title: row.title,
           description: row.description || '',
-          dueDate: Timestamp.fromDate(new Date(row.dueDate)),
-          maxMarks: Number(row.maxMarks) || 100,
-          createdBy: userId,
-          createdAt: serverTimestamp(),
+          dueDate: new Date(row.dueDate).toISOString(),
         });
         success++;
       } catch (err) {
@@ -348,7 +286,7 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
       courseId: assignment.courseId,
       title: assignment.title,
       description: assignment.description,
-      dueDate: assignment.dueDate?.toDate?.().toISOString().split('T')[0] || '',
+      dueDate: new Date(assignment.dueDate as any).toISOString().split('T')[0] || '',
       maxMarks: assignment.maxMarks,
     });
     setShowAssignmentDialog(true);
@@ -391,7 +329,7 @@ function AssignmentsManager({ userId, userRole }: { userId: string; userRole: st
                     <div className="flex items-center gap-2 mb-2">
                       <Badge variant="outline">{assignment.courseCode}</Badge>
                       <span className="text-xs text-muted-foreground">
-                        Due: {assignment.dueDate?.toDate?.().toLocaleDateString()}
+                        Due: {new Date(assignment.dueDate as any).toLocaleDateString()}
                       </span>
                     </div>
                     <h3 className="font-semibold text-lg">{assignment.title}</h3>
@@ -589,51 +527,38 @@ function StudentAssignmentsView({ userId }: { userId: string }) {
 
   const fetchData = async () => {
     try {
-      const enrollmentsQuery = query(
-        collection(db, 'enrollments'),
-        where('studentId', '==', userId),
-        where('status', '==', 'active')
-      );
-      const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
-      const enrolledCourseIds = enrollmentsSnapshot.docs.map(doc => doc.data().courseId);
+      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+      const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
+        params: { limit: 200, offset: 0, status: 'active', studentId: userId },
+      });
+      const enrolledCourseIds = (enrollmentsResponse.data.data || []).map((item) => item.courseId);
 
       if (enrolledCourseIds.length === 0) {
         setLoading(false);
         return;
       }
 
-      const assignmentsSnapshot = await getDocs(collection(db, 'assignments'));
-      const allAssignments: Assignment[] = [];
-      
-      for (const assignDoc of assignmentsSnapshot.docs) {
-        const assignData = assignDoc.data();
-        
-        if (enrolledCourseIds.includes(assignData.courseId)) {
-          const courseDoc = await getDoc(doc(db, 'courses', assignData.courseId));
-          const courseData = courseDoc.data();
-          
-          allAssignments.push({
-            id: assignDoc.id,
-            ...assignData,
-            courseName: courseData?.name || 'Unknown Course',
-            courseCode: courseData?.code || 'N/A',
-          } as Assignment);
-        }
-      }
+      const [assignmentsResponse, coursesResponse] = await Promise.all([
+        api.get<ApiResponse<Assignment[]>>('/assignments', { params: { limit: 200, offset: 0 } }),
+        api.get<ApiResponse<any[]>>('/courses', { params: { limit: 200, offset: 0 } }),
+      ]);
+
+      const courseMap = new Map(
+        (coursesResponse.data.data || []).map((course) => [course.id, course]),
+      );
+      const allAssignments: Assignment[] = (assignmentsResponse.data.data || [])
+        .filter((assignment) => enrolledCourseIds.includes(assignment.courseId))
+        .map((assignment) => {
+          const course = courseMap.get(assignment.courseId);
+          return {
+            ...assignment,
+            courseName: (assignment as any).courseName || course?.name || 'Unknown Course',
+            courseCode: (assignment as any).courseCode || course?.code || 'N/A',
+          };
+        });
 
       setAssignments(allAssignments);
-
-      const submissionsQuery = query(
-        collection(db, 'submissions'),
-        where('studentId', '==', userId)
-      );
-      const submissionsSnapshot = await getDocs(submissionsQuery);
-      const submissionsData = submissionsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Submission[];
-      
-      setSubmissions(submissionsData);
+      setSubmissions([]);
     } catch (error) {
       console.error('Error fetching assignments:', error);
       toast.error('Failed to load assignments');
@@ -648,34 +573,7 @@ function StudentAssignmentsView({ userId }: { userId: string }) {
       return;
     }
 
-    setSubmitting(true);
-    try {
-      await addDoc(collection(db, 'submissions'), {
-        assignmentId: selectedAssignment.id,
-        studentId: userId,
-        fileUrl: fileUrl.trim(),
-        submittedAt: serverTimestamp(),
-      });
-
-      const newSubmission = {
-        id: Date.now().toString(),
-        assignmentId: selectedAssignment.id,
-        studentId: userId,
-        fileUrl: fileUrl.trim(),
-        submittedAt: new Date(),
-      };
-      setSubmissions([...submissions, newSubmission]);
-
-      toast.success('Assignment submitted successfully!');
-      setShowSubmitDialog(false);
-      setFileUrl('');
-      setSelectedAssignment(null);
-    } catch (error) {
-      console.error('Error submitting assignment:', error);
-      toast.error('Failed to submit assignment');
-    } finally {
-      setSubmitting(false);
-    }
+    toast.info('Assignment submission endpoint is not enabled on PostgreSQL backend yet.');
   };
 
   const getSubmission = (assignmentId: string) => {
@@ -788,7 +686,7 @@ function StudentAssignmentsView({ userId }: { userId: string }) {
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-4 h-4" />
-                          Due: {assignment.dueDate?.toDate?.().toLocaleDateString() || 'N/A'}
+                          Due: {new Date(assignment.dueDate as any).toLocaleDateString() || 'N/A'}
                         </span>
                         <span className="flex items-center gap-1">
                           <Award className="w-4 h-4" />
@@ -869,7 +767,7 @@ function StudentAssignmentsView({ userId }: { userId: string }) {
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Clock className="w-4 h-4" />
-                          Submitted: {submission?.submittedAt?.toDate?.().toLocaleDateString() || 'N/A'}
+                          Submitted: {submission?.submittedAt ? new Date(submission.submittedAt as any).toLocaleDateString() : 'N/A'}
                         </span>
                       </div>
                     </div>
@@ -907,7 +805,7 @@ function StudentAssignmentsView({ userId }: { userId: string }) {
                 className="mt-1"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Upload your file to Google Drive or any cloud storage and paste the shareable link here
+                Upload your file to Google Drive or any cloud ({} as any) and paste the shareable link here
               </p>
             </div>
             <div className="flex gap-2">

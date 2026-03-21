@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { NewChatDialog } from "@/components/chat/NewChatDialog";
 import { CreateGroupDialog } from "@/components/chat/CreateGroupDialog";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 
 interface Props {
   rooms: ChatRoom[];
@@ -35,7 +35,7 @@ export function ChatSidebar({
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const isStudent = userRole === "student";
-  const isChatAdmin = userRole === "super_admin" || userRole === "college_admin";
+  const isChatAdmin = userRole === "college_admin";
 
   // Helper: Get display title for DMs (show other person's name)
   const getRoomDisplayTitle = (room: ChatRoom) => {

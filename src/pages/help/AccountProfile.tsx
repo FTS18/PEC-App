@@ -25,7 +25,7 @@ const articles = [
     title: 'Viewing Your Profile', 
     description: 'How to access and view your profile information', 
     readTime: '2 min',
-    content: `Your profile is your digital identity on OmniFlow. To view it:
+    content: `Your profile is your digital identity on PEC. To view it:
 
 1. Click on your profile picture in the top-right corner of the header.
 2. Select **'View Profile'** from the dropdown menu.

@@ -28,12 +28,11 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { db } from '@/config/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useNavigate } from 'react-router-dom';
 import { uploadToCloudinary } from '@/lib/cloudinaryManager';
 import { processLogoImage } from '@/lib/logoProcessor';
+import { doc, getDoc, setDoc, serverTimestamp } from '@/lib/dataClient';
 import type { CollegeSettings as CollegeSettingsType } from '@/types';
 
 type CollegeSettings = CollegeSettingsType;
@@ -73,7 +72,7 @@ export default function CollegeSettings({ embedded }: Props) {
   useEffect(() => {
     if (authLoading) return;
     if (!user || !isAdmin) {
-      navigate('/auth');
+      navigate('/dashboard');
       return;
     }
 
@@ -98,7 +97,7 @@ export default function CollegeSettings({ embedded }: Props) {
   const fetchSettings = async () => {
     try {
       setLoading(true);
-      const settingsRef = doc(db, 'collegeSettings', 'main');
+      const settingsRef = doc(null as any, 'collegeSettings', 'main');
       const settingsSnap = await getDoc(settingsRef);
 
       if (settingsSnap.exists()) {
@@ -261,7 +260,7 @@ export default function CollegeSettings({ embedded }: Props) {
         updatedBy: user?.email || 'unknown',
       };
 
-      const settingsRef = doc(db, 'collegeSettings', 'main');
+      const settingsRef = doc(null as any, 'collegeSettings', 'main');
       await setDoc(settingsRef, newSettings, { merge: true });
 
       setSettings(newSettings);
@@ -572,7 +571,7 @@ export default function CollegeSettings({ embedded }: Props) {
       <Card className="border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20">
         <CardContent className="pt-6">
           <p className="text-sm text-blue-900 dark:text-blue-200">
-            ℹ️ <strong>Note:</strong> These settings will be displayed across the OmniFlow platform including invoices, 
+            ℹ️ <strong>Note:</strong> These settings will be displayed across the PEC platform including invoices, 
             certificates, and public-facing pages. Keep your information up-to-date.
           </p>
         </CardContent>
@@ -589,7 +588,7 @@ export default function CollegeSettings({ embedded }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Leave blank to use default storage. Or enter your own Cloudinary credentials to keep logos on your account.
+            Leave blank to use default ({} as any). Or enter your own Cloudinary credentials to keep logos on your account.
           </p>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

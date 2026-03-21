@@ -3,9 +3,9 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { collection, addDoc, updateDoc, doc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '@/config/firebase';
+import { collection, addDoc, updateDoc, doc, query, where, getDocs, serverTimestamp } from '@/lib/dataClient';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 import { QrCode, Users, Clock, X, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 
@@ -17,6 +17,7 @@ interface QRAttendanceGeneratorProps {
 
 export function QRAttendanceGenerator({ courseId, courseName, onClose }: QRAttendanceGeneratorProps) {
   const { toast } = useToast();
+  const { user } = usePermissions();
   const [sessionId, setSessionId] = useState<string>('');
   const [qrValue, setQrValue] = useState<string>('');
   const [isActive, setIsActive] = useState(false);
@@ -28,7 +29,6 @@ export function QRAttendanceGenerator({ courseId, courseName, onClose }: QRAtten
 
   const generateSession = async (duration: number = 60) => {
     try {
-      const user = auth.currentUser;
       if (!user) return;
 
       const now = new Date();
@@ -37,8 +37,8 @@ export function QRAttendanceGenerator({ courseId, courseName, onClose }: QRAtten
       // Create unique session ID
       const uniqueId = `${courseId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-      // Create attendance session in Firestore
-      const sessionRef = await addDoc(collection(db, 'attendanceSessions'), {
+      // Create attendance session in backend
+      const sessionRef = await addDoc(collection(({} as any), 'attendanceSessions'), {
         facultyId: user.uid,
         courseId,
         courseName,
@@ -76,7 +76,7 @@ export function QRAttendanceGenerator({ courseId, courseName, onClose }: QRAtten
   const endSession = async () => {
     try {
       if (sessionId) {
-        await updateDoc(doc(db, 'attendanceSessions', sessionId), {
+        await updateDoc(doc(({} as any), 'attendanceSessions', sessionId), {
           active: false,
           endedAt: serverTimestamp(),
         });
@@ -102,7 +102,7 @@ export function QRAttendanceGenerator({ courseId, courseName, onClose }: QRAtten
 
     const fetchAttendanceCount = async () => {
       const q = query(
-        collection(db, 'attendance'),
+        collection(({} as any), 'attendance'),
         where('sessionId', '==', sessionId)
       );
       const snapshot = await getDocs(q);

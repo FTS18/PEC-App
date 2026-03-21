@@ -36,7 +36,7 @@ const faqs = [
   },
   {
     question: 'How do I apply for placement opportunities?',
-    answer: 'Visit the Placements section to view available job listings. Click on any job to see details and use the "Apply Now" button to submit your application along with your resume. You can also track your applications from the "My Applications" tab.',
+    answer: 'Visit the Placements section to view available job listings. Click on any job to see details and use the "Apply Now" button to submit your details along with your resume.',
   },
   {
     question: 'How can I report a hostel maintenance issue?',

@@ -31,7 +31,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { db } from '@/config/firebase';
 import {
   collection,
   query,
@@ -41,8 +40,8 @@ import {
   limit,
   getDocs,
   doc
-} from 'firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
+} from '@/lib/dataClient';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow, isAfter, isBefore, addDays } from 'date-fns';
@@ -97,7 +96,7 @@ export default function MyPlacementDashboard() {
 
     // Load applications
     const applicationsQuery = query(
-      collection(db, 'applications'),
+      collection(({} as any), 'applications'),
       where('studentId', '==', user.uid),
       orderBy('appliedAt', 'desc'),
       limit(20)
@@ -123,7 +122,7 @@ export default function MyPlacementDashboard() {
         const jobIds = [...new Set(apps.map(a => a.jobId))];
         if (jobIds.length > 0) {
           const jobsQuery = query(
-            collection(db, 'jobs'),
+            collection(({} as any), 'jobs'),
             where('__name__', 'in', jobIds.slice(0, 10))
           );
           const jobsSnap = await getDocs(jobsQuery);
@@ -148,7 +147,7 @@ export default function MyPlacementDashboard() {
 
     // Load upcoming interviews
     const interviewsQuery = query(
-      collection(db, 'interviews'),
+      collection(({} as any), 'interviews'),
       where('studentId', '==', user.uid),
       where('status', '==', 'scheduled'),
       orderBy('scheduledDate', 'asc'),
@@ -169,7 +168,7 @@ export default function MyPlacementDashboard() {
 
     // Load recommended jobs
     const jobsQuery = query(
-      collection(db, 'jobs'),
+      collection(({} as any), 'jobs'),
       where('status', '==', 'open'),
       orderBy('postedAt', 'desc'),
       limit(6)
@@ -188,7 +187,7 @@ export default function MyPlacementDashboard() {
     );
 
     // Load user profile
-    const profileRef = doc(db, 'placementProfiles', user.uid);
+    const profileRef = doc(({} as any), 'placementProfiles', user.uid);
     unsubscribers.push(
       onSnapshot(profileRef, (doc) => {
         if (doc.exists()) {

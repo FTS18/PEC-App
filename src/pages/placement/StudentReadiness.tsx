@@ -53,17 +53,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
-import { db } from '@/config/firebase';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  getDocs,
-  limit,
-} from 'firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { PlacementProfile } from '@/types';
@@ -108,13 +98,15 @@ export default function StudentReadiness() {
     avgReadiness: 0,
   });
 
-  const departments = ['Computer Science', 'Electronics', 'Mechanical', 'Civil', 'Electrical'];
+  const departments = Array.from(
+    new Set(students.map((student) => student.department).filter(Boolean))
+  ).sort();
 
   useEffect(() => {
     const loadStudents = async () => {
       try {
         const profilesQuery = query(
-          collection(db, 'placementProfiles'),
+          collection(({} as any), 'placementProfiles'),
           orderBy('placementReadinessScore', 'desc'),
           limit(100)
         );

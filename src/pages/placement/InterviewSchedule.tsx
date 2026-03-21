@@ -27,17 +27,7 @@ import {
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { db } from '@/config/firebase';
-import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  updateDoc,
-  doc,
-} from 'firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow, isAfter, isBefore, isToday, addHours } from 'date-fns';
@@ -83,7 +73,7 @@ export default function InterviewSchedule() {
     if (!user?.uid) return;
 
     const interviewsQuery = query(
-      collection(db, 'interviews'),
+      collection(({} as any), 'interviews'),
       where('studentId', '==', user.uid),
       orderBy('scheduledDate', 'desc')
     );

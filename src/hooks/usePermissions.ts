@@ -1,17 +1,22 @@
-import { useAuth } from './useAuth';
-import { getUserPermissions, UserPermissions, isAdmin, isFaculty, isStudent, isPlacementOfficer, isRecruiter, canManageContent } from '@/lib/permissions';
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import {
+  getUserPermissions,
+  UserPermissions,
+  isAdmin,
+  isFaculty,
+  isStudent,
+  canManageContent,
+} from "@/lib/permissions";
 
 /**
  * Custom hook for accessing user permissions
  * Provides a consistent interface for permission checking across all components
- * 
+ *
  * @example
  * ```tsx
  * function MyComponent() {
  *   const { permissions, isAdmin, isFaculty, loading } = usePermissions();
- *   
  *   if (loading) return <Loading />;
- *   
  *   return (
  *     <>
  *       {permissions.canManageCourses && <CreateCourseButton />}
@@ -34,14 +39,14 @@ export function usePermissions() {
     isAdmin: isAdmin(user),
     isFaculty: isFaculty(user),
     isStudent: isStudent(user),
-    isPlacementOfficer: isPlacementOfficer(user),
-    isRecruiter: isRecruiter(user),
+    isPlacementOfficer: false,
+    isRecruiter: false,
     canManage: canManageContent(user),
 
     // User info
     user,
     role: user?.role || null,
-    
+
     // Loading state
     loading,
   };

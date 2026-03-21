@@ -23,11 +23,10 @@ import {
 } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
-import { db, auth } from '@/config/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import api from '@/lib/api';
 
 type PaymentMethod = 'razorpay' | 'upi' | 'bank';
 
@@ -52,6 +51,13 @@ interface PaymentConfig {
   lastUpdated: any;
   updatedBy: string;
 }
+
+const extractData = <T,>(payload: any): T => {
+  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
+    return payload.data as T;
+  }
+  return payload as T;
+};
 
 interface Props {
   embedded?: boolean;
@@ -84,7 +90,7 @@ export default function PaymentSettings({ embedded }: Props) {
   useEffect(() => {
     if (authLoading) return;
     if (!user || !isAdmin) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
 
@@ -113,13 +119,12 @@ export default function PaymentSettings({ embedded }: Props) {
   const fetchPaymentSettings = async () => {
     try {
       setLoading(true);
-      const settingsRef = doc(db, 'paymentSettings', 'admin_config');
-      const settingsSnap = await getDoc(settingsRef);
-
-      if (settingsSnap.exists()) {
-        setSettings(settingsSnap.data() as PaymentConfig);
+      const response = await api.get('/feature-flags/payment-config');
+      const flag = extractData<any>(response.data);
+      const payload = flag?.payload ? JSON.parse(flag.payload) : null;
+      if (payload) {
+        setSettings(payload as PaymentConfig);
       } else {
-        // Default to UPI if no settings exist
         setSettings(null);
         setMethod('upi');
       }
@@ -158,7 +163,7 @@ export default function PaymentSettings({ embedded }: Props) {
       const newConfig: PaymentConfig = {
         method,
         isActive: true,
-        lastUpdated: serverTimestamp(),
+        lastUpdated: new Date().toISOString(),
         updatedBy: user?.email || 'unknown',
       };
 
@@ -182,8 +187,11 @@ export default function PaymentSettings({ embedded }: Props) {
         };
       }
 
-      const settingsRef = doc(db, 'paymentSettings', 'admin_config');
-      await setDoc(settingsRef, newConfig, { merge: true });
+      await api.post('/feature-flags/payment-config', {
+        enabled: true,
+        description: 'Campus payment gateway configuration',
+        payload: JSON.stringify(newConfig),
+      });
 
       setSettings(newConfig);
       toast.success(`Payment method updated to ${method.toUpperCase()}`);
@@ -243,7 +251,7 @@ export default function PaymentSettings({ embedded }: Props) {
                   Current: {settings.method} Payment
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Last updated: {settings.lastUpdated?.seconds ? new Date(settings.lastUpdated.seconds * 1000).toLocaleDateString() : 'Never'}
+                  Last updated: {settings.lastUpdated ? new Date(settings.lastUpdated).toLocaleDateString() : 'Never'}
                 </p>
               </div>
             </div>

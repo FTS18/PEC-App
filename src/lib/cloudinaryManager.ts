@@ -17,7 +17,7 @@ export async function uploadToCloudinary(file: File): Promise<string> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("upload_preset", UPLOAD_PRESET);
-  formData.append("folder", "omniflow/college");
+  formData.append("folder", "pec/college");
 
   try {
     const response = await fetch(

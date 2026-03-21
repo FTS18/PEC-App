@@ -2,7 +2,6 @@
  * UPI Payment Utility
  * Handles UPI deep links and payment processing
  */
-
 export interface UPIConfig {
   merchantId: string; // UPI ID (e.g., omnifow@okhdfcbank)
   merchantName: string;
@@ -50,7 +49,7 @@ export const initiateUPIPayment = (upiLink: string): Promise<void> => {
         clearTimeout(timer);
         resolve();
       },
-      { once: true }
+      { once: true },
     );
   });
 };
@@ -76,7 +75,7 @@ export const generateUPIQRCode = async (upiLink: string): Promise<string> => {
  */
 export const isMobile = (): boolean => {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
+    navigator.userAgent,
   );
 };
 

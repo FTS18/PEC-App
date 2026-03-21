@@ -3,15 +3,15 @@ import { Camera, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { uploadMedia } from "@/lib/cloudinary.service";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { doc, updateDoc } from '@/lib/dataClient';
+
 import { toast } from "sonner";
 
 interface Props {
   currentAvatar?: string;
   onAvatarUpdate: (url: string) => void;
   uploadPath: string; // e.g., "users/userId" or "rooms/roomId"
-  firestorePath: string; // e.g., "users/userId" or "chatRooms/roomId"
+  recordPath: string; // e.g., "users/userId" or "chatRooms/roomId"
   fieldName?: string; // Field to update (default: "avatar" or "photoURL")
 }
 
@@ -19,7 +19,7 @@ export function AvatarUpload({
   currentAvatar, 
   onAvatarUpdate, 
   uploadPath,
-  firestorePath,
+  recordPath,
   fieldName = "avatar"
 }: Props) {
   const [isOpen, setIsOpen] = useState(false);
@@ -53,8 +53,8 @@ export function AvatarUpload({
       const file = fileInputRef.current.files[0];
       const url = await uploadMedia(file, uploadPath);
 
-      // Update Firestore
-      const docRef = doc(db, ...firestorePath.split("/"));
+      // Update backend record
+      const docRef = doc(({} as any), ...recordPath.split("/"));
       await updateDoc(docRef, {
         [fieldName]: url
       });

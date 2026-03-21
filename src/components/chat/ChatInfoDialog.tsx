@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChatRoom } from "@/types/chat";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { 
   getMembersForGroup,
   addMemberToGroup, 
@@ -53,7 +53,7 @@ export function ChatInfoDialog({ open, onOpenChange, room, onRoomSelect }: Props
 
   const isDM = room?.type === "dm";
   const userRole = user?.role as string;
-  const isAdmin = room?.admins?.includes(user?.uid || "") || userRole === "admin" || userRole === "super_admin";
+  const isAdmin = room?.admins?.includes(user?.uid || "") || userRole === "admin" || userRole === "college_admin";
 
   useEffect(() => {
     if (room && open && !isDM) {

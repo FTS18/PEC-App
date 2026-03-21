@@ -9,7 +9,7 @@ const accentThemes = [
   { id: "emerald", name: "Emerald", color: "#10B981" },
   { id: "sapphire", name: "Sapphire", color: "#3B82F6" },
   { id: "amethyst", name: "Amethyst", color: "#8B5CF6" },
-  { id: "coral", name: "Coral", color: "#F97316" },
+  { id: "coral", name: "Gold", color: "#EAB308" },
 ];
 
 export function LandingColorTheme() {

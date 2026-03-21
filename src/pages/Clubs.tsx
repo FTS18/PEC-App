@@ -10,9 +10,9 @@ import {
   arrayUnion,
   arrayRemove,
   orderBy,
-} from 'firebase/firestore';
-import { db } from '@/config/firebase';
-import { useAuth } from '@/hooks/useAuth';
+} from '@/lib/dataClient';
+
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -93,11 +93,11 @@ export default function Clubs() {
     vice_president: '',
   });
 
-  const isAdmin = role === 'college_admin' || role === 'super_admin';
+  const isAdmin = role === 'college_admin';
 
   // Fetch clubs
   useEffect(() => {
-    const clubsRef = collection(db, 'clubs');
+    const clubsRef = collection(({} as any), 'clubs');
     const unsubscribe = onSnapshot(
       query(clubsRef, orderBy('name')),
       (snapshot) => {
@@ -120,7 +120,7 @@ export default function Clubs() {
 
   // Fetch club events
   useEffect(() => {
-    const eventsRef = collection(db, 'clubEvents');
+    const eventsRef = collection(({} as any), 'clubEvents');
     const unsubscribe = onSnapshot(eventsRef, (snapshot) => {
       const eventsData = snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -150,7 +150,7 @@ export default function Clubs() {
     }
 
     try {
-      await addDoc(collection(db, 'clubs'), {
+      await addDoc(collection(({} as any), 'clubs'), {
         ...newClub,
         president: user?.uid || '',
         members: [user?.uid],
@@ -184,7 +184,7 @@ export default function Clubs() {
     if (!isAdmin || !editingClub) return;
 
     try {
-      await updateDoc(doc(db, 'clubs', editingClub.id), {
+      await updateDoc(doc(({} as any), 'clubs', editingClub.id), {
         ...newClub,
         updatedAt: new Date(),
       });
@@ -204,7 +204,7 @@ export default function Clubs() {
     }
 
     try {
-      await deleteDoc(doc(db, 'clubs', clubId));
+      await deleteDoc(doc(({} as any), 'clubs', clubId));
       toast.success('Club deleted successfully');
       setDeleteClubId(null);
     } catch (error) {
@@ -220,7 +220,7 @@ export default function Clubs() {
     }
 
     try {
-      const clubRef = doc(db, 'clubs', clubId);
+      const clubRef = doc(({} as any), 'clubs', clubId);
       const club = clubs.find((c) => c.id === clubId);
       
       if (club && !club.members.includes(user.uid)) {
@@ -244,7 +244,7 @@ export default function Clubs() {
     }
 
     try {
-      const clubRef = doc(db, 'clubs', clubId);
+      const clubRef = doc(({} as any), 'clubs', clubId);
       const club = clubs.find((c) => c.id === clubId);
       
       if (club && club.members.includes(user.uid)) {

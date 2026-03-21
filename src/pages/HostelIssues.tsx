@@ -37,8 +37,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-
-import { db, auth } from '@/config/firebase';
+import { usePermissions } from '@/hooks/usePermissions';
 import { 
   collection, 
   query, 
@@ -50,7 +49,7 @@ import {
   updateDoc, 
   arrayUnion,
   orderBy
-} from 'firebase/firestore';
+} from '@/lib/dataClient';
 
 interface HostelIssue {
   id: string;
@@ -76,6 +75,7 @@ const categoryIcons = {
 };
 
 export default function HostelIssues() {
+  const { user } = usePermissions();
   const [issues, setIssues] = useState<HostelIssue[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('all');
@@ -85,14 +85,13 @@ export default function HostelIssues() {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
-    const user = auth.currentUser;
     if (!user) return;
 
     // Show personal issues AND seeded issues for demo purposes
     const seededIds = ['25111001', '25111002'];
     // Use a simple query without orderBy to avoid composite index requirement
     const q = query(
-      collection(db, 'hostelIssues'), 
+      collection(({} as any), 'hostelIssues'), 
       where('studentId', 'in', [user.uid, ...seededIds])
     );
 
@@ -122,7 +121,7 @@ export default function HostelIssues() {
     });
 
     return () => unsubscribe();
-  }, [auth.currentUser?.uid]);
+  }, [selectedIssue, user]);
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -149,9 +148,8 @@ export default function HostelIssues() {
       return;
     }
 
-    const user = auth.currentUser;
     try {
-      await addDoc(collection(db, 'hostelIssues'), {
+      await addDoc(collection(({} as any), 'hostelIssues'), {
         title: newIssue.title,
         description: newIssue.description,
         category: newIssue.category,
@@ -159,7 +157,7 @@ export default function HostelIssues() {
         status: 'open',
         roomNumber: newIssue.roomNumber,
         studentId: user?.uid,
-        studentName: user?.displayName || user?.email?.split('@')[0],
+        studentName: user?.fullName || user?.name || user?.email?.split('@')[0],
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
         responses: []
@@ -178,7 +176,7 @@ export default function HostelIssues() {
     if (!newMessage.trim() || !selectedIssue) return;
 
     try {
-      const issueRef = doc(db, 'hostelIssues', selectedIssue.id);
+      const issueRef = doc(({} as any), 'hostelIssues', selectedIssue.id);
       await updateDoc(issueRef, {
         responses: arrayUnion({
           from: 'Student',

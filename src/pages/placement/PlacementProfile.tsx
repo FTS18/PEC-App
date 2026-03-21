@@ -55,21 +55,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { db } from '@/config/firebase';
-import {
-  collection,
-  query,
-  where,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  serverTimestamp,
-  getDoc,
-  setDoc,
-} from 'firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { 
@@ -163,7 +149,7 @@ export default function PlacementProfile() {
     
     const loadProfile = async () => {
       try {
-        const profileRef = doc(db, 'placementProfiles', user.uid);
+        const profileRef = doc(({} as any), 'placementProfiles', user.uid);
         const profileSnap = await getDoc(profileRef);
         
         if (profileSnap.exists()) {
@@ -234,7 +220,7 @@ export default function PlacementProfile() {
     
     setSaving(true);
     try {
-      const profileRef = doc(db, 'placementProfiles', user.uid);
+      const profileRef = doc(({} as any), 'placementProfiles', user.uid);
       const updatedProfile = { ...profile, ...updates };
       const readinessScore = calculateReadinessScore(updatedProfile as PlacementProfile);
       
@@ -517,8 +503,6 @@ export default function PlacementProfile() {
                   </div>
                 </CardContent>
               </Card>
-
-
 
               {/* Resume Privacy Settings */}
               <Card>

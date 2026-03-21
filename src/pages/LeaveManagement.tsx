@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Clock, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
-import { db } from '../config/firebase';
+
 import {
   collection,
   query,
@@ -13,7 +13,7 @@ import {
   doc,
   where,
   orderBy,
-} from 'firebase/firestore';
+} from '@/lib/dataClient';
 import { Leave, LeaveBalance, LeaveType as LeaveTypeType } from '../types';
 import { Button } from '@/components/ui/button';
 import {
@@ -28,7 +28,7 @@ import { toast } from 'sonner';
 export default function LeaveManagement() {
   const { user } = useAuth();
   const { role } = usePermissions();
-  const isAdmin = role === 'college_admin' || role === 'super_admin';
+  const isAdmin = role === 'college_admin';
   const [leaves, setLeaves] = useState<Leave[]>([]);
   const [leaveTypes, setLeaveTypes] = useState<LeaveTypeType[]>([]);
   const [leaveBalance, setLeaveBalance] = useState<Record<string, number>>({});
@@ -45,7 +45,7 @@ export default function LeaveManagement() {
 
   // Fetch leave types
   useEffect(() => {
-    const leaveTypesRef = collection(db, 'leaveTypes');
+    const leaveTypesRef = collection(({} as any), 'leaveTypes');
     const unsubscribe = onSnapshot(
       query(leaveTypesRef, orderBy('name')),
       (snapshot) => {
@@ -65,7 +65,7 @@ export default function LeaveManagement() {
   useEffect(() => {
     if (!user) return;
 
-    const balanceRef = collection(db, 'leaveBalance');
+    const balanceRef = collection(({} as any), 'leaveBalance');
     const unsubscribe = onSnapshot(
       query(balanceRef, where('userId', '==', user.uid)),
       (snapshot) => {
@@ -84,7 +84,7 @@ export default function LeaveManagement() {
   useEffect(() => {
     if (!user) return;
 
-    const leavesRef = collection(db, 'leaves');
+    const leavesRef = collection(({} as any), 'leaves');
     let q;
 
     if (isAdmin) {
@@ -141,7 +141,7 @@ export default function LeaveManagement() {
         return;
       }
 
-      await addDoc(collection(db, 'leaves'), {
+      await addDoc(collection(({} as any), 'leaves'), {
         userId: user.uid,
         userName: user.fullName || user.email,
         startDate: new Date(newLeave.startDate),
@@ -174,12 +174,12 @@ export default function LeaveManagement() {
       if (!leave) return;
 
       // Update leave status
-      await updateDoc(doc(db, 'leaves', leaveId), {
+      await updateDoc(doc(({} as any), 'leaves', leaveId), {
         status: 'approved',
       });
 
       // Update leave balance
-      const balanceRef = collection(db, 'leaveBalance');
+      const balanceRef = collection(({} as any), 'leaveBalance');
       const balanceDocs = await query(
         balanceRef,
         where('userId', '==', leave.userId),
@@ -196,7 +196,7 @@ export default function LeaveManagement() {
 
   const handleRejectLeave = async (leaveId: string) => {
     try {
-      await updateDoc(doc(db, 'leaves', leaveId), {
+      await updateDoc(doc(({} as any), 'leaves', leaveId), {
         status: 'rejected',
       });
       toast.success('Leave rejected');

@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { collection, addDoc, query, where, getDocs, serverTimestamp } from 'firebase/firestore';
-import { db, auth } from '@/config/firebase';
+import { collection, addDoc, query, where, getDocs, serverTimestamp } from '@/lib/dataClient';
 import { useToast } from '@/hooks/use-toast';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Camera, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 interface QRAttendanceScannerProps {
@@ -14,6 +14,7 @@ interface QRAttendanceScannerProps {
 
 export function QRAttendanceScanner({ onSuccess, onClose }: QRAttendanceScannerProps) {
   const { toast } = useToast();
+  const { user } = usePermissions();
   const [scanning, setScanning] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [result, setResult] = useState<'success' | 'error' | null>(null);
@@ -68,7 +69,6 @@ export function QRAttendanceScanner({ onSuccess, onClose }: QRAttendanceScannerP
     await stopScanning();
 
     try {
-      const user = auth.currentUser;
       if (!user) {
         setResult('error');
         setMessage('User not authenticated');
@@ -96,11 +96,11 @@ export function QRAttendanceScanner({ onSuccess, onClose }: QRAttendanceScannerP
 
       // Find active session with this QR code (using the BASE uniqueId if your DB stores just that? 
       // Wait, the DB stores "qrCode". If the generator stored `uniqueId` (without timestamp), we query that.
-      // Yes, generator stored `uniqueId` in Firestore, but displays `uniqueId:timestamp` in QR.
+      // Yes, generator stored `uniqueId` in backend, but displays `uniqueId:timestamp` in QR.
       // So we query by `uniqueId`.
       
       const sessionsQuery = query(
-        collection(db, 'attendanceSessions'),
+        collection(({} as any), 'attendanceSessions'),
         where('qrCode', '==', uniqueId), 
         where('active', '==', true)
       );
@@ -136,7 +136,7 @@ export function QRAttendanceScanner({ onSuccess, onClose }: QRAttendanceScannerP
 
       // Check if student already marked attendance for this session
       const attendanceQuery = query(
-        collection(db, 'attendance'),
+        collection(({} as any), 'attendance'),
         where('sessionId', '==', sessionDoc.id),
         where('studentId', '==', user.uid)
       );
@@ -155,7 +155,7 @@ export function QRAttendanceScanner({ onSuccess, onClose }: QRAttendanceScannerP
       }
 
       // Mark attendance
-      await addDoc(collection(db, 'attendance'), {
+      await addDoc(collection(({} as any), 'attendance'), {
         sessionId: sessionDoc.id,
         studentId: user.uid,
         courseId: sessionData.courseId,

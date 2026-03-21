@@ -1,7 +1,12 @@
 import { useState, useEffect } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/config/firebase";
 import type { CollegeSettings } from "@/types";
+
+// Data client stubs
+const doc = (...args: any[]) => ({});
+const getDoc = async (...args: any[]) => ({
+  exists: () => false,
+  data: () => null,
+});
 
 export function useCollegeSettings() {
   const [settings, setSettings] = useState<CollegeSettings | null>(null);
@@ -11,7 +16,7 @@ export function useCollegeSettings() {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const settingsRef = doc(db, "collegeSettings", "main");
+        const settingsRef = doc({} as any, "collegeSettings", "main");
         const settingsSnap = await getDoc(settingsRef);
 
         if (settingsSnap.exists()) {
@@ -23,7 +28,7 @@ export function useCollegeSettings() {
       } catch (err) {
         console.error("Error fetching college settings:", err);
         setError(
-          err instanceof Error ? err.message : "Failed to load settings"
+          err instanceof Error ? err.message : "Failed to load settings",
         );
       } finally {
         setLoading(false);

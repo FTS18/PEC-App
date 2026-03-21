@@ -1,45 +1,37 @@
-import { useState } from "react";
-import { NavLink, useLocation, Link, useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { NavLink, useLocation } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LayoutDashboard,
-  Users,
-  GraduationCap,
-  BookOpen,
-  Calendar,
-  ClipboardCheck,
-  FileText,
-  CreditCard,
-  Briefcase,
-  Settings,
+  IconLayoutDashboard,
+  IconUsers,
+  IconChartBar,
+  IconMessageCircle,
+  IconBuilding,
+  IconUserCog,
+  IconUserCircle,
+  IconBook,
+  IconCalendar,
+  IconClipboardCheck,
+  IconFileText,
+  IconMapPin,
+  IconToolsKitchen2,
+  IconChefHat,
+  IconTool,
+  IconSettings,
+  IconHelpCircle,
+} from "@tabler/icons-react";
+import {
   ChevronLeft,
   ChevronRight,
-  Building2,
-  Shield,
-  UserCog,
-  Menu,
   X,
-  MessageCircle,
-  UtensilsCrossed,
-  Wrench,
-  HelpCircle,
-  Activity,
-  Map,
-  User,
-  Target,
-  BarChart3,
-  Search,
-  Gift,
-  Cog,
-  TrendingUp,
 } from "lucide-react";
+
+
 import { cn } from "@/lib/utils";
-import { useCollegeSettings } from "@/hooks/useCollegeSettings";
-import { Input } from "@/components/ui/input"; // Import Input
 import ThemeToggler from "@/components/ThemeToggler"; // Import ThemeToggler
 import { LandingColorTheme } from "@/components/LandingColorTheme"; // Import Accent Picker
-import { GoogleTranslate } from "@/components/GoogleTranslate"; // Import Translate
 import type { UserRole } from "@/types";
+import { prefetchRoute } from "@/lib/routePrefetch";
 
 interface SidebarProps {
   role: UserRole;
@@ -59,183 +51,124 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
-    icon: LayoutDashboard,
+    icon: IconLayoutDashboard,
     label: "Dashboard",
     path: "/dashboard",
-    roles: [
-      "student",
-      "faculty",
-      "college_admin",
-      "super_admin",
-      "placement_officer",
-      "recruiter",
-    ],
+    roles: ["student", "faculty", "college_admin"],
   },
   {
-    icon: Building2,
-    label: "Organizations",
-    path: "/organizations",
-    roles: ["super_admin"],
-  },
-  {
-    icon: Users,
+    icon: IconUsers,
     label: "Users",
     path: "/users",
-    roles: ["college_admin", "faculty", "placement_officer"],
+    roles: ["college_admin", "faculty"],
   },
   {
-    icon: BarChart3,
+    icon: IconChartBar,
     label: "Reports",
     path: "/college/reports",
     roles: ["college_admin"],
   },
   {
-    icon:MessageCircle,
+    icon: IconMessageCircle,
     label: "Chat",
     path: "/chat",
-    roles: [
-      "student",
-      "faculty",
-      "college_admin",
-      "super_admin",
-      "placement_officer",
-      "recruiter",
-    ],
+    roles: ["student", "faculty", "college_admin"],
   },
   {
-    icon: Building2,
+    icon: IconBuilding,
     label: "Departments",
     path: "/departments",
     roles: ["college_admin"],
   },
   {
-    icon: UserCog,
+    icon: IconUserCog,
     label: "Faculty",
     path: "/faculty",
     roles: ["college_admin"],
   },
   {
-    icon: GraduationCap,
+    icon: IconUserCircle,
     label: "My Profile",
     path: "/profile",
     roles: ["student"],
   },
   {
-    icon: BookOpen,
+    icon: IconBook,
     label: "Courses",
     path: "/courses",
     roles: ["student", "faculty", "college_admin"],
   },
   {
-    icon: Calendar,
+    icon: IconCalendar,
     label: "Timetable",
     path: "/timetable",
     roles: ["student", "faculty", "college_admin"],
   },
   {
-    icon: ClipboardCheck,
+    icon: IconClipboardCheck,
     label: "Attendance",
     path: "/attendance",
     roles: ["student", "faculty", "college_admin"],
   },
   {
-    icon: FileText,
+    icon: IconFileText,
     label: "Examinations",
     path: "/examinations",
     roles: ["student", "faculty", "college_admin"],
   },
   {
-    icon: FileText,
-    label: "Assignments",
-    path: "/assignments",
-    roles: ["student", "faculty", "college_admin"],
-  },
-  {
-    icon: BookOpen,
+    icon: IconBook,
     label: "Course Materials",
     path: "/course-materials",
     roles: ["student", "faculty", "college_admin"],
   },
   {
-    icon: CreditCard,
-    label: "Finance",
-    path: "/finance",
-    roles: ["student", "college_admin"],
-  },
-  {
-    icon: Briefcase,
-    label: "Career Portal",
-    path: "/career",
-    roles: ["student", "faculty", "placement_officer", "recruiter", "college_admin"],
-  },
-  {
-    icon: FileText,
+    icon: IconFileText,
     label: "Resume Builder",
     path: "/resume-builder",
     roles: ["student"],
   },
   {
-    icon: Building2,
+    icon: IconBuilding,
     label: "Hostel Issues",
     path: "/hostel-issues",
     roles: ["student"],
   },
   {
-    icon: UtensilsCrossed,
+    icon: IconToolsKitchen2,
     label: "Night Canteen",
     path: "/canteen",
     roles: ["student"],
   },
   {
-    icon: Map,
+    icon: IconMapPin,
     label: "Campus Map",
     path: "/campus-map",
-    roles: ["student", "faculty", "college_admin", "placement_officer"],
+    roles: ["student", "faculty", "college_admin"],
   },
   {
-    icon: UtensilsCrossed,
+    icon: IconChefHat,
     label: "Canteen Manager",
     path: "/admin/canteen",
     roles: ["college_admin"],
   },
   {
-    icon: Wrench,
+    icon: IconTool,
     label: "Manage Hostel",
     path: "/admin/hostel",
     roles: ["college_admin"],
   },
-
   {
-    icon: TrendingUp,
-    label: "Placement Insights",
-    path: "/admin/placement-insights",
-    roles: ["college_admin"],
-  },
-  {
-    icon: Settings,
+    icon: IconSettings,
     label: "Settings",
     path: "/settings",
-    roles: [
-      "student",
-      "faculty",
-      "college_admin",
-      "super_admin",
-      "placement_officer",
-      "recruiter",
-    ],
+    roles: ["student", "faculty", "college_admin"],
   },
   {
-    icon: HelpCircle,
+    icon: IconHelpCircle,
     label: "Help & Support",
     path: "/help",
-    roles: [
-      "student",
-      "faculty",
-      "college_admin",
-      "super_admin",
-      "placement_officer",
-      "recruiter",
-    ],
+    roles: ["student", "faculty", "college_admin"],
   },
 ];
 
@@ -248,17 +181,111 @@ export function Sidebar({
   onMobileClose 
 }: SidebarProps) {
   const location = useLocation();
-  const { orgSlug } = useParams<{ orgSlug: string }>();
-  const { settings } = useCollegeSettings();
+  const appLogoSrc = '/logo.png';
   const filteredItems = navItems.filter((item) => item.roles.includes(role));
+  const sectionConfig: Array<{ title: string; paths: string[] }> = [
+    {
+      title: 'Core',
+      paths: ['/dashboard', '/chat', '/profile', '/users', '/college/reports', '/departments', '/faculty'],
+    },
+    {
+      title: 'Academics',
+      paths: ['/courses', '/timetable', '/attendance', '/examinations', '/course-materials', '/resume-builder'],
+    },
+    {
+      title: 'Campus',
+      paths: ['/hostel-issues', '/canteen', '/campus-map', '/admin/canteen', '/admin/hostel'],
+    },
+    {
+      title: 'System',
+      paths: ['/settings', '/help'],
+    },
+  ];
 
-  const handleLogoClick = () => {
-    if (settings?.website) {
-      window.open(settings.website, '_blank');
+  const groupedItems = sectionConfig
+    .map((section) => ({
+      title: section.title,
+      items: filteredItems.filter((item) => section.paths.includes(item.path)),
+    }))
+    .filter((section) => section.items.length > 0);
+
+  const renderNavItem = (item: NavItem) => {
+    const currentPath = location.pathname;
+    let isActive = false;
+
+    if (item.path === '/settings') {
+      isActive = currentPath === item.path ||
+        currentPath === '/admin/college-settings' ||
+        currentPath === '/admin/hostel';
+    } else if (item.path === '/departments') {
+      isActive = currentPath === item.path ||
+        currentPath.startsWith('/departments/');
+    } else if (item.path === '/faculty') {
+      isActive = currentPath === item.path ||
+        currentPath.startsWith('/faculty/');
+    } else {
+      isActive = currentPath === item.path ||
+        currentPath.startsWith(item.path + '/') ||
+        (item.path !== '/' && currentPath.startsWith(item.path));
     }
+
+    return (
+      <li key={item.path} className={cn(!collapsed && "flex")}>
+        <NavLink
+          to={item.path}
+          onMouseEnter={() => prefetchRoute(item.path)}
+          onFocus={() => prefetchRoute(item.path)}
+          onPointerDown={() => prefetchRoute(item.path)}
+          onTouchStart={() => prefetchRoute(item.path)}
+          className={cn(
+            "sidebar-item",
+            !collapsed && "w-full",
+            collapsed && "justify-center gap-0 px-0",
+            isActive && "sidebar-item-active"
+          )}
+        >
+          {collapsed ? (
+            <item.icon
+              className={cn(
+                "w-5 h-5 shrink-0 transition-colors",
+                isActive ? "text-primary-foreground" : "text-sidebar-foreground/75"
+              )}
+              stroke={1.9}
+            />
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.span
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: "auto" }}
+                exit={{ opacity: 0, width: 0 }}
+                className="swiss-nav-label truncate"
+              >
+                {item.label}
+              </motion.span>
+            </AnimatePresence>
+          )}
+        </NavLink>
+      </li>
+    );
   };
 
+  useEffect(() => {
+    const warmup = () => {
+      filteredItems.forEach((item) => prefetchRoute(item.path));
+    };
 
+    if ("requestIdleCallback" in window) {
+      const handle = (window as any).requestIdleCallback(warmup);
+      return () => {
+        if ("cancelIdleCallback" in window) {
+          (window as any).cancelIdleCallback(handle);
+        }
+      };
+    }
+
+    const timeout = window.setTimeout(warmup, 120);
+    return () => window.clearTimeout(timeout);
+  }, [filteredItems]);
 
   return (
     <>
@@ -270,173 +297,78 @@ export function Sidebar({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onMobileClose}
-          className="fixed inset-0 z-[90] bg-background/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-[90] bg-background/70 lg:hidden"
         />
       )}
     </AnimatePresence>
 
     <aside
       className={cn(
-        "fixed left-0 top-0 z-[100] h-screen bg-sidebar/80 backdrop-blur-xl border-r border-sidebar-border transition-all duration-300 flex flex-col",
+        "fixed left-0 top-0 z-[100] h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 flex flex-col shadow-sm",
         collapsed ? "w-16" : "w-64",
         isMobile && !mobileMenuOpen && "-translate-x-full",
-        isMobile && mobileMenuOpen && "translate-x-0 w-64 shadow-2xl"
+        isMobile && mobileMenuOpen && "translate-x-0 w-64"
       )}
     >
-      {/* Logo */}
+      {/* Sidebar Header Controls */}
       <div
         className={cn(
           "min-h-20 flex items-center border-b border-sidebar-border",
           collapsed ? "justify-center px-2" : "justify-between px-4"
         )}
       >
-        {collapsed ? (
+        {isMobile ? (
+          <button
+            onClick={onMobileClose}
+            className="p-1.5 hover:bg-sidebar-accent transition-colors"
+            title="Close menu"
+          >
+            <X className="w-5 h-5 text-sidebar-foreground" />
+          </button>
+        ) : collapsed ? (
           <button
             onClick={onToggle}
-            className="group relative p-2 rounded-md hover:bg-sidebar-accent transition-colors"
+            className="p-2 hover:bg-sidebar-accent transition-colors"
             title="Expand sidebar"
           >
-            <GraduationCap className="absolute inset-0 m-auto w-5 h-5  text-primary-foreground transition-transform duration-200 scale-100 group-hover:scale-0 group-hover:-rotate-90" />
-
-            <ChevronRight className="absolute inset-0 m-auto w-5 h-5 text-primary-foreground transition-transform duration-200 rotate-90 scale-0 group-hover:rotate-0 group-hover:scale-100" />
+            <ChevronRight className="w-5 h-5 text-sidebar-foreground" />
 
             <span className="sr-only">Expand sidebar</span>
           </button>
         ) : (
           <>
-            <Link to="/">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer flex-1 min-w-0"
-                onClick={handleLogoClick}
-              >
-                {role === 'super_admin' ? (
-                  // Super Admin sees company logo
-                  <>
-                    <img 
-                      src="/logo.png" 
-                      alt="OmniFlow"
-                      className="max-w-16 max-h-16 w-auto h-auto object-contain"
-                    />
-                    <span className="font-semibold text-sidebar-foreground truncate">
-                      OmniFlow
-                    </span>
-                  </>
-                ) : (
-                  // Other roles see college logo
-                  <>
-                    {(settings?.logoDisplayMode === 'logo-only' || settings?.logoDisplayMode === 'both') && settings?.logoUrl ? (
-                      <div className="flex-shrink-0 flex items-center justify-center">
-                        <img 
-                          src={settings.logoUrl} 
-                          alt={settings.collegeName}
-                          className="max-w-16 max-h-16 w-auto h-auto object-contain"
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-12 h-12 flex-shrink-0 bg-primary rounded flex items-center justify-center">
-                        <GraduationCap className="w-6 h-6 text-primary-foreground" />
-                      </div>
-                    )}
-                    {(settings?.logoDisplayMode === 'text-only' || settings?.logoDisplayMode === 'both') && (
-                      <span className="font-semibold text-sidebar-foreground truncate">
-                        {settings?.collegeShortName || 'OmniFlow'}
-                      </span>
-                    )}
-                  </>
-                )}
-              </motion.div>
-            </Link>
+            <div className="h-10 w-10 shrink-0 overflow-hidden flex items-center justify-center">
+              <img src={appLogoSrc} alt="App logo" className="h-8 w-8 object-contain" />
+            </div>
             <button
-              onClick={isMobile ? onMobileClose : onToggle}
-              className="p-1.5 rounded-md hover:bg-sidebar-accent transition-colors"
-              title={isMobile ? "Close menu" : "Collapse sidebar"}
+              onClick={onToggle}
+              className="p-1.5 hover:bg-sidebar-accent transition-colors"
+              title="Collapse sidebar"
             >
-              {isMobile ? (
-                <X className="w-5 h-5 text-sidebar-foreground" />
-              ) : (
-                <ChevronLeft className="w-4 h-4 text-sidebar-foreground" />
-              )}
+              <ChevronLeft className="w-4 h-4 text-sidebar-foreground" />
             </button>
           </>
         )}
       </div>
 
-
-
-
-
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3">
-        <ul className="space-y-1">
-          {filteredItems.map((item) => {
-            // Normalize pathname by removing orgSlug prefix for comparison
-            const currentPath = orgSlug && location.pathname.startsWith(`/${orgSlug}`)
-              ? location.pathname.slice(`/${orgSlug}`.length) || '/'
-              : location.pathname;
-            
-            // Smart path matching for different route types
-            let isActive = false;
-            
-            if (item.path === '/finance') {
-              // Finance includes payment settings and other finance routes
-              isActive = currentPath === item.path || 
-                        currentPath.startsWith('/finance/') ||
-                        currentPath === '/admin/payment-settings';
-            } else if (item.path === '/settings') {
-              // Settings includes college settings admin page
-              isActive = currentPath === item.path || 
-                        currentPath === '/admin/college-settings' ||
-                        currentPath === '/admin/hostel';
-            } else if (item.path === '/departments') {
-              // Departments
-              isActive = currentPath === item.path || 
-                        currentPath.startsWith('/departments/');
-            } else if (item.path === '/faculty') {
-              // Faculty
-              isActive = currentPath === item.path || 
-                        currentPath.startsWith('/faculty/');
-            } else {
-              // Default matching for other routes
-              isActive = currentPath === item.path || 
-                        currentPath.startsWith(item.path + '/') ||
-                        (item.path !== '/' && currentPath.startsWith(item.path));
-            }
-            
-            
-            return (
-              <li key={item.path}>
-                <NavLink
-                  to={orgSlug ? `/${orgSlug}${item.path}` : item.path}
-                  className={cn(
-                    "sidebar-item",
-                    isActive && "sidebar-item-active"
-                  )}
-                >
-                  <item.icon
-                    className={cn(
-                      "w-5 h-5 shrink-0",
-                      isActive ? "text-primary-foreground" : "text-sidebar-foreground/70"
-                    )}
-                  />
-                  <AnimatePresence mode="wait">
-                    {!collapsed && (
-                      <motion.span
-                        initial={{ opacity: 0, width: 0 }}
-                        animate={{ opacity: 1, width: "auto" }}
-                        exit={{ opacity: 0, width: 0 }}
-                        className="truncate"
-                      >
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </NavLink>
-              </li>
-            );
-          })}
-        </ul>
+      <nav className="flex-1 overflow-y-auto py-3 px-2.5">
+        {collapsed || isMobile ? (
+          <ul className="space-y-0.5">
+            {filteredItems.map(renderNavItem)}
+          </ul>
+        ) : (
+          <div className="space-y-3">
+            {groupedItems.map((section) => (
+              <div key={section.title}>
+                <p className="sidebar-section-label px-2 pb-1">{section.title}</p>
+                <ul className="space-y-0.5">
+                  {section.items.map(renderNavItem)}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
 
       </nav>
 

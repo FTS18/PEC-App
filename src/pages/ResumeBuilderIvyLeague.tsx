@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import jsPDF from "jspdf";
-import * as pdfjs from "pdfjs-dist";
 import { motion } from "framer-motion";
 import {
   FileText,
@@ -32,17 +30,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuth } from "@/hooks/useAuth";
-import { db, app } from "@/config/firebase";
-import { doc, getDoc } from "firebase/firestore";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { toast } from "sonner";
 import { useCollegeSettings } from "@/hooks/useCollegeSettings";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import OpenAI from "openai";
-import pdfWorker from "pdfjs-dist/build/pdf.worker.mjs?url";
-import { getStorage, ref, getDownloadURL } from "firebase/storage";
+import { EmptyState, LoadingGrid, StatePanel } from "@/components/common/AsyncState";
 
 // Interfaces (Strictly conserved)
 interface PersonalInfo {
@@ -98,14 +92,37 @@ interface AnalysisResult {
   suggestions: string[];
   keywordMatch: { keyword: string; found: boolean }[];
 }
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
-// pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
-const storage = getStorage(app);
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true,
-  baseURL: "https://models.github.ai/inference",
-});
+const openAiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+
+let openAiClientPromise: Promise<any> | null = null;
+let pdfJsPromise: Promise<any> | null = null;
+
+const getOpenAiClient = async () => {
+  if (!openAiApiKey) return null;
+  if (!openAiClientPromise) {
+    openAiClientPromise = import("openai").then(({ default: OpenAI }) =>
+      new OpenAI({
+        apiKey: openAiApiKey,
+        dangerouslyAllowBrowser: true,
+        baseURL: "https://models.github.ai/inference",
+      })
+    );
+  }
+  return openAiClientPromise;
+};
+
+const getPdfJs = async () => {
+  if (!pdfJsPromise) {
+    pdfJsPromise = Promise.all([
+      import("pdfjs-dist"),
+      import("pdfjs-dist/build/pdf.worker.min.js?url"),
+    ]).then(([pdfjs, worker]) => {
+      pdfjs.GlobalWorkerOptions.workerSrc = worker.default;
+      return pdfjs;
+    });
+  }
+  return pdfJsPromise;
+};
 
 export default function ResumeBuilderIvyLeague() {
   const { user } = useAuth();
@@ -163,7 +180,7 @@ export default function ResumeBuilderIvyLeague() {
         date: "Jan 2024",
         description: [
           "Built a Flutter based mobile application for campus navigation and attendance.",
-          "Integrated Firebase for real-time notifications and data sync.",
+          "Integrated PostgreSQL-backed APIs for real-time notifications and data sync.",
           "Deployed to Play Store with over 500+ active student users.",
         ],
       },
@@ -190,7 +207,7 @@ export default function ResumeBuilderIvyLeague() {
       if (!user) return;
 
       try {
-        const profileDoc = await getDoc(doc(db, "studentProfiles", user.uid));
+        const profileDoc = await getDoc(doc(({} as any), "studentProfiles", user.uid));
         if (profileDoc.exists()) {
           const profile = profileDoc.data();
 
@@ -259,6 +276,7 @@ export default function ResumeBuilderIvyLeague() {
 
 const extractTextFromPDF = async (file: File): Promise<string> => {
   try {
+    const pdfjs = await getPdfJs();
     const arrayBuffer = await file.arrayBuffer();
     // Load the document using the local worker
     const loadingTask = pdfjs.getDocument({
@@ -359,6 +377,7 @@ const extractTextFromPDF = async (file: File): Promise<string> => {
   };
 
   const downloadPDF = async () => {
+    const { jsPDF } = await import("jspdf");
     const doc = new jsPDF();
     let yPos = 20;
 
@@ -508,6 +527,12 @@ const handleAnalyze = async (customFile?: File) => {
       return;
     }
 
+    const openai = await getOpenAiClient();
+    if (!openai) {
+      toast.error("AI is not configured. Set VITE_OPENAI_API_KEY to enable analysis.");
+      return;
+    }
+
     setIsAnalyzing(true);
     setAnalysisResult(null);
 
@@ -521,7 +546,7 @@ const handleAnalyze = async (customFile?: File) => {
           resumeContext = await extractTextFromPDF(targetFile);
         } else {
           // Fallback for images if you still want to allow them
-          const { base64 }:any = await fileToBase64(targetFile);
+          const base64 = await fileToBase64(targetFile);
           resumeContext = `[IMAGE_CONTENT_BASE64:${base64}]`; 
         }
       } else {
@@ -581,44 +606,37 @@ const handleAnalyze = async (customFile?: File) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="space-y-6 md:space-y-8">
+        <div className="h-8 w-56 bg-muted rounded-md animate-pulse" />
+        <LoadingGrid count={3} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" itemClassName="h-32 rounded-md" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-12">
+    <div className="min-h-screen bg-background pb-12 space-y-6">
       {/* Top Navigation Bar */}
-      <div className="bg-card border-b border-border sticky top-0 z-30 shadow-sm">
+      <div className="bg-card/95 border-b border-border sticky top-0 z-30 shadow-sm backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between py-3 gap-4">
+          <div className="flex flex-col lg:flex-row items-center justify-between py-3 gap-4">
             <div className="flex items-center gap-3">
-              {settings?.logoUrl ? (
-                <img
-                  src={settings.logoUrl}
-                  className="w-8 h-8 object-contain"
-                  alt="Logo"
-                />
-              ) : (
-                <FileText className="w-6 h-6 text-primary" />
-              )}
+              <FileText className="w-6 h-6 text-primary" />
               <div>
-                <h1 className="text-lg font-bold">Resume Hub</h1>
+                <h1 className="text-xl font-semibold tracking-tight text-foreground">Resume Hub</h1>
                 <p className="text-xs text-muted-foreground">
                   {settings?.collegeName || "Career Center"}
                 </p>
               </div>
             </div>
 
-            <div className="flex bg-secondary p-1 rounded-lg">
+            <div className="flex bg-secondary/70 p-1 rounded-md border border-border">
               <button
                 onClick={() => setActiveTab("builder")}
                 className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
+                  "px-4 h-9 rounded-sm text-sm font-medium transition-colors",
                   activeTab === "builder"
-                    ? "bg-background shadow text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-background text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40",
                 )}
               >
                 Builder
@@ -626,10 +644,10 @@ const handleAnalyze = async (customFile?: File) => {
               <button
                 onClick={() => setActiveTab("analyzer")}
                 className={cn(
-                  "px-4 py-1.5 rounded-md text-sm font-medium transition-all",
+                  "px-4 h-9 rounded-sm text-sm font-medium transition-colors",
                   activeTab === "analyzer"
-                    ? "bg-background shadow text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-background text-foreground"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/40",
                 )}
               >
                 AI Analyzer
@@ -643,18 +661,18 @@ const handleAnalyze = async (customFile?: File) => {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-8 w-8"
                       onClick={() => setZoom((z) => Math.max(0.5, z - 0.1))}
                     >
                       <ZoomOut className="w-3 h-3" />
                     </Button>
-                    <span className="text-[10px] w-8 text-center">
+                    <span className="text-xs w-9 text-center">
                       {Math.round(zoom * 100)}%
                     </span>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7"
+                      className="h-8 w-8"
                       onClick={() => setZoom((z) => Math.min(1.5, z + 0.1))}
                     >
                       <ZoomIn className="w-3 h-3" />
@@ -663,12 +681,13 @@ const handleAnalyze = async (customFile?: File) => {
                   <Button
                     variant="outline"
                     size="sm"
+                    className="h-9"
                     onClick={() => setPreview(!preview)}
                   >
                     <Eye className="w-4 h-4 mr-2" />
                     {preview ? "Edit" : "Preview"}
                   </Button>
-                  <Button size="sm" onClick={downloadPDF}>
+                  <Button size="sm" className="h-9" onClick={downloadPDF}>
                     <Download className="w-4 h-4 mr-2" />
                     Download PDF
                   </Button>
@@ -682,27 +701,27 @@ const handleAnalyze = async (customFile?: File) => {
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* BUILDER TAB */}
         {activeTab === "builder" && (
-          <div className="grid lg:grid-cols-12 gap-6 items-start">
+          <div className="grid xl:grid-cols-12 gap-6 items-start">
             {/* Editor - Scrollable */}
             {!preview && (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="lg:col-span-6 space-y-6"
+                className="xl:col-span-6 space-y-6"
               >
                 <Tabs defaultValue="personal" className="w-full">
-                  <TabsList className="w-full justify-start overflow-auto no-scrollbar">
-                    <TabsTrigger value="personal">Personal</TabsTrigger>
-                    <TabsTrigger value="education">Education</TabsTrigger>
-                    <TabsTrigger value="experience">Experience</TabsTrigger>
-                    <TabsTrigger value="projects">Projects</TabsTrigger>
-                    <TabsTrigger value="skills">Skills</TabsTrigger>
+                  <TabsList className="w-full justify-start overflow-auto no-scrollbar bg-muted/40 border border-border p-1">
+                    <TabsTrigger value="personal" className="h-9 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Personal</TabsTrigger>
+                    <TabsTrigger value="education" className="h-9 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Education</TabsTrigger>
+                    <TabsTrigger value="experience" className="h-9 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Experience</TabsTrigger>
+                    <TabsTrigger value="projects" className="h-9 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Projects</TabsTrigger>
+                    <TabsTrigger value="skills" className="h-9 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm">Skills</TabsTrigger>
                   </TabsList>
 
                   {/* Content Panels (Same as before, preserved logic) */}
                   <TabsContent
                     value="personal"
-                    className="card-elevated p-6 space-y-4 mt-4"
+                    className="card-elevated ui-card-pad space-y-4 mt-4"
                   >
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -764,7 +783,7 @@ const handleAnalyze = async (customFile?: File) => {
 
                   <TabsContent value="education" className="space-y-4 mt-4">
                     {resumeData.education.map((edu, idx) => (
-                      <div key={idx} className="card-elevated p-6 space-y-4">
+                      <div key={idx} className="card-elevated ui-card-pad space-y-4">
                         <div className="space-y-2">
                           <label className="text-sm font-medium">
                             Institution
@@ -861,7 +880,7 @@ const handleAnalyze = async (customFile?: File) => {
                     {resumeData.experience.map((exp, idx) => (
                       <div
                         key={idx}
-                        className="card-elevated p-6 space-y-4 relative"
+                        className="card-elevated ui-card-pad space-y-4 relative"
                       >
                         <Button
                           size="icon"
@@ -943,7 +962,7 @@ const handleAnalyze = async (customFile?: File) => {
                     {resumeData.projects.map((proj, idx) => (
                       <div
                         key={idx}
-                        className="card-elevated p-6 space-y-4 relative"
+                        className="card-elevated ui-card-pad space-y-4 relative"
                       >
                         <Button
                           size="icon"
@@ -993,7 +1012,7 @@ const handleAnalyze = async (customFile?: File) => {
 
                   <TabsContent
                     value="skills"
-                    className="card-elevated p-6 space-y-4 mt-4"
+                    className="card-elevated ui-card-pad space-y-4 mt-4"
                   >
                     <div>
                       <label className="text-sm font-medium">
@@ -1063,14 +1082,14 @@ const handleAnalyze = async (customFile?: File) => {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               className={cn(
-                "lg:col-span-6 sticky top-24", // Sticky positioning
+                "xl:col-span-6 sticky top-24",
                 preview
-                  ? "lg:col-span-12 relative top-0 mx-auto max-w-4xl"
+                  ? "xl:col-span-12 relative top-0 mx-auto max-w-4xl"
                   : "",
               )}
             >
               <div
-                className="bg-white text-black shadow-2xl origin-top-left transition-transform duration-200"
+                className="bg-white text-black shadow-xl border border-border origin-top-left transition-transform duration-150"
                 style={{
                   width: "8.5in",
                   minHeight: "11in",
@@ -1239,7 +1258,7 @@ const handleAnalyze = async (customFile?: File) => {
         {activeTab === 'analyzer' && (
   <div className="space-y-6">
     {/* 1. Source Selection Bar: Toggles between Builder and External PDF */}
-    <div className="card-elevated p-4 flex flex-col md:flex-row gap-4 items-center justify-between border-l-4 border-primary bg-card/50 backdrop-blur-sm">
+    <div className="card-elevated ui-card-pad flex flex-col md:flex-row gap-4 items-center justify-between border-l-2 border-primary bg-card">
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary shadow-inner">
           <Sparkles className="w-5 h-5" />
@@ -1253,11 +1272,11 @@ const handleAnalyze = async (customFile?: File) => {
       </div>
 
       <div className="flex items-center gap-3 w-full md:w-auto">
-        <div className="flex bg-secondary/50 p-1 rounded-lg w-full md:w-auto ring-1 ring-border">
+        <div className="flex bg-secondary/40 p-1 rounded-md w-full md:w-auto border border-border">
           <button
             onClick={() => { setSelectedResume("current"); setUploadedFile(null); }}
             className={cn(
-              "flex-1 md:flex-none px-4 py-1.5 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-2",
+              "flex-1 md:flex-none px-4 py-1.5 rounded-sm text-xs font-medium transition-all duration-150 flex items-center justify-center gap-2",
               selectedResume === "current" ? "bg-background shadow-md text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -1283,7 +1302,7 @@ const handleAnalyze = async (customFile?: File) => {
             <button
               onClick={() => document.getElementById("resume-upload-field")?.click()}
               className={cn(
-                "w-full px-4 py-1.5 rounded-md text-xs font-medium transition-all flex items-center justify-center gap-2",
+                "w-full px-4 py-1.5 rounded-sm text-xs font-medium transition-all duration-150 flex items-center justify-center gap-2",
                 selectedResume === "upload" ? "bg-background shadow-md text-foreground" : "text-muted-foreground hover:text-foreground"
               )}
             >
@@ -1314,7 +1333,7 @@ const handleAnalyze = async (customFile?: File) => {
     <div className="grid lg:grid-cols-2 gap-8 items-start">
       {/* LEFT: Input Section */}
       <div className="space-y-6">
-        <div className="card-elevated p-6 border-t-4 border-primary">
+        <div className="card-elevated ui-card-pad border-t-2 border-primary">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
               <Target className="w-6 h-6" />
@@ -1329,11 +1348,11 @@ const handleAnalyze = async (customFile?: File) => {
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
             placeholder="Paste the target job description here for deep semantic analysis..."
-            className="min-h-[280px] bg-muted/20 border-none focus-visible:ring-1 resize-none leading-relaxed text-sm"
+            className="min-h-[280px] bg-muted/20 border border-border focus-visible:ring-1 resize-none leading-relaxed text-sm"
           />
 
           <Button
-            className="w-full mt-6 h-12 text-md font-bold shadow-lg shadow-primary/20 transition-all hover:scale-[1.01]"
+            className="w-full mt-6 h-12 text-md font-semibold shadow-sm transition-all duration-150"
             onClick={() => handleAnalyze()}
             disabled={isAnalyzing || !jobDescription.trim()}
           >
@@ -1353,10 +1372,12 @@ const handleAnalyze = async (customFile?: File) => {
         </div>
 
         {isAnalyzing && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="card-elevated p-12 text-center space-y-4 border-dashed border-2 border-primary/30">
-            <RefreshCw className="w-12 h-12 text-primary animate-spin mx-auto" />
-            <h3 className="text-xl font-bold italic text-primary">Intelligence Engine Active</h3>
-            <p className="text-sm text-muted-foreground">GPT-4o is currently mapping semantic relevance and scanning for ATS keyword density...</p>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+            <StatePanel
+              title="Analyzing resume"
+              description="Checking semantic relevance and ATS keyword coverage..."
+              className="w-full"
+            />
           </motion.div>
         )}
       </div>
@@ -1366,7 +1387,7 @@ const handleAnalyze = async (customFile?: File) => {
         {analysisResult && !isAnalyzing ? (
           <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="space-y-6">
             {/* Score Card */}
-            <div className="card-elevated p-8 text-center bg-gradient-to-b from-card to-secondary/20 border-b-4 border-primary">
+            <div className="card-elevated ui-card-pad text-center border-b-2 border-primary">
               <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Overall Match Score</p>
               <div className={cn("text-7xl font-black mb-4 font-mono transition-colors", getScoreColor(analysisResult.matchScore))}>
                 {analysisResult.matchScore}%
@@ -1375,7 +1396,7 @@ const handleAnalyze = async (customFile?: File) => {
             </div>
 
             {/* Keyword Match Chips */}
-            <div className="card-elevated p-5">
+            <div className="card-elevated ui-card-pad">
               <h4 className="font-bold text-xs mb-4 flex items-center gap-2 uppercase tracking-tight">
                 <Target className="w-4 h-4 text-primary" /> Industry Keyword Matching
               </h4>
@@ -1416,17 +1437,14 @@ const handleAnalyze = async (customFile?: File) => {
             </div>
 
             {/* AI Optimization Tips */}
-            <div className="card-elevated p-6 bg-primary/5 border-none ring-1 ring-primary/20 shadow-xl relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-4 opacity-10">
-                <Sparkles className="w-20 h-20" />
-              </div>
+            <div className="card-elevated ui-card-pad bg-primary/5 border border-primary/20 relative overflow-hidden">
               <h4 className="font-bold flex items-center gap-2 mb-4 text-primary uppercase tracking-wider text-xs">
                 <Lightbulb className="w-5 h-5 text-amber-500" /> Strategic AI Suggestions
               </h4>
-              <div className="space-y-4 relative z-10">
+              <div className="space-y-4">
                 {analysisResult.suggestions.map((s, i) => (
                   <div key={i} className="flex gap-3 text-sm leading-relaxed text-foreground/90 group">
-                    <ArrowRight className="w-4 h-4 text-primary shrink-0 mt-1 transition-transform group-hover:translate-x-1" />
+                    <ArrowRight className="w-4 h-4 text-primary shrink-0 mt-1 transition-transform duration-150 group-hover:translate-x-1" />
                     <span>{s}</span>
                   </div>
                 ))}
@@ -1434,13 +1452,11 @@ const handleAnalyze = async (customFile?: File) => {
             </div>
           </motion.div>
         ) : !isAnalyzing && (
-          <div className="h-full min-h-[450px] border-2 border-dashed border-muted rounded-3xl flex flex-col items-center justify-center p-12 text-center opacity-40 grayscale hover:opacity-60 transition-opacity">
-            <TrendingUp className="w-16 h-16 mb-4 text-muted-foreground" />
-            <h4 className="font-bold text-lg">Analysis Pending</h4>
-            <p className="text-sm max-w-[280px] mt-2 leading-relaxed font-medium">
-              Paste the Job Description on the left and trigger the Audit to generate your personalized compatibility report.
-            </p>
-          </div>
+          <EmptyState
+            title="Analysis pending"
+            description="Paste a job description and run the audit to generate your compatibility report."
+            className="min-h-[420px] flex items-center justify-center"
+          />
         )}
       </div>
     </div>

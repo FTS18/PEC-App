@@ -4,7 +4,6 @@ import {
   LayoutDashboard, 
   MessageCircle, 
   UtensilsCrossed, 
-  Briefcase, 
   User 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -29,11 +28,6 @@ export function BottomNav() {
       label: 'Order',
       icon: UtensilsCrossed,
       path: '/canteen'
-    },
-    {
-      label: 'Career',
-      icon: Briefcase,
-      path: '/career'
     },
     {
       label: 'Profile',

@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
+import { EmptyState } from '@/components/common/AsyncState';
 
 interface NotificationDetail {
   id: string;
@@ -132,12 +133,14 @@ export default function NotificationDetail() {
   
   if (!notification) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Bell className="w-12 h-12 text-muted-foreground mb-4" />
-        <h2 className="text-xl font-semibold">Notification not found</h2>
-        <Button variant="outline" onClick={() => navigate('/notifications')} className="mt-4">
-          Back to Notifications
-        </Button>
+      <div className="py-16">
+        <EmptyState
+          title="Notification not found"
+          description="This notification may have been removed."
+          actionLabel="Back to Notifications"
+          onAction={() => navigate('/notifications')}
+          className="max-w-md mx-auto"
+        />
       </div>
     );
   }
@@ -158,7 +161,7 @@ export default function NotificationDetail() {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-3xl mx-auto space-y-6"
+      className="max-w-3xl mx-auto space-y-6 md:space-y-8"
     >
       {/* Back Button */}
       <Button variant="ghost" onClick={() => navigate('/notifications')} className="gap-2">
@@ -167,7 +170,7 @@ export default function NotificationDetail() {
       </Button>
 
       {/* Header */}
-      <div className="card-elevated p-6">
+      <div className="card-elevated ui-card-pad">
         <div className="flex items-start gap-4">
           <div className={cn('w-12 h-12 rounded-full flex items-center justify-center shrink-0', typeConfig.bg)}>
             <TypeIcon className={cn('w-6 h-6', typeConfig.color)} />
@@ -189,7 +192,7 @@ export default function NotificationDetail() {
       </div>
 
       {/* Content */}
-      <div className="card-elevated p-6">
+      <div className="card-elevated ui-card-pad">
         <h2 className="font-semibold text-foreground mb-4">Details</h2>
         <p className="text-muted-foreground leading-relaxed">{notification.fullContent}</p>
         
@@ -211,7 +214,7 @@ export default function NotificationDetail() {
 
       {/* Actions */}
       {notification.actions && notification.actions.length > 0 && (
-        <div className="card-elevated p-6">
+        <div className="card-elevated ui-card-pad">
           <h2 className="font-semibold text-foreground mb-4">Quick Actions</h2>
           <div className="flex flex-wrap gap-3">
             {notification.actions.map((action, i) => (

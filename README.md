@@ -1,10 +1,10 @@
-# OmniFlow - Next-Generation College ERP Platform
+# PEC - Next-Generation College ERP Platform
 
-A modern, comprehensive Enterprise Resource Planning system built for higher education institutions. OmniFlow streamlines student information, academics, placements, finance, campus operations, and more in a single, unified platform with AI-powered features.
+A modern, comprehensive Enterprise Resource Planning system built for higher education institutions. PEC streamlines student information, academics, placements, finance, campus operations, and more in a single, unified platform with AI-powered features.
 
 ## 🌟 Overview
 
-OmniFlow is a web-based ERP designed to replace fragmented legacy systems with an intuitive interface serving students, faculty, administrators, placement officers, and recruiters. The platform provides role-based dashboards, comprehensive academic management, advanced placement features, campus operations, AI chatbots, and real-time communication. Every feature is carefully crafted with proper authentication, real-time data synchronization, and an exceptional user experience.
+PEC is a web-based ERP designed to replace fragmented legacy systems with an intuitive interface serving students, faculty, administrators, placement officers, and recruiters. The platform provides role-based dashboards, comprehensive academic management, advanced placement features, campus operations, AI chatbots, and real-time communication. Every feature is carefully crafted with proper authentication, real-time data synchronization, and an exceptional user experience.
 
 ## ✨ Core Features
 
@@ -352,8 +352,8 @@ OmniFlow is a web-based ERP designed to replace fragmented legacy systems with a
 - **Audit Trail**: Log all permission-based actions
 
 ### 2. **Real-Time Data Synchronization**
-- **Firebase Firestore** - Real-time NoSQL database with instant updates
-- **Live Notifications** - Push notifications via Firebase Cloud Messaging
+- **PostgreSQL + REST API** - Relational backend with role-aware endpoints
+- **Live Notifications** - Push notifications via backend notification services
 - **Optimistic UI** - Instant feedback with background sync
 - **Offline Support** - Local caching with automatic sync on reconnection
 - **Batch Operations** - Multiple updates in single atomic transactions
@@ -390,8 +390,8 @@ OmniFlow is a web-based ERP designed to replace fragmented legacy systems with a
 | **Styling** | Tailwind CSS | Utility-first CSS framework |
 | **UI Components** | shadcn/ui (55+) | Pre-built accessible components |
 | **Routing** | React Router v6 | Client-side routing with nested routes |
-| **Backend** | Firebase/Firestore | Real-time database and authentication |
-| **Storage** | Firebase Storage | File and media storage |
+| **Backend** | NestJS + Prisma + PostgreSQL | API, authentication, and data access |
+| **Storage** | Cloud media storage | File and media storage |
 | **AI/ML** | Google Gemini 2.5 Flash | AI chatbot and content generation |
 | **Icons** | Lucide React + Tabler Icons | 1000+ SVG icons |
 | **Animations** | Framer Motion + GSAP | Smooth UI animations and transitions |
@@ -406,7 +406,7 @@ OmniFlow is a web-based ERP designed to replace fragmented legacy systems with a
 ## 📁 Project Structure
 
 ```
-omniflow/
+pec/
 ├── public/
 │   ├── fonts/                  # Custom fonts (Monument Extended, Fraunces)
 │   ├── images/                 # Static images and assets
@@ -550,10 +550,10 @@ omniflow/
 │   │   ├── useTheme.ts              # Theme management
 │   │   ├── useNotifications.ts      # Notifications hook
 │   │   ├── useChat.ts               # Chat functionality
-│   │   ├── useFirestore.ts          # Firestore helper
+│   │   ├── useDataClient.ts         # API data-client helper
 │   │   └── ... (12 total)
 │   ├── lib/
-│   │   ├── firebase.ts              # Firebase initialization
+│   │   ├── postgres-bridge.ts       # API bridge initialization
 │   │   ├── accessControl.ts         # Access control logic
 │   │   ├── permissions.ts           # Permission definitions
 │   │   ├── rolePermissions.ts       # Role-based permissions
@@ -564,7 +564,7 @@ omniflow/
 │   │   ├── index.ts                 # TypeScript type definitions
 │   │   └── database.ts              # Database schema types
 │   ├── config/
-│   │   ├── firebase.ts              # Firebase configuration
+│   │   ├── storage.ts               # Storage configuration
 │   │   └── constants.ts             # App constants
 │   ├── contexts/
 │   │   └── AuthContext.tsx          # Authentication context
@@ -578,15 +578,17 @@ omniflow/
 ├── scripts/
 │   ├── initDB.js                    # Database initialization
 │   └── ... (16 total scripts)
-├── firestore.rules                  # Firestore security rules
+├── server/                          # NestJS backend + Prisma schema
 ├── package.json                     # Dependencies and scripts
 ├── vite.config.ts                   # Vite configuration
 ├── tailwind.config.ts               # Tailwind CSS configuration
 ├── tsconfig.json                    # TypeScript configuration
 ├── README.md                        # This file
-├── FEATURES.md                      # Detailed features documentation
-├── ARCHITECTURE.md                  # Architecture deep dive
-└── QUICK_REFERENCE.md               # Quick reference guide
+└── docs/
+  ├── FEATURES.md                  # Detailed features documentation
+  ├── ARCHITECTURE.md              # Architecture deep dive
+  ├── DEVELOPMENT.md               # Development setup notes
+  └── QUICK_REFERENCE.md           # Quick reference guide
 
 **Total Files**: 233+ TypeScript/React components
 **Total Lines of Code**: 50,000+ (estimated)
@@ -597,7 +599,7 @@ omniflow/
 ### Prerequisites
 - Node.js v18 or higher
 - npm or bun package manager
-- Firebase account (for backend services)
+- PostgreSQL database and backend API access
 - Google Gemini API key (for AI features)
 
 ### Installation
@@ -605,7 +607,7 @@ omniflow/
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd omniflow
+cd pec
 
 # Install dependencies
 npm install
@@ -614,12 +616,9 @@ bun install
 
 # Set up environment variables
 # Create .env.local file with:
-VITE_FIREBASE_API_KEY=your_firebase_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+VITE_API_URL=http://localhost:3000
+VITE_STORAGE_CLOUD_NAME=your_cloud_name
+VITE_STORAGE_PRESET=your_upload_preset
 VITE_GEMINI_API_KEY=your_gemini_api_key
 
 # Initialize database (optional)
@@ -927,7 +926,7 @@ npm run preview
 ## 🔒 Authentication & Security
 
 ### Authentication Methods
-- **Email/Password** - Secure Firebase Authentication
+- **Email/Password** - Secure JWT-based authentication
 - **Session Management** - Auto-logout on token expiration
 - **Password Recovery** - Email-based password reset
 - **2FA** - Two-factor authentication (planned)
@@ -935,7 +934,7 @@ npm run preview
 
 ### Security Measures
 - **Role-Based Access Control (RBAC)** - Granular permission system
-- **Firestore Security Rules** - Database-level access control
+- **API Guards & Role Rules** - Backend-level access control
 - **Data Encryption** - HTTPS in transit, encryption at rest
 - **Input Validation** - Zod schema validation on all forms
 - **XSS Protection** - Sanitized user inputs
@@ -1005,7 +1004,7 @@ npm run preview
 - **Cache Strategies** - Service workers for offline support (planned)
 - **CDN Delivery** - Static assets via CDN
 - **Gzip Compression** - Compressed assets for faster loading
-- **Indexed Queries** - Optimized Firestore queries and indexes
+- **Indexed Queries** - Optimized SQL queries and indexes
 - **Virtual Scrolling** - For large lists and tables
 - **Debounced Search** - Reduce API calls on search inputs
 
@@ -1062,13 +1061,10 @@ npm run lint:fix     # Auto-fix linting issues (if available)
 Create `.env.local` file:
 
 ```env
-# Firebase Configuration
-VITE_FIREBASE_API_KEY=your_firebase_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
+# API / Storage Configuration
+VITE_API_URL=http://localhost:3000
+VITE_STORAGE_CLOUD_NAME=your_cloud_name
+VITE_STORAGE_PRESET=your_upload_preset
 
 # AI Services
 VITE_GEMINI_API_KEY=your_gemini_api_key
@@ -1106,30 +1102,11 @@ npm i -g netlify-cli
 netlify deploy --prod
 ```
 
-### Deploy to Firebase Hosting
-
-```bash
-# Install Firebase CLI
-npm i -g firebase-tools
-
-# Login
-firebase login
-
-# Initialize (one-time)
-firebase init hosting
-
-# Deploy
-firebase deploy --only hosting
-```
-
 ### Environment Variables for Production
 Set the following in your deployment platform:
-- `VITE_FIREBASE_API_KEY`
-- `VITE_FIREBASE_AUTH_DOMAIN`
-- `VITE_FIREBASE_PROJECT_ID`
-- `VITE_FIREBASE_STORAGE_BUCKET`
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`
-- `VITE_FIREBASE_APP_ID`
+- `VITE_API_URL`
+- `VITE_STORAGE_CLOUD_NAME`
+- `VITE_STORAGE_PRESET`
 - `VITE_GEMINI_API_KEY`
 
 ## 📝 Contributing
@@ -1158,7 +1135,7 @@ All rights reserved © 2026. Proprietary software.
 
 For help and support:
 - **In-App Help**: Access the Help & Support section with 40+ articles
-- **Documentation**: See `FEATURES.md` and `ARCHITECTURE.md` for detailed information
+- **Documentation**: See `docs/FEATURES.md` and `docs/ARCHITECTURE.md` for detailed information
 - **Email**: Contact your institution's support team
 - **Feature Requests**: Submit feedback through the application
 
@@ -1181,9 +1158,9 @@ For help and support:
 
 ## 🔗 Related Documentation
 
-- [FEATURES.md](./FEATURES.md) - Comprehensive feature documentation
-- [ARCHITECTURE.md](./ARCHITECTURE.md) - Technical architecture deep dive
-- [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Quick reference guide
+- [docs/FEATURES.md](./docs/FEATURES.md) - Comprehensive feature documentation
+- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) - Technical architecture deep dive
+- [docs/QUICK_REFERENCE.md](./docs/QUICK_REFERENCE.md) - Quick reference guide
 
 ---
 
@@ -1191,4 +1168,4 @@ For help and support:
 
 **Version**: 1.0.0  
 **Last Updated**: January 2026  
-**Maintainers**: OmniFlow Development Team
+**Maintainers**: PEC Development Team

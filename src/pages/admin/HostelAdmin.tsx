@@ -15,14 +15,22 @@ import {
   Building2,
   Settings2
 } from 'lucide-react';
-import { db } from '@/config/firebase';
-import { collection, query, where, onSnapshot, doc, updateDoc, serverTimestamp, arrayUnion } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { 
+  collection, 
+  query, 
+  where, 
+  onSnapshot, 
+  updateDoc, 
+  doc, 
+  serverTimestamp,
+  arrayUnion
+} from '@/lib/dataClient';
 
 interface HostelIssue {
   id: string;
@@ -50,7 +58,7 @@ export default function HostelAdmin() {
   useEffect(() => {
     // Simplified query without orderBy to avoid composite index requirement
     const q = query(
-      collection(db, 'hostelIssues'),
+      collection(null as any, 'hostelIssues'),
       where('status', '!=', 'archived')
     );
 
@@ -79,7 +87,7 @@ export default function HostelAdmin() {
 
   const updateStatus = async (issueId: string, newStatus: string) => {
     try {
-      await updateDoc(doc(db, 'hostelIssues', issueId), {
+      await updateDoc(doc(null as any, 'hostelIssues', issueId), {
         status: newStatus,
         updatedAt: serverTimestamp()
       });
@@ -93,7 +101,7 @@ export default function HostelAdmin() {
     if (!newMessage.trim() || !selectedIssue) return;
 
     try {
-      await updateDoc(doc(db, 'hostelIssues', selectedIssue.id), {
+      await updateDoc(doc(null as any, 'hostelIssues', selectedIssue.id), {
         responses: arrayUnion({
           from: 'Maintenance Team',
           message: newMessage,

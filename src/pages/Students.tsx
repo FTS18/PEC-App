@@ -30,21 +30,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { onAuthStateChanged } from 'firebase/auth';
-import { 
-  collection, 
-  getDocs, 
-  addDoc, 
-  updateDoc, 
-  deleteDoc,
-  doc,
-  getDoc,
-  serverTimestamp,
-} from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useDepartmentFilter } from '@/hooks/useDepartmentFilter';
+import api from '@/lib/api';
 
 export default function Students() {
   const navigate = useNavigate();
@@ -68,10 +57,10 @@ export default function Students() {
   });
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
+    if (authLoading) return;
     
     if (!user) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
 
@@ -97,31 +86,17 @@ export default function Students() {
 
   const fetchStudents = async () => {
     try {
-      // Fetch users filtered by organization and role
-      const orgId = user?.organizationId;
-      const usersQuery = orgId
-        ? query(collection(db, 'users'), 
-                where('organizationId', '==', orgId),
-                where('role', '==', 'student'))
-        : query(collection(db, 'users'), where('role', '==', 'student'));
-      const usersSnapshot = await getDocs(usersQuery);
-      let studentUsers = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as any[];
+      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+      const response = await api.get<ApiResponse<any[]>>('/users', {
+        params: { limit: 200, offset: 0, role: 'student' },
+      });
+
+      let studentUsers = (response.data.data || []) as any[];
       
       // Apply department filtering for faculty
       studentUsers = filterByDepartment(studentUsers);
-      
-      // Fetch student profiles
-      const studentsWithProfiles = await Promise.all(
-        studentUsers.map(async (student) => {
-          const profileDoc = await getDoc(doc(db, 'studentProfiles', student.id));
-          return {
-            ...student,
-            profile: profileDoc.exists() ? profileDoc.data() : null
-          };
-        })
-      );
 
-      setStudents(studentsWithProfiles);
+      setStudents(studentUsers);
     } catch (error) {
       console.error('Error fetching students:', error);
     }
@@ -129,29 +104,21 @@ export default function Students() {
 
   const handleCreate = async () => {
     try {
-      // Create user
-      const userRef = await addDoc(collection(db, 'users'), {
+      await api.post('/users', {
         fullName: studentForm.fullName,
         email: studentForm.email,
         role: 'student',
-        profileComplete: true,
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // Create student profile
-      await addDoc(collection(db, 'studentProfiles'), {
-        uid: userRef.id,
-        ...studentForm,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        department: studentForm.department || undefined,
+        enrollmentNumber: studentForm.enrollmentNumber || undefined,
+        semester: Number(studentForm.semester || 1),
+        phone: studentForm.phone || undefined,
+        dateOfBirth: studentForm.dateOfBirth || undefined,
       });
 
       toast.success('Student created successfully!');
       setShowDialog(false);
       resetForm();
-      fetchStudents();
+      await fetchStudents();
     } catch (error) {
       console.error('Error creating student:', error);
       toast.error('Failed to create student');
@@ -161,22 +128,22 @@ export default function Students() {
   const handleUpdate = async () => {
     if (!editingStudent) return;
     try {
-      await updateDoc(doc(db, 'users', editingStudent.id), {
+      await api.patch(`/users/${editingStudent.id}`, {
         fullName: studentForm.fullName,
         email: studentForm.email,
-        updatedAt: serverTimestamp(),
-      });
-
-      await updateDoc(doc(db, 'studentProfiles', editingStudent.id), {
-        ...studentForm,
-        updatedAt: serverTimestamp(),
+        role: 'student',
+        department: studentForm.department || undefined,
+        enrollmentNumber: studentForm.enrollmentNumber || undefined,
+        semester: Number(studentForm.semester || 1),
+        phone: studentForm.phone || undefined,
+        dateOfBirth: studentForm.dateOfBirth || undefined,
       });
 
       toast.success('Student updated successfully!');
       setShowDialog(false);
       setEditingStudent(null);
       resetForm();
-      fetchStudents();
+      await fetchStudents();
     } catch (error) {
       console.error('Error updating student:', error);
       toast.error('Failed to update student');
@@ -186,10 +153,9 @@ export default function Students() {
   const handleDelete = async (studentId: string) => {
     if (!confirm('Are you sure you want to delete this student?')) return;
     try {
-      await deleteDoc(doc(db, 'users', studentId));
-      await deleteDoc(doc(db, 'studentProfiles', studentId));
+      await api.delete(`/users/${studentId}`);
       toast.success('Student deleted successfully!');
-      fetchStudents();
+      await fetchStudents();
     } catch (error) {
       console.error('Error deleting student:', error);
       toast.error('Failed to delete student');

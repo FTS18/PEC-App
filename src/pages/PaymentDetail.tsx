@@ -15,12 +15,12 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { db, auth } from '@/config/firebase';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, updateDoc, serverTimestamp } from '@/lib/dataClient';
+import api from '@/lib/api';
 import { usePermissions } from '@/hooks/usePermissions';
 import { Loader2, Smartphone } from 'lucide-react';
 import { 
@@ -30,6 +30,13 @@ import {
   isMobile 
 } from '@/lib/upiPayment';
 import { getUPIConfig, generateTransactionId } from '@/config/upi';
+
+const extractData = <T,>(payload: any): T => {
+  if (payload && typeof payload === 'object' && 'success' in payload && 'data' in payload) {
+    return payload.data as T;
+  }
+  return payload as T;
+};
 
 interface Invoice {
   id: string;
@@ -46,7 +53,7 @@ interface Invoice {
 
 const bankDetails = {
   bankName: 'State Bank of India',
-  accountName: 'OmniFlow Education Trust',
+  accountName: 'PEC Education Trust',
   accountNumber: '1234567890123456',
   ifscCode: 'SBIN0001234',
   branch: 'University Campus Branch',
@@ -70,7 +77,7 @@ export default function PaymentDetail() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
 
@@ -79,7 +86,7 @@ export default function PaymentDetail() {
         if (!id) return;
         
         // Fetch invoice
-        const docRef = doc(db, 'feeRecords', id);
+        const docRef = doc(({} as any), 'feeRecords', id);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
@@ -95,13 +102,19 @@ export default function PaymentDetail() {
           toast.error('Invoice not found');
         }
 
-        // Fetch payment settings
-        const settingsRef = doc(db, 'paymentSettings', 'admin_config');
-        const settingsSnap = await getDoc(settingsRef);
-        if (settingsSnap.exists()) {
-          setPaymentSettings(settingsSnap.data());
-        } else {
-          // Fallback to UPI if no settings found
+        try {
+          const settingsRes = await api.get('/feature-flags/payment-config');
+          const flag = extractData<any>(settingsRes.data);
+          const payload = flag?.payload ? JSON.parse(flag.payload) : null;
+          if (payload) {
+            setPaymentSettings(payload);
+          } else {
+            setPaymentSettings({
+              method: 'upi',
+              upi: getUPIConfig(),
+            });
+          }
+        } catch {
           setPaymentSettings({
             method: 'upi',
             upi: getUPIConfig(),
@@ -181,7 +194,7 @@ export default function PaymentDetail() {
       });
       
       // Store transaction reference for later verification
-      const docRef = doc(db, 'feeRecords', id);
+      const docRef = doc(({} as any), 'feeRecords', id);
       await updateDoc(docRef, {
         pendingTransactionId: transactionId,
         lastPaymentAttempt: serverTimestamp(),
@@ -215,7 +228,7 @@ export default function PaymentDetail() {
 
     const pollTimeout = setTimeout(async () => {
       try {
-        const docRef = doc(db, 'feeRecords', invoiceId);
+        const docRef = doc(({} as any), 'feeRecords', invoiceId);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
@@ -241,7 +254,7 @@ export default function PaymentDetail() {
     
     try {
       setLoading(true);
-      const docRef = doc(db, 'feeRecords', id);
+      const docRef = doc(({} as any), 'feeRecords', id);
       
       // For Razorpay: mark as paid immediately
       // For UPI/Bank: mark as pending_verification

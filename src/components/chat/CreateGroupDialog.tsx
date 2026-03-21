@@ -13,8 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, Users, X } from "lucide-react";
-import { collection, getDocs, query, where } from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { collection, getDocs, query, where } from '@/lib/dataClient';
+
 import { createGroupRoom } from "@/lib/chatRooms.service";
 import { toast } from "sonner";
 
@@ -53,7 +53,7 @@ export function CreateGroupDialog({ open, onOpenChange, onGroupCreated, currentU
   const fetchUsers = async () => {
     setFetchingUsers(true);
     try {
-      const usersRef = collection(db, "users");
+      const usersRef = collection(({} as any), "users");
       const q = query(usersRef, where("organizationId", "==", currentUser.organizationId));
       const snap = await getDocs(q);
       const usersList = snap.docs

@@ -64,7 +64,7 @@ export function Cookies() {
           <section>
             <h2 className="text-2xl font-bold mb-4">Contact Us</h2>
             <p className="text-muted-foreground leading-relaxed">
-              If you have questions about our cookie policy, please contact us at privacy@omniflow.app
+              If you have questions about our cookie policy, please contact us at privacy@pec.app
             </p>
           </section>
         </motion.div>

@@ -18,9 +18,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { collection, getDocs, query, where } from 'firebase/firestore';
-import { db } from '@/config/firebase';
 import { toast } from 'sonner';
+import api from '@/lib/api';
 
 const container = {
   hidden: { opacity: 0 },
@@ -56,38 +55,24 @@ export function SuperAdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch organizations
-      const orgsSnapshot = await getDocs(collection(db, 'organizations'));
-      const orgsData = orgsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Organization));
+      type ApiResponse<T> = { success: boolean; data: T; meta?: { total?: number } };
 
-      // Fetch all users to calculate real stats
-      const usersSnapshot = await getDocs(collection(db, 'users'));
-      const allUsers: any[] = usersSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-
-      // Calculate stats for each organization dynamically
-      const orgsWithStats = orgsData.map(org => {
-        const orgUsers = allUsers.filter(u => u.organizationId === org.id);
-        const students = orgUsers.filter(u => u.role === 'student').length;
-        const faculty = orgUsers.filter(u => u.role === 'faculty').length;
-
-        return {
-          ...org,
-          totalUsers: orgUsers.length,
-          totalStudents: students,
-          totalFaculty: faculty,
-        };
+      const usersResponse = await api.get<ApiResponse<any[]>>('/users', {
+        params: { limit: 200, offset: 0 },
       });
 
-      setOrganizations(orgsWithStats);
+      const allUsers = usersResponse.data.data || [];
+      const total = usersResponse.data.meta?.total ?? allUsers.length;
 
-      // Calculate total users across all orgs
-      const total = allUsers.length;
+      setOrganizations([
+        {
+          id: 'platform',
+          name: 'Platform',
+          type: 'system',
+          totalUsers: total,
+          status: 'active',
+        },
+      ]);
       setTotalUsers(total);
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -103,30 +88,11 @@ export function SuperAdminDashboard() {
   };
 
   const handleApproveOrganization = async (orgId: string) => {
-    try {
-      const { updateDoc, doc } = await import('firebase/firestore');
-      await updateDoc(doc(db, 'organizations', orgId), {
-        status: 'active',
-        verified: true,
-        updatedAt: new Date(),
-      });
-      toast.success('Organization approved successfully!');
-    } catch (error) {
-      console.error('Error approving organization:', error);
-      toast.error('Failed to approve organization');
-    }
+    toast.info('Organization approvals are not enabled in PostgreSQL mode yet.');
   };
 
   const handleRejectOrganization = async (orgId: string) => {
-    try {
-      const { deleteDoc, doc } = await import('firebase/firestore');
-      // You could also update status to 'rejected' instead of deleting
-      await deleteDoc(doc(db, 'organizations', orgId));
-      toast.success('Organization application rejected');
-    } catch (error) {
-      console.error('Error rejecting organization:', error);
-      toast.error('Failed to reject organization');
-    }
+    toast.info('Organization approvals are not enabled in PostgreSQL mode yet.');
   };
 
   const handleViewOrganization = (org: Organization) => {

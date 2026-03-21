@@ -16,12 +16,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { onAuthStateChanged } from 'firebase/auth';
-import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
 import { cn } from '@/lib/utils';
+import api from '@/lib/api';
 
 interface Application {
   id: string;
@@ -34,18 +32,33 @@ interface Application {
   feedback?: string;
 }
 
+type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+
+const extractData = <T,>(response: any): T => {
+  if (response?.data?.data !== undefined) return response.data.data as T;
+  return response?.data as T;
+};
+
+const formatDate = (value: any) => {
+  if (!value) return 'N/A';
+  if (value?.toDate) return value.toDate().toLocaleDateString();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? 'N/A' : parsed.toLocaleDateString();
+};
+
 export default function MyApplications() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [applications, setApplications] = useState<Application[]>([]);
   const [activeTab, setActiveTab] = useState('all');
+  const [applicationsApiAvailable, setApplicationsApiAvailable] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth to load
+    if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
     
@@ -54,25 +67,39 @@ export default function MyApplications() {
 
   const fetchApplications = async (uid: string) => {
     try {
-      const appsSnap = await getDocs(
-        query(collection(db, 'applications'), where('studentId', '==', uid))
-      );
-      
-      const appsData = await Promise.all(
-        appsSnap.docs.map(async (appDoc) => {
-          const appData = appDoc.data();
-          const jobDoc = await getDoc(doc(db, 'jobs', appData.jobId));
-          const jobData = jobDoc.data();
-          
-          return {
-            id: appDoc.id,
-            ...appData,
-            title: jobData?.title || 'Unknown Job',
-            company: jobData?.company || 'Unknown Company',
-            location: jobData?.location || 'Unknown',
-          } as Application;
-        })
-      );
+      const jobsResponse = await api.get<ApiResponse<any[]>>('/jobs', {
+        params: { limit: 100, offset: 0 },
+      });
+      const jobs = extractData<any[]>(jobsResponse) || [];
+      const jobsById = new Map(jobs.map((job: any) => [job.id, job]));
+
+      let apps: any[] = [];
+      try {
+        const appsResponse = await api.get<ApiResponse<any[]>>('/applications', {
+          params: { studentId: uid, limit: 100, offset: 0 },
+        });
+        apps = extractData<any[]>(appsResponse) || [];
+        setApplicationsApiAvailable(true);
+      } catch (error: any) {
+        if (error?.response?.status === 404) {
+          setApplicationsApiAvailable(false);
+          toast.info('Applications API is not available yet.');
+          apps = [];
+        } else {
+          throw error;
+        }
+      }
+
+      const appsData = apps.map((appData: any) => {
+        const jobData = jobsById.get(appData.jobId);
+        return {
+          id: appData.id,
+          ...appData,
+          title: jobData?.title || appData.title || 'Unknown Job',
+          company: jobData?.company || appData.company || 'Unknown Company',
+          location: jobData?.location || appData.location || 'Unknown',
+        } as Application;
+      });
       
       setApplications(appsData);
     } catch (error) {
@@ -184,6 +211,11 @@ export default function MyApplications() {
       </div>
 
       <div className="card-elevated">
+        {!applicationsApiAvailable && (
+          <div className="px-4 pt-4 text-sm text-muted-foreground">
+            Applications backend is not configured yet.
+          </div>
+        )}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="p-4 border-b border-border">
             <TabsList>
@@ -234,7 +266,7 @@ export default function MyApplications() {
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
-                            Applied {app.appliedAt?.toDate?.().toLocaleDateString()}
+                            Applied {formatDate(app.appliedAt)}
                           </span>
                         </div>
                         {app.feedback && (

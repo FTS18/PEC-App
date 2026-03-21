@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Book, BookOpen, Search, Plus, Loader2, Edit2, Trash2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
-import { db } from '../config/firebase';
+
 import {
   collection,
   query,
@@ -14,7 +14,7 @@ import {
   doc,
   getDocs,
   orderBy,
-} from 'firebase/firestore';
+} from '@/lib/dataClient';
 import { Book as BookType, BookBorrow } from '../types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ import { toast } from 'sonner';
 export default function Library() {
   const { user } = useAuth();
   const { role } = usePermissions();
-  const isAdmin = role === 'college_admin' || role === 'super_admin';
+  const isAdmin = role === 'college_admin';
   
   const [books, setBooks] = useState<BookType[]>([]);
   const [borrowedBooks, setBorrowedBooks] = useState<BookBorrow[]>([]);
@@ -55,7 +55,7 @@ export default function Library() {
 
   // Fetch books
   useEffect(() => {
-    const booksRef = collection(db, 'books');
+    const booksRef = collection(({} as any), 'books');
     const unsubscribe = onSnapshot(
       query(booksRef, orderBy('title')),
       (snapshot) => {
@@ -80,7 +80,7 @@ export default function Library() {
   useEffect(() => {
     if (!user || isAdmin) return;
 
-    const borrowsRef = collection(db, 'bookBorrows');
+    const borrowsRef = collection(({} as any), 'bookBorrows');
     const unsubscribe = onSnapshot(
       query(
         borrowsRef,
@@ -115,7 +115,7 @@ export default function Library() {
     }
 
     try {
-      await addDoc(collection(db, 'books'), {
+      await addDoc(collection(({} as any), 'books'), {
         ...newBook,
         availableCopies: newBook.totalCopies,
         createdAt: new Date(),
@@ -144,7 +144,7 @@ export default function Library() {
         (updateData as any).availableCopies = editingBook.availableCopies;
       }
 
-      await updateDoc(doc(db, 'books', editingBook.id), updateData);
+      await updateDoc(doc(({} as any), 'books', editingBook.id), updateData);
       toast.success('Book updated successfully');
       resetForm();
       setOpenEditDialog(false);
@@ -163,7 +163,7 @@ export default function Library() {
     if (!confirm('Are you sure you want to delete this book?')) return;
 
     try {
-      await deleteDoc(doc(db, 'books', bookId));
+      await deleteDoc(doc(({} as any), 'books', bookId));
       toast.success('Book deleted successfully');
     } catch (error) {
       console.error('Error deleting book:', error);
@@ -201,7 +201,7 @@ export default function Library() {
       }
 
       // Create borrow record
-      await addDoc(collection(db, 'bookBorrows'), {
+      await addDoc(collection(({} as any), 'bookBorrows'), {
         bookId,
         userId: user.uid,
         borrowDate: new Date(),
@@ -210,7 +210,7 @@ export default function Library() {
       });
 
       // Update available copies
-      await updateDoc(doc(db, 'books', bookId), {
+      await updateDoc(doc(({} as any), 'books', bookId), {
         availableCopies: book.availableCopies - 1,
       });
 
@@ -227,7 +227,7 @@ export default function Library() {
       if (!borrow) return;
 
       // Update borrow record
-      await updateDoc(doc(db, 'bookBorrows', borrowId), {
+      await updateDoc(doc(({} as any), 'bookBorrows', borrowId), {
         returnDate: new Date(),
         status: 'returned',
       });
@@ -235,7 +235,7 @@ export default function Library() {
       // Update available copies
       const book = books.find((b) => b.id === borrow.bookId);
       if (book) {
-        await updateDoc(doc(db, 'books', borrow.bookId), {
+        await updateDoc(doc(({} as any), 'books', borrow.bookId), {
           availableCopies: book.availableCopies + 1,
         });
       }

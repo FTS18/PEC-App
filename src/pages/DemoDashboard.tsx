@@ -10,7 +10,6 @@ import {
   GraduationCap,
   LayoutDashboard,
   FileText,
-  DollarSign,
   MessageSquare,
   Settings,
   BarChart3,
@@ -33,12 +32,10 @@ const item = {
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/demo', active: true },
-  { icon: FileText, label: 'Assignments', path: '/assignments' },
   { icon: Calendar, label: 'Timetable', path: '/timetable' },
   { icon: BookOpen, label: 'Courses', path: '/courses' },
   { icon: CheckCircle, label: 'Attendance', path: '/attendance' },
   { icon: BarChart3, label: 'Performance', path: '/examinations' },
-  { icon: DollarSign, label: 'Finance', path: '/finance' },
   { icon: MessageSquare, label: 'Chat', path: '/chat' },
   { icon: Building, label: 'Placements', path: '/placements' },
   { icon: Settings, label: 'Settings', path: '/settings' },
@@ -52,7 +49,7 @@ export default function DemoDashboard() {
       {/* Sidebar - Always Visible */}
       <aside className="flex flex-col w-48 md:w-56 lg:w-64 border-r border-white/10 bg-neutral-900 flex-shrink-0">
         <div className="p-4 lg:p-6">
-          <h2 className="text-base lg:text-lg font-bold text-white">OmniFlow Demo</h2>
+          <h2 className="text-base lg:text-lg font-bold text-white">PEC Demo</h2>
           <p className="text-xs text-neutral-400 mt-1">Student Portal</p>
         </div>
         <nav className="flex-1 px-2 lg:px-3 space-y-1">
@@ -228,31 +225,6 @@ export default function DemoDashboard() {
         </>
         )}
 
-        {activeTab === 'Assignments' && (
-          <div className="space-y-6">
-            <h1 className="text-2xl font-bold">Assignments</h1>
-            <div className="grid gap-4">
-              {[
-                { title: 'Data Structures Assignment 3', due: 'Due in 2 days', status: 'pending' },
-                { title: 'Web Development Project', due: 'Due in 5 days', status: 'pending' },
-                { title: 'Database Lab Report', due: 'Submitted', status: 'completed' },
-              ].map((assignment, i) => (
-                <div key={i} className="card-elevated p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-semibold">{assignment.title}</h3>
-                      <p className="text-sm text-muted-foreground">{assignment.due}</p>
-                    </div>
-                    <span className={`status-badge ${assignment.status === 'completed' ? 'status-verified' : 'status-pending'}`}>
-                      {assignment.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
         {activeTab === 'Timetable' && (
           <div className="space-y-6">
             <h1 className="text-2xl font-bold">Weekly Timetable</h1>
@@ -296,15 +268,6 @@ export default function DemoDashboard() {
                 <div className="text-5xl font-bold text-accent mb-2">8.92</div>
                 <p className="text-muted-foreground">Current CGPA</p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'Finance' && (
-          <div className="space-y-6">
-            <h1 className="text-2xl font-bold">Fee Management</h1>
-            <div className="card-elevated p-6">
-              <p className="text-muted-foreground">No pending payments</p>
             </div>
           </div>
         )}

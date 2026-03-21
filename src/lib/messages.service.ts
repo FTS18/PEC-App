@@ -1,98 +1,136 @@
-import {
-  collection,
-  addDoc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  getDoc,
-  doc,
-  limit,
-  deleteDoc,
-  updateDoc,
-  arrayUnion,
-  arrayRemove,
-} from "firebase/firestore";
-import { db, auth } from "@/config/firebase";
+import api from "@/lib/api";
 
 export interface ChatMessage {
   id: string;
   senderId: string;
-  senderName: string;
+  senderName?: string;
   text: string;
   type?: "text" | "image" | "video" | "file";
   mediaUrl?: string;
   fileName?: string;
   fileSize?: number;
-  thumbnailUrl?: string;
-  createdAt: any;
-  deletedAt?: any;
+  mentions?: string[];
+  replyTo?: { text: string; senderName: string };
+  parentId?: string;
   starredBy?: string[];
-  parentId?: string; // For threaded replies
-  replyTo?: {
-    text: string;
-    senderName: string;
-  };
-  mentions?: string[]; // IDs of mentioned users
+  deletedAt?: string | null;
+  createdAt: { toDate: () => Date };
 }
+
+type ApiMessage = {
+  id: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+  sender?: { id: string; name?: string | null };
+};
+
+const toChatMessage = (message: ApiMessage): ChatMessage => {
+  const parsedPayload = (() => {
+    try {
+      if (
+        typeof message.content === "string" &&
+        message.content.startsWith("{")
+      ) {
+        return JSON.parse(message.content);
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  })();
+
+  const content = parsedPayload?.text ?? message.content;
+
+  return {
+    id: message.id,
+    senderId: message.senderId,
+    senderName: message.sender?.name || undefined,
+    text: content,
+    type: parsedPayload?.type || "text",
+    mediaUrl: parsedPayload?.mediaUrl,
+    fileName: parsedPayload?.fileName,
+    fileSize: parsedPayload?.fileSize,
+    mentions: parsedPayload?.mentions,
+    replyTo: parsedPayload?.replyTo,
+    parentId: parsedPayload?.parentId,
+    starredBy: [],
+    deletedAt: null,
+    createdAt: {
+      toDate: () => new Date(message.createdAt),
+    },
+  };
+};
 
 export function subscribeToMessages(
   roomId: string,
-  callback: (messages: ChatMessage[]) => void,
-  limitCount: number = 20
+  onChange: (messages: ChatMessage[]) => void,
+  limit = 20,
 ) {
-  const messagesRef = collection(db, "chatRooms", roomId, "messages");
+  let active = true;
 
-  const q = query(messagesRef, orderBy("createdAt", "desc"), limit(limitCount));
+  const load = async () => {
+    try {
+      const res = await api.get<ApiMessage[]>(`/chat/messages/${roomId}`, {
+        params: { limit },
+      });
+      if (!active) return;
+      const mapped = Array.isArray(res.data) ? res.data.map(toChatMessage) : [];
+      onChange(mapped);
+    } catch {
+      if (!active) return;
+      onChange([]);
+    }
+  };
 
-  return onSnapshot(q, (snap) => {
-    const msgs = snap.docs.map((d) => ({
-      id: d.id,
-      ...d.data(),
-    })) as ChatMessage[];
+  void load();
+  const timer = window.setInterval(load, 4000);
 
-    callback(msgs.reverse());
-  });
+  return () => {
+    active = false;
+    window.clearInterval(timer);
+  };
 }
 
 export async function sendMessage(
   roomId: string,
   text: string,
   metadata?: {
+    mentions?: string[];
     parentId?: string;
     replyTo?: { text: string; senderName: string };
-    mentions?: string[];
   },
 ) {
-  if (!auth.currentUser) return;
+  const normalizedText = text.trim();
+  if (!normalizedText) return;
 
-  const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-  const userName = userDoc.exists()
-    ? userDoc.data()?.fullName || "Unknown User"
-    : "Unknown User";
+  const payload =
+    metadata &&
+    (metadata.mentions?.length || metadata.parentId || metadata.replyTo)
+      ? JSON.stringify({ text: normalizedText, type: "text", ...metadata })
+      : normalizedText;
 
-  const messagesRef = collection(db, "chatRooms", roomId, "messages");
-
-  // Filter out undefined values from metadata
-  const cleanMetadata: Record<string, any> = {};
-  if (metadata) {
-    if (metadata.parentId !== undefined)
-      cleanMetadata.parentId = metadata.parentId;
-    if (metadata.replyTo !== undefined)
-      cleanMetadata.replyTo = metadata.replyTo;
-    if (metadata.mentions !== undefined && metadata.mentions.length > 0) {
-      cleanMetadata.mentions = metadata.mentions;
-    }
-  }
-
-  await addDoc(messagesRef, {
-    senderId: auth.currentUser.uid,
-    senderName: userName,
-    text,
-    type: "text",
-    createdAt: serverTimestamp(),
-    ...cleanMetadata,
+  await api.post("/chat/message", {
+    chatRoomId: roomId,
+    content: payload,
   });
+}
+
+export async function deleteMessage(
+  roomId: string,
+  messageId: string,
+  hardDelete = false,
+) {
+  await api.delete(`/chat/message/${messageId}`);
+}
+
+export async function toggleStarMessage(
+  roomId: string,
+  messageId: string,
+  userId: string,
+  starred: boolean,
+) {
+  return;
 }
 
 export async function sendMediaMessage(
@@ -106,64 +144,16 @@ export async function sendMediaMessage(
     thumbnailUrl?: string;
   },
 ) {
-  if (!auth.currentUser) return;
-
-  const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
-  const userName = userDoc.exists()
-    ? userDoc.data()?.fullName || "Unknown User"
-    : "Unknown User";
-
-  const messagesRef = collection(db, "chatRooms", roomId, "messages");
-
-  // Build message object with only defined fields
-  const messageData: any = {
-    senderId: auth.currentUser.uid,
-    senderName: userName,
+  const payload = JSON.stringify({
     text: options?.text || "",
     type,
     mediaUrl,
-    createdAt: serverTimestamp(),
-  };
+    fileName: options?.fileName,
+    fileSize: options?.fileSize,
+  });
 
-  // Only add optional fields if they are defined
-  if (options?.fileName) messageData.fileName = options.fileName;
-  if (options?.fileSize) messageData.fileSize = options.fileSize;
-  if (options?.thumbnailUrl) messageData.thumbnailUrl = options.thumbnailUrl;
-
-  await addDoc(messagesRef, messageData);
-}
-
-export async function deleteMessage(
-  roomId: string,
-  messageId: string,
-  hardDelete = false,
-) {
-  const messageRef = doc(db, "chatRooms", roomId, "messages", messageId);
-
-  if (hardDelete) {
-    await deleteDoc(messageRef);
-  } else {
-    await updateDoc(messageRef, {
-      deletedAt: serverTimestamp(),
-    });
-  }
-}
-
-export async function toggleStarMessage(
-  roomId: string,
-  messageId: string,
-  userId: string,
-  starred: boolean,
-) {
-  const messageRef = doc(db, "chatRooms", roomId, "messages", messageId);
-
-  if (starred) {
-    await updateDoc(messageRef, {
-      starredBy: arrayUnion(userId),
-    });
-  } else {
-    await updateDoc(messageRef, {
-      starredBy: arrayRemove(userId),
-    });
-  }
+  await api.post("/chat/message", {
+    chatRoomId: roomId,
+    content: payload,
+  });
 }

@@ -22,8 +22,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db, auth } from '@/config/firebase';
+import { doc, getDoc, collection, query, where, getDocs } from '@/lib/dataClient';
+import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 
 const container = {
@@ -42,6 +42,7 @@ const item = {
 export default function PublicStudentProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -55,7 +56,7 @@ export default function PublicStudentProfile() {
       try {
         setLoading(true);
         // 1. Fetch User Data
-        const userDoc = await getDoc(doc(db, 'users', id));
+        const userDoc = await getDoc(doc(({} as any), 'users', id));
         if (!userDoc.exists()) {
           setLoading(false);
           return;
@@ -64,14 +65,14 @@ export default function PublicStudentProfile() {
         setUserData(uData);
 
         // 2. Fetch Profile Data
-        const profileDoc = await getDoc(doc(db, 'studentProfiles', id));
+        const profileDoc = await getDoc(doc(({} as any), 'studentProfiles', id));
         if (profileDoc.exists()) {
           const pData = profileDoc.data();
           
           // Check Privacy (Default to true if undefined)
           const isPublic = pData.isPublic !== false; 
           
-          if (!isPublic && auth.currentUser?.uid !== id) {
+          if (!isPublic && user?.uid !== id) {
             setProfileData({ private: true });
           } else {
             setProfileData(pData);
@@ -128,9 +129,9 @@ export default function PublicStudentProfile() {
   };
 
   const handleMessage = () => {
-    if (!auth.currentUser) {
+    if (!user) {
       toast.error('Please login to message this student');
-      navigate('/auth');
+      navigate('/auth', { replace: true });
       return;
     }
     navigate(`/chat?userId=${id}`);
@@ -289,7 +290,7 @@ export default function PublicStudentProfile() {
                <div className="card-elevated p-4">
                  <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-2">About</h2>
                  <p className="text-sm text-foreground/80 leading-relaxed">
-                   {profileData.bio || "Computer Science student passionate about Full Stack Development and AI. Currently working on multiple projects involving React and Firebase. Always eager to learn new technologies and collaborate on innovative ideas."}
+                   {profileData.bio || "Computer Science student passionate about Full Stack Development and AI. Currently working on multiple projects involving React and PostgreSQL-backed APIs. Always eager to learn new technologies and collaborate on innovative ideas."}
                  </p>
                </div>
              )}
@@ -298,7 +299,7 @@ export default function PublicStudentProfile() {
              <div className="card-elevated p-4">
                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Skills & Technologies</h2>
                <div className="flex flex-wrap gap-1.5">
-                 {['React', 'TypeScript', 'Node.js', 'Firebase', 'Tailwind CSS', 'Python', 'Machine Learning', 'Git'].map(skill => (
+                 {['React', 'TypeScript', 'Node.js', 'PostgreSQL', 'Tailwind CSS', 'Python', 'Machine Learning', 'Git'].map(skill => (
                    <span key={skill} className="px-2.5 py-1 rounded-md bg-secondary text-secondary-foreground text-xs font-medium border border-border/50">
                      {skill}
                    </span>

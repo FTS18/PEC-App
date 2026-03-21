@@ -1,15 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { MessageCircle, Menu, ArrowLeft, Info } from "lucide-react";
+import { MessageCircle, ArrowLeft, Info } from "lucide-react";
 
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { ChatInfoDialog } from "@/components/chat/ChatInfoDialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState, StatePanel } from "@/components/common/AsyncState";
 
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/features/auth/hooks/useAuth";
 import { useChatRooms } from "@/hooks/useChatRooms";
 import { useChatMessages } from "@/hooks/useChatMessages";
 
@@ -19,69 +19,58 @@ export default function ChatPage() {
   const [showChatOnMobile, setShowChatOnMobile] = useState(false);
   const [isInfoDialogOpen, setIsInfoDialogOpen] = useState(false);
 
-  // rooms from Firestore
   const { rooms, loading: roomsLoading } = useChatRooms(user);
 
-  // Read room from URL query params
   const { search } = useLocation();
   const queryParams = new URLSearchParams(search);
   const roomFromUrl = queryParams.get('room');
-  
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(roomFromUrl || "general");
+
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(roomFromUrl || null);
   const [replyingTo, setReplyingTo] = useState<{ id: string; text: string; senderName: string } | null>(null);
 
-  // Update selected room if URL changes
   useEffect(() => {
-    if (roomFromUrl) setSelectedRoomId(roomFromUrl);
-  }, [roomFromUrl]);
+    if (roomFromUrl) {
+      setSelectedRoomId(roomFromUrl);
+      return;
+    }
 
-  // messages from Firestore (realtime)
+    if (!selectedRoomId && rooms.length > 0) {
+      setSelectedRoomId(rooms[0].id);
+    }
+  }, [roomFromUrl, rooms, selectedRoomId]);
+
   const {
     messages,
     loading: messagesLoading,
     sendMessage,
     loadMore,
-    hasMore
+    hasMore,
   } = useChatMessages(selectedRoomId);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<any>(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
 
-  // auto-scroll
   useEffect(() => {
-    // Only auto-scroll if we are adding new messages at the bottom (not loading history)
-    // or if it's the first load
     const behavior = messagesLoading ? "auto" : "smooth";
     if (!isAutoScrolling) {
-        messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+      messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
     }
   }, [messages, messagesLoading, isAutoScrolling]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
-    
-    // If scrolled to top and not loading and has more messages
+    const { scrollTop } = e.currentTarget;
     if (scrollTop === 0 && hasMore && !messagesLoading) {
-      // Save current scroll height to restore position after load
-      const currentScrollHeight = scrollHeight;
       setIsAutoScrolling(true);
       loadMore();
-      
-      // Attempt to maintain position after render (approximation)
-      // Ideally should be done in a useLayoutEffect after messages update
-      // But for now verify if this works reasonably
     } else {
-        setIsAutoScrolling(false);
+      setIsAutoScrolling(false);
     }
   };
 
-  // Auto-focus input when user starts typing
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input/textarea already, or if pressing special keys
       if (
         document.activeElement?.tagName === 'INPUT' ||
         document.activeElement?.tagName === 'TEXTAREA' ||
@@ -93,7 +82,6 @@ export default function ChatPage() {
         return;
       }
 
-      // Focus the input if a regular character is typed
       if (e.key.length === 1 && inputRef.current) {
         inputRef.current.focus();
       }
@@ -103,12 +91,10 @@ export default function ChatPage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Function to scroll to a specific message
   const scrollToMessage = (messageId: string) => {
     const element = messageRefs.current[messageId];
     if (element) {
       element.scrollIntoView({ behavior: "smooth", block: "center" });
-      // Highlight the message briefly
       element.style.backgroundColor = 'var(--primary)';
       element.style.opacity = '0.2';
       setTimeout(() => {
@@ -120,26 +106,25 @@ export default function ChatPage() {
 
   if (!user) return null;
 
-  const selectedRoom = rooms.find(r => r.id === selectedRoomId);
+  const selectedRoom = rooms.find((room) => room.id === selectedRoomId);
 
   const handleRoomSelect = (roomId: string) => {
     setSelectedRoomId(roomId);
-    setShowChatOnMobile(true); // On mobile, show the chat when a room is selected
+    setShowChatOnMobile(true);
   };
 
   const handleBackToList = () => {
-    setShowChatOnMobile(false); // On mobile, go back to the room list
+    setShowChatOnMobile(false);
   };
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] bg-background">
-      {/* Sidebar - hidden on mobile when chat is showing */}
+    <div className="flex h-[calc(100vh-7rem)] bg-background md:rounded-md md:border md:border-border overflow-hidden">
       <div className={`${showChatOnMobile ? 'hidden lg:block' : 'block'} lg:block w-full lg:w-auto`}>
         <ChatSidebar
           rooms={rooms}
           selectedRoom={selectedRoomId ?? ""}
           onRoomChange={handleRoomSelect}
-          userRole={user.role}
+          userRole={(user.role as any) || 'student'}
           userId={user.uid}
           loading={roomsLoading}
           isMobileOpen={isMobileSidebarOpen}
@@ -147,12 +132,9 @@ export default function ChatPage() {
         />
       </div>
 
-      {/* Main chat area - hidden on mobile when showing room list */}
       <div className={`${showChatOnMobile ? 'flex' : 'hidden lg:flex'} flex-1 flex-col chat-main`}>
-        {/* Chat header */}
         <div className="chat-navbar">
           <div className="flex items-center gap-3">
-            {/* Mobile back button */}
             <Button
               variant="ghost"
               size="icon"
@@ -163,57 +145,48 @@ export default function ChatPage() {
             </Button>
 
             {selectedRoom && (
-              <>
-                <button
-                  onClick={() => setIsInfoDialogOpen(true)}
-                  className="flex items-center gap-2 hover:bg-secondary/50 px-3 py-2 rounded-lg transition-colors flex-1"
-                >
-                  <div className="flex-1 text-left">
-                    <h2 className="text-lg font-semibold">{selectedRoom.title}</h2>
-                    <div className="sm:block hidden">
-                      <span className="text-xs text-muted-foreground">
-                        {selectedRoom.type === "general" && "Everyone can view"}
-                        {selectedRoom.type === "semester" &&
-                          `Semester ${selectedRoom.semester} students`}
-                        {selectedRoom.type === "department" &&
-                          `${selectedRoom.department} department`}
-                        {selectedRoom.type === "dm" && "Direct message"}
-                      </span>
-                    </div>
+              <button
+                onClick={() => setIsInfoDialogOpen(true)}
+                className="flex items-center gap-2 hover:bg-secondary/50 px-3 py-2 rounded-lg transition-colors flex-1"
+              >
+                <div className="flex-1 text-left">
+                  <h2 className="text-lg font-semibold">{selectedRoom.title}</h2>
+                  <div className="sm:block hidden">
+                    <span className="text-xs text-muted-foreground">
+                      {selectedRoom.type === "general" && "Everyone can view"}
+                      {selectedRoom.type === "semester" && `Semester ${selectedRoom.semester} students`}
+                      {selectedRoom.type === "department" && `${selectedRoom.department} department`}
+                      {selectedRoom.type === "dm" && "Direct message"}
+                      {selectedRoom.type === "group" && "Private group"}
+                    </span>
                   </div>
-                  <Info className="w-4 h-4 text-muted-foreground" />
-                </button>
-              </>
+                </div>
+                <Info className="w-4 h-4 text-muted-foreground" />
+              </button>
             )}
           </div>
         </div>
 
-        {/* MESSAGES */}
-        <div 
-            className="chat-messages bg-background overflow-y-auto"
-            ref={containerRef}
-            onScroll={handleScroll}
-        >
+        <div className="chat-messages bg-background overflow-y-auto" onScroll={handleScroll}>
           {messagesLoading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="flex flex-col items-center gap-3">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
-                <p className="text-sm text-muted-foreground">Loading messages...</p>
-              </div>
+            <div className="h-full flex items-center justify-center p-4">
+              <StatePanel
+                title="Loading messages"
+                description="Fetching latest conversation…"
+                className="w-full max-w-sm"
+              />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <div className="p-6 rounded-full bg-gradient-to-br from-primary/10 to-primary/5 mb-6 shadow-inner">
-                <MessageCircle className="w-12 h-12 text-primary" />
-              </div>
-              <h3 className="text-xl font-bold mb-2">No messages yet</h3>
-              <p className="text-sm text-muted-foreground max-w-sm">
-                Be the first to start the conversation! Say hi to get things going.
-              </p>
+            <div className="h-full flex items-center justify-center p-4">
+              <EmptyState
+                title="No messages yet"
+                description="Start the conversation by sending the first message."
+                className="w-full max-w-sm"
+              />
             </div>
           ) : (
             <>
-              {messages.map(msg => (
+              {messages.map((msg) => (
                 <div key={msg.id} ref={(el) => { messageRefs.current[msg.id] = el; }}>
                   <ChatMessage
                     message={{
@@ -229,11 +202,19 @@ export default function ChatPage() {
                       fileSize: msg.fileSize,
                       mentions: msg.mentions,
                       replyTo: msg.replyTo,
-                      parentId: msg.parentId
+                      parentId: msg.parentId,
+                      starredBy: msg.starredBy,
+                      deletedAt: msg.deletedAt,
                     }}
                     showSenderName={msg.senderId !== user.uid}
-                    roomId={selectedRoomId}
-                    onReply={(m) => setReplyingTo({ id: m.id, text: m.content, senderName: m.senderName })}
+                    roomId={selectedRoomId || ''}
+                    onReply={(message) =>
+                      setReplyingTo({
+                        id: message.id,
+                        text: message.content,
+                        senderName: message.senderName,
+                      })
+                    }
                     onReplyClick={() => msg.parentId && scrollToMessage(msg.parentId)}
                   />
                 </div>
@@ -243,7 +224,6 @@ export default function ChatPage() {
           )}
         </div>
 
-        {/* INPUT */}
         {selectedRoomId && (
           <ChatInput
             ref={inputRef}
@@ -256,7 +236,6 @@ export default function ChatPage() {
         )}
       </div>
 
-      {/* Chat Info Dialog */}
       <ChatInfoDialog
         open={isInfoDialogOpen}
         onOpenChange={setIsInfoDialogOpen}

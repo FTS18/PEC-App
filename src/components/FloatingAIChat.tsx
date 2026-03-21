@@ -5,35 +5,43 @@ import { Button } from "@/components/ui/button";
 import OpenAI from "openai";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { useAuth } from "@/hooks/useAuth";
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where,
-  limit,
-} from "firebase/firestore";
-import { db } from "@/config/firebase";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import api from "@/lib/api";
 import { string } from "mathjs";
 
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true,
-  baseURL: "https://models.github.ai/inference",
-});
+// Dummy data-client stubs
+const collection = (...args: any) => {};
+const doc = (...args: any) => {};
+const getDoc = async (...args: any) => ({ exists: () => false, data: () => ({}) });
+const getDocs = async (...args: any) => ({ empty: true, docs: [] });
+const query = (...args: any) => {};
+const where = (...args: any) => {};
+const limit = (...args: any) => {};
+
+// Initialize OpenAI only if API key is available
+let openai: OpenAI | null = null;
+try {
+  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  if (apiKey) {
+    openai = new OpenAI({
+      apiKey,
+      dangerouslyAllowBrowser: true,
+      baseURL: "https://models.github.ai/inference",
+    });
+  }
+} catch (error) {
+  console.warn("OpenAI API key not configured. AI chat will be disabled.");
+}
 
 const SYSTEM_PROMPT = `
-You are the OmniFlow AI Assistant. 
+You are the PEC AI Assistant. 
 use user's name or its personal info in every response to give a personalized feel
 your only answer about the details given below
 
+            To ensure the bot acts as a specialized PEC Knowledge Expert, this prompt focuses on the application's functional map and capabilities while strictly maintaining boundaries regarding user data.
+System Prompt: PEC System Guide
 
-            To ensure the bot acts as a specialized OmniFlow Knowledge Expert, this prompt focuses on the application's functional map and capabilities while strictly maintaining boundaries regarding user data.
-System Prompt: OmniFlow System Guide
-
-Role: You are the OmniFlow System Guide. Your sole purpose is to explain the features, navigation, and capabilities of the OmniFlow ERP platform to visitors and users.
+Role: You are the PEC System Guide. Your sole purpose is to explain the features, navigation, and capabilities of the PEC ERP platform to visitors and users.
 
 Knowledge Boundaries:
 
@@ -41,7 +49,7 @@ Knowledge Boundaries:
 
     No Personal Access: You do not have access to individual user records, grades, fee balances, or personal files. If a user asks about their specific data (e.g., "What is my GPA?" or "Did I pay my fees?"), you must politely explain that you provide system guidance and they must check the relevant dashboard to see their private information.
 
-    Non-Technical Focus: Do not discuss the tech stack (React, Firebase, etc.) unless explicitly asked by a developer. Focus on the user interface and functionality.
+    Non-Technical Focus: Do not discuss the tech stack (React, PostgreSQL, etc.) unless explicitly asked by a developer. Focus on the user interface and functionality.
 
 Feature Map for Guidance:
 
@@ -106,7 +114,7 @@ const FloatingAIChat = () => {
       id: "1",
       role: "assistant",
       content:
-        "Hello! I'm your **OmniFlow AI Assistant**. How can I help you today?",
+        "Hello! I'm your **PEC AI Assistant**. How can I help you today?",
       timestamp: new Date(),
     },
   ]);
@@ -124,14 +132,14 @@ const FloatingAIChat = () => {
     switch (user.user?.role) {
       case "student":
         try {
-          const profileSnap = await getDoc(doc(db, "studentProfiles", id));
+          const profileSnap = await getDoc(doc(({} as any), "studentProfiles", id));
           if (!profileSnap.exists()) return;
 
           const studentData = profileSnap.data();
           const studentDeptName = studentData.department;
 
           const deptQuery = query(
-            collection(db, "departments"),
+            collection(({} as any), "departments"),
             where("name", "==", studentDeptName),
             limit(1),
           );
@@ -141,30 +149,30 @@ const FloatingAIChat = () => {
 
           const promises = [
             getDocs(
-              query(collection(db, "attendance"), where("studentId", "==", id)),
+              query(collection(({} as any), "attendance"), where("studentId", "==", id)),
             ),
             getDocs(
-              query(collection(db, "grades"), where("studentId", "==", id)),
+              query(collection(({} as any), "grades"), where("studentId", "==", id)),
             ),
             getDocs(
-              query(collection(db, "feeRecords"), where("studentId", "==", id)),
+              query(collection(({} as any), "feeRecords"), where("studentId", "==", id)),
             ),
             getDocs(
               query(
-                collection(db, "timetable"),
+                collection(({} as any), "timetable"),
                 where("semester", "==", studentData.semester),
               ),
             ),
             getDocs(
               query(
-                collection(db, "assignments"),
+                collection(({} as any), "assignments"),
                 where("status", "==", "active"),
               ),
             ),
 
             getDocs(
               query(
-                collection(db, "examSchedules"),
+                collection(({} as any), "examSchedules"),
                 where("courseCode", ">=", deptCode),
                 where("courseCode", "<=", deptCode + "\uf8ff"),
                 limit(10),
@@ -274,6 +282,19 @@ const FloatingAIChat = () => {
     setIsTyping(true);
 
     try {
+      // Check if OpenAI is configured
+      if (!openai) {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: "assistant",
+          content: "⚠️ AI Chat is not configured. Please set the VITE_OPENAI_API_KEY environment variable to enable this feature.",
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        setIsTyping(false);
+        return;
+      }
+
       const attendanceData = context?.attendance || [];
       const present = attendanceData.filter(
         (a) => a.status === "present",
@@ -318,7 +339,7 @@ const FloatingAIChat = () => {
             .join(" | ") || "No fee records",
       };
 
-      const completion = await openai.chat.completions.create({
+      const completion = await openai!.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
           {
@@ -402,7 +423,7 @@ const FloatingAIChat = () => {
                   <Bot className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-bold">OmniFlow AI</h2>
+                  <h2 className="text-sm font-bold">PEC AI</h2>
                   <div className="flex items-center gap-1.5">
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-[10px] text-muted-foreground uppercase font-medium">

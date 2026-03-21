@@ -48,9 +48,7 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
-import { db } from '@/config/firebase';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { PlacementProfile, Skill } from '@/types';
@@ -88,14 +86,16 @@ export default function CandidateDiscovery() {
   const [minCgpa, setMinCgpa] = useState<number>(0);
   const [experienceFilter, setExperienceFilter] = useState<string>('all');
   
-  const departments = ['Computer Science', 'Electronics', 'Mechanical', 'Civil', 'Electrical'];
   const popularSkills = ['React', 'Python', 'Java', 'JavaScript', 'Machine Learning', 'Node.js', 'SQL', 'AWS', 'Docker', 'TypeScript'];
+  const departments = Array.from(
+    new Set(candidates.map((candidate) => candidate.department).filter(Boolean))
+  ).sort();
 
   useEffect(() => {
     const loadCandidates = async () => {
       try {
         const profilesQuery = query(
-          collection(db, 'placementProfiles'),
+          collection(({} as any), 'placementProfiles'),
           where('isProfileComplete', '==', true),
           orderBy('placementReadinessScore', 'desc'),
           limit(100)

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, Chrome, Shield, X, Lightbulb, Briefcase, Users, UserCheck } from 'lucide-react';
+import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, Chrome, Shield, X, Lightbulb, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,15 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
-import { auth, db } from '@/config/firebase';
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
-  signInWithPopup, 
-  GoogleAuthProvider 
-} from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { getRolePermissions } from '@/lib/rolePermissions';
+import { getRolePermissions } from '@/features/auth/lib/rolePermissions';
+import { authClient } from '@/lib/auth-client';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -44,76 +37,22 @@ export default function Auth() {
     setIsLoading(true);
     
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-      const user = userCredential.user;
-
-      // Check if user profile exists
-      const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        // If user exists in Auth but not in Firestore (rare inconsistency), create profile
-        await setDoc(docRef, {
-          email: user.email,
-          role: loginRole,
-          fullName: 'User', // Placeholder
-          permissions: getRolePermissions(loginRole),
-          createdAt: serverTimestamp(),
-          verified: false,
-          profileComplete: false,
-          semester: null,
-          department: null,
-          avatar: null,
-          organizationId: null
-        });
-      }
+      await authClient.login({ email: loginEmail, password: loginPassword });
       
-      toast.success(`Logged in as ${loginRole}!`);
+      // Dispatch event to trigger re-render in useAuth
+      window.dispatchEvent(new Event("auth-change"));
+
+      toast.success(`Logged in successfully!`);
+      setIsLoading(false);
       navigate('/dashboard');
-    } catch (error: any) {
-      console.error("Login error:", error);
-      toast.error(error.message || 'Login failed. Please try again.');
-    } finally {
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Login failed');
       setIsLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      // Check if user profile exists
-      const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        // Create new profile if it doesn't exist
-        await setDoc(docRef, {
-          email: user.email,
-          role: loginRole,
-          fullName: user.displayName || 'User',
-          permissions: getRolePermissions(loginRole),
-          createdAt: serverTimestamp(),
-          verified: false,
-          profileComplete: false,
-          semester: null,
-          department: null,
-          avatar: user.photoURL,
-          organizationId: null
-        });
-      }
-
-      toast.success(`Logged in with Google as ${loginRole}!`);
-      navigate('/dashboard');
-    } catch (error: any) {
-      console.error("Google login error:", error);
-      toast.error(error.message || 'Google login failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    toast.error('Google login is temporarily disabled during migration to Postgres.');
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -121,78 +60,33 @@ export default function Auth() {
     setIsLoading(true);
     
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, signupEmail, signupPassword);
-      const user = userCredential.user;
-
-      // Create user profile
-      await setDoc(doc(db, 'users', user.uid), {
-        email: user.email,
-        role: signupRole,
-        fullName: signupName,
-        permissions: getRolePermissions(signupRole),
-        createdAt: serverTimestamp(),
-        verified: false,
-        profileComplete: false,
-        semester: null,
-        department: null,
-        avatar: null,
-        organizationId: null
+      await authClient.signup({ 
+        email: signupEmail, 
+        password: signupPassword,
+        name: signupName,
+        role: signupRole 
       });
       
+      // Dispatch event to trigger re-render in useAuth
+      window.dispatchEvent(new Event("auth-change"));
+
       toast.success('Account created successfully!');
-      // Navigate to profile setup or dashboard
-      navigate('/dashboard'); 
-    } catch (error: any) {
-      console.error("Signup error:", error);
-      toast.error(error.message || 'Signup failed. Please try again.');
-    } finally {
+      setIsLoading(false);
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Registration failed');
       setIsLoading(false);
     }
   };
 
   const handleGoogleSignup = async () => {
-    setIsLoading(true);
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
-
-      if (!docSnap.exists()) {
-        await setDoc(docRef, {
-          email: user.email,
-          role: signupRole,
-          fullName: user.displayName || 'User',
-          permissions: getRolePermissions(signupRole),
-          createdAt: serverTimestamp(),
-          verified: false,
-          profileComplete: false,
-          semester: null,
-          department: null,
-          avatar: user.photoURL,
-          organizationId: null
-        });
-      }
-      
-      toast.success('Account created with Google!');
-      navigate('/dashboard');
-    } catch (error: any) {
-      console.error("Google signup error:", error);
-      toast.error(error.message || 'Google signup failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    toast.error('Google signup is temporarily disabled during migration to Postgres.');
   };
 
   const roleOptions: { value: UserRole; label: string }[] = [
     { value: 'student', label: 'Student' },
     { value: 'faculty', label: 'Faculty' },
     { value: 'college_admin', label: 'College Admin' },
-    { value: 'placement_officer', label: 'Placement Officer' },
-    { value: 'recruiter', label: 'Recruiter' },
-    {value: 'super_admin', label: 'Admin'},
   ];
 
   return (
@@ -291,98 +185,6 @@ export default function Auth() {
                   </div>
                 </button>
 
-                {/* Placement Officer Credentials */}
-                <button
-                  onClick={() => {
-                    setLoginEmail('placement@pec.edu');
-                    setLoginPassword('Placement@123');
-                    setLoginRole('placement_officer');
-                    setShowCredentialsModal(false);
-                  }}
-                  className="w-full bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4 hover:bg-green-100 dark:hover:bg-green-950/50 transition-all cursor-pointer text-left"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-green-500 flex items-center justify-center flex-shrink-0">
-                      <Briefcase className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-foreground mb-1">Placement Officer - Mr. Vikram Malhotra</h3>
-                      <p className="text-xs text-muted-foreground mb-2">Training & Placement Cell</p>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Email:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">placement@pec.edu</code>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Password:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Placement@123</code>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Recruiter Credentials */}
-                <button
-                  onClick={() => {
-                    setLoginEmail('placement@pec.edu');
-                    setLoginPassword('Placement@123');
-                    setLoginRole('recruiter');
-                    setShowCredentialsModal(false);
-                  }}
-                  className="w-full bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-xl p-4 hover:bg-orange-100 dark:hover:bg-orange-950/50 transition-all cursor-pointer text-left"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-orange-500 flex items-center justify-center flex-shrink-0">
-                      <UserCheck className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-foreground mb-1">Recruiter - Rahul Mehta</h3>
-                      <p className="text-xs text-muted-foreground mb-2">Microsoft India</p>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Email:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">placement@pec.edu</code>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Password:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Placement@123</code>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Super Admin Credentials */}
-                <button
-                  onClick={() => {
-                    setLoginEmail('admin@pec.edu');
-                    setLoginPassword('Admin@123');
-                    setLoginRole('super_admin');
-                    setShowCredentialsModal(false);
-                  }}
-                  className="w-full bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 hover:bg-red-100 dark:hover:bg-red-950/50 transition-all cursor-pointer text-left"
-                >
-                  <div className="flex items-start gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-red-500 flex items-center justify-center flex-shrink-0">
-                      <Shield className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold text-foreground mb-1">Super Admin</h3>
-                      <p className="text-xs text-muted-foreground mb-2">System Administrator</p>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Email:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">admin@pec.edu</code>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground w-16">Password:</span>
-                          <code className="text-xs font-mono bg-card px-2 py-0.5 rounded border border-border">Admin@123</code>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </button>
               </div>
 
               {/* Info Banner */}
@@ -425,7 +227,7 @@ export default function Auth() {
               <div className="w-12 h-12 rounded-xl bg-primary-foreground/20 flex items-center justify-center">
                 <GraduationCap className="w-7 h-7" />
               </div>
-              <span className="text-2xl font-bold">OmniFlow</span>
+              <span className="text-2xl font-bold">PEC</span>
             </div>
             <h1 className="text-4xl font-bold mb-4">
               Welcome to the Future of Education Management
@@ -455,7 +257,7 @@ export default function Auth() {
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
               <GraduationCap className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">OmniFlow</span>
+            <span className="text-xl font-bold text-foreground">PEC</span>
           </div>
 
           <Card className="border-0 shadow-lg">

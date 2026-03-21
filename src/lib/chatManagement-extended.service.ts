@@ -1,25 +1,10 @@
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  addDoc, 
-  serverTimestamp,
-  doc,
-  updateDoc,
-  deleteDoc,
-  getDoc,
-  arrayUnion,
-  arrayRemove
-} from "firebase/firestore";
-import { db } from "@/config/firebase";
 import { ChatRoom } from "@/types/chat";
 
 // ... existing functions ...
 
 // Initialize default organization rooms
 export async function initializeDefaultRooms(organizationId: string) {
-  const roomsRef = collection(db, "chatRooms");
+  const roomsRef = collection(({} as any), "chatRooms");
   
   // 1. General Chat
   const generalQuery = query(

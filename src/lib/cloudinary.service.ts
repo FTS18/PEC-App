@@ -1,6 +1,5 @@
-import { storage } from "@/config/firebase";
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-
+import { storage } from '@/config/storage';
+import { ref, uploadBytes, getDownloadURL } from '@/lib/dataClient';
 // Cloudinary configuration from org settings or env
 export function getCloudinaryConfig(orgSettings?: {
   cloudinary?: {
@@ -42,8 +41,8 @@ export async function uploadToCloudinary(
   return data.secure_url;
 }
 
-// Alternative: Upload to Firebase Storage (fallback if Cloudinary not configured)
-export async function uploadToFirebaseStorage(
+// Alternative: Upload to object storage (fallback if Cloudinary not configured)
+export async function uploadToStorageFallback(
   file: File,
   path: string
 ): Promise<string> {
@@ -52,7 +51,7 @@ export async function uploadToFirebaseStorage(
   return getDownloadURL(storageRef);
 }
 
-// Smart upload: Try Cloudinary first, fallback to Firebase
+// Smart upload: Try Cloudinary first, fallback to object storage
 export async function uploadMedia(
   file: File,
   userId: string,
@@ -65,14 +64,14 @@ export async function uploadMedia(
     try {
       return await uploadToCloudinary(file, orgSettings);
     } catch (error) {
-      console.error("Cloudinary upload failed, falling back to Firebase:", error);
+      console.error("Cloudinary upload failed, falling back to storage:", error);
     }
   }
   
-  // Fallback to Firebase Storage
+  // Fallback to object storage
   const timestamp = Date.now();
   const fileName = `${userId}/${timestamp}_${file.name}`;
-  return uploadToFirebaseStorage(file, `chat-media/${fileName}`);
+  return uploadToStorageFallback(file, `chat-media/${fileName}`);
 }
 
 // Get file type category

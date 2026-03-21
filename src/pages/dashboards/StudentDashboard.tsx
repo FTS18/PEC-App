@@ -3,10 +3,7 @@ import { motion } from 'framer-motion';
 import {
   BookOpen,
   ClipboardCheck,
-  FileText,
-  Briefcase,
   TrendingUp,
-  Clock,
   Calendar,
   ArrowUpRight,
   Loader2,
@@ -27,28 +24,26 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, collection, query, where, getDocs, documentId } from 'firebase/firestore';
-import { auth, db } from '@/config/firebase';
+import { EmptyState, ErrorState, LoadingGrid } from '@/components/common/AsyncState';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import api from '@/lib/api';
 import QRAttendanceScanner from '@/components/attendance/QRAttendanceScanner';
 import type { 
   StudentProfile, 
   Course, 
-  Assignment, 
-  AttendanceRecord, 
-  Grade 
+  AttendanceRecord
 } from '@/types';
 
 const container = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.1 }
+    transition: { staggerChildren: 0.06 }
   }
 };
 
 const item = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 12 },
   show: { opacity: 1, y: 0 }
 };
 
@@ -56,12 +51,35 @@ interface StudentStats {
   attendancePercentage: number;
   cgpa: number;
   enrolledCourses: number;
-  pendingAssignments: number;
 }
+
+interface GradeRecord {
+  id: string;
+  studentId: string;
+  courseId: string;
+  total?: number;
+  grade?: string;
+  credits?: number;
+}
+
+const GRADES_ENDPOINT_DISABLED_KEY = 'api.examinations.grades.disabled';
+
+const isGradesEndpointDisabled = () =>
+  typeof window !== 'undefined' && sessionStorage.getItem(GRADES_ENDPOINT_DISABLED_KEY) === '1';
+
+const disableGradesEndpoint = () => {
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem(GRADES_ENDPOINT_DISABLED_KEY, '1');
+  }
+};
+
+const isNotFoundError = (error: unknown) =>
+  !!(error as any)?.response && (error as any).response.status === 404;
 
 export function StudentDashboard() {
   const navigate = useNavigate();
   const { orgSlug } = useParams<{ orgSlug: string }>();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [firstName, setFirstName] = useState('Student');
   const [profileData, setProfileData] = useState<StudentProfile | null>(null);
@@ -72,281 +90,238 @@ export function StudentDashboard() {
     attendancePercentage: 0,
     cgpa: 0,
     enrolledCourses: 0,
-    pendingAssignments: 0,
   });
   
   const [todayClasses, setTodayClasses] = useState<any[]>([]);
   const [scheduleDay, setScheduleDay] = useState<string>('Today');
-  const [upcomingAssignments, setUpcomingAssignments] = useState<Assignment[]>([]);
-  const [applications, setApplications] = useState<any[]>([]);
   const [enrolledCoursesList, setEnrolledCoursesList] = useState<Course[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        navigate('/auth');
-        return;
-      }
+    if (authLoading) return;
 
+    if (!user) {
+      navigate('/auth', { replace: true });
+      return;
+    }
+
+    if (user.role !== 'student') {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+
+    void (async () => {
       try {
-        // Parallel fetch for User and Profile
-        const [userDoc, profileDoc] = await Promise.all([
-          getDoc(doc(db, 'users', user.uid)),
-          getDoc(doc(db, 'studentProfiles', user.uid))
-        ]);
-
-        const userInfo = userDoc.data();
-        const pData = profileDoc.data() as StudentProfile;
-
-        if (userInfo) {
-            setFirstName(userInfo.fullName?.split(' ')[0] || 'Student');
-        }
-        setProfileData(pData);
-
-        if (userInfo?.role === 'student' && pData) {
-          await fetchStudentStats(user.uid, pData);
-        }
+        setLoadError(null);
+        setFirstName(user.fullName?.split(' ')[0] || 'Student');
+        setProfileData({
+          department: user.department,
+          semester: user.semester,
+          enrollmentNumber: user.enrollmentNumber,
+        } as any);
+        await fetchStudentStats();
       } catch (error) {
         console.error('Error fetching initial data:', error);
+        setLoadError('Unable to load dashboard data.');
       } finally {
         setLoading(false);
       }
-    });
+    })();
+  }, [authLoading, user, navigate]);
 
-    return () => unsubscribe();
-  }, [navigate]);
-
-  const fetchStudentStats = async (userId: string, profile: StudentProfile) => {
+  const fetchStudentStats = async () => {
     try {
-      // 1. Fetch Enrollments first to get Course IDs
-      const enrollmentsQuery = query(
-        collection(db, 'enrollments'),
-        where('studentId', '==', userId),
-        where('status', '==', 'active')
+      setLoadError(null);
+      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+      const department = user?.department;
+      const semester = user?.semester;
+      const skipGrades = isGradesEndpointDisabled();
+      const gradesPromise = skipGrades
+        ? Promise.resolve({ data: { success: true, data: [] as GradeRecord[] } })
+        : api.get<ApiResponse<GradeRecord[]>>('/examinations/grades', {
+            params: {
+              limit: 200,
+              offset: 0,
+              ...(user?.uid ? { studentId: user.uid } : {}),
+            },
+          });
+
+      const [coursesResult, enrollmentsResult, attendanceResult, timetableResult, gradesResult] =
+        await Promise.allSettled([
+          api.get<ApiResponse<Course[]>>('/courses', {
+            params: {
+              limit: 200,
+              offset: 0,
+              ...(department ? { department } : {}),
+              ...(semester ? { semester } : {}),
+            },
+          }),
+          api.get<ApiResponse<any>>('/enrollments', {
+            params: { limit: 200, offset: 0, status: 'active' },
+          }),
+          api.get<ApiResponse<AttendanceRecord[]>>('/attendance', {
+            params: { limit: 200, offset: 0 },
+          }),
+          api.get<ApiResponse<any>>('/timetable', {
+            params: {
+              limit: 200,
+              offset: 0,
+              ...(department ? { department } : {}),
+              ...(semester ? { semester } : {}),
+            },
+          }),
+          gradesPromise,
+        ]);
+
+      const allCourses =
+        coursesResult.status === 'fulfilled' ? coursesResult.value.data.data || [] : [];
+      const enrollments =
+        enrollmentsResult.status === 'fulfilled'
+          ? enrollmentsResult.value.data.data || []
+          : [];
+      const attendanceRecords =
+        attendanceResult.status === 'fulfilled'
+          ? attendanceResult.value.data.data || []
+          : [];
+      const timetableData =
+        timetableResult.status === 'fulfilled'
+          ? timetableResult.value.data.data || []
+          : [];
+      const gradeRecords =
+        gradesResult.status === 'fulfilled'
+          ? gradesResult.value.data.data || []
+          : [];
+
+      if (gradesResult.status === 'rejected' && isNotFoundError(gradesResult.reason)) {
+        disableGradesEndpoint();
+      }
+
+      const enrolledCourseIds = new Set(enrollments.map((e: any) => e.courseId));
+      const enrolledCourses = allCourses.filter((c: any) => enrolledCourseIds.has(c.id));
+      const enrolledCourseCodes = new Set(
+        enrollments
+          .map((enrollment: any) => enrollment.courseCode)
+          .filter(Boolean),
       );
-      const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
-      const enrolledCourseIds = enrollmentsSnapshot.docs.map(doc => doc.data().courseId);
-      
-      const enrolledCount = enrolledCourseIds.length;
-      
-      // 2. Fetch Core Data (Grades need to be fetched first to get course IDs)
-      const corePromises = [
-        getDocs(query(collection(db, 'attendance'), where('studentId', '==', userId))),
-        getDocs(query(collection(db, 'grades'), where('studentId', '==', userId))),
-        getDocs(query(collection(db, 'applications'), where('studentId', '==', userId))),
-        getDocs(query(collection(db, 'submissions'), where('studentId', '==', userId))),
-      ];
-      
-      const [attendanceSnap, gradesSnap, appsSnap, submissionsSnap] = await Promise.all(corePromises);
 
-      // 3. Process Courses (Enrolled + Graded)
-      // Collect unique course IDs from both enrollments and grades
-      const gradeCourseIds = gradesSnap.docs.map((doc: any) => doc.data().courseId).filter((id: any) => id);
-      const allCourseIds = Array.from(new Set([...enrolledCourseIds, ...gradeCourseIds]));
-
-      // 4. Fetch Secondary Data (Courses, Assignments, Timetable)
-      const secondaryPromises = [];
-      
-      // Fetch Courses
-      if (allCourseIds.length > 0) {
-          secondaryPromises.push(Promise.all(allCourseIds.map(id => getDoc(doc(db, 'courses', id)))));
-      } else {
-          secondaryPromises.push(Promise.resolve([])); 
-      }
-
-      // Fetch Assignments (only for enrolled)
-      if (enrolledCourseIds.length > 0) {
-          // Chunking 'in' query if needed, but safe slice for now
-          const assignmentQuery = query(
-                collection(db, 'assignments'),
-                where('courseId', 'in', enrolledCourseIds.slice(0, 30))
-          );
-          secondaryPromises.push(getDocs(assignmentQuery));
-      } else {
-          secondaryPromises.push(Promise.resolve({ docs: [] }));
-      }
-      
-      // Fetch Timetable
-      if (profile.department && profile.semester) {
-          const timetableQuery = query(
-            collection(db, 'timetable'),
-            where('department', '==', profile.department),
-            where('semester', '==', profile.semester)
-          );
-          secondaryPromises.push(getDocs(timetableQuery));
-      } else {
-          secondaryPromises.push(Promise.resolve({ docs: [] }));
-      }
-
-      const [coursesResult, assignmentsSnap, timetableSnap] = await Promise.all(secondaryPromises);
+      setEnrolledCoursesList(enrolledCourses);
 
       // --- Process Attendance ---
-      const attendanceRecords = attendanceSnap.docs.map((d: any) => d.data());
       const present = attendanceRecords.filter((r: any) => r.status === 'present' || r.status === 'late').length;
-      const totalAttendance = attendanceRecords.length;
-      const attendancePercentage = totalAttendance > 0 ? Math.round((present / totalAttendance) * 100) : 0;
+      const attendancePercentage = attendanceRecords.length > 0 ? Math.round((present / attendanceRecords.length) * 100) : 0;
 
-      // --- Process Courses ---
-      let allCoursesData: Course[] = [];
-      if (Array.isArray(coursesResult)) { 
-          allCoursesData = coursesResult
-            .filter(d => d.exists())
-            .map((d: any) => ({ id: d.id, ...d.data() } as Course));
-      }
-      // Filter for enrolled list display
-      setEnrolledCoursesList(allCoursesData.filter(c => enrolledCourseIds.includes(c.id)));
-
-      // --- Process Grades & CGPA ---
-      // --- Process Grades & CGPA ---
-      const grades = gradesSnap.docs.map((d: any) => d.data());
+      // --- Process Timetable ---
+      const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+      const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       
-      // Helper to parse grades safely
-      const parsedGrades = grades.map((g: any) => ({
-          ...g,
-          semester: Number(g.semester) || 0,
-          credits: Number(g.credits) || 3, // Default to 3 credits if missing to prevent 0-height bars
-          gradePoints: Number(g.gradePoints) || 0
-      }));
+      let scheduleItems = (timetableData || [])
+        .filter(
+          (t: any) =>
+            enrolledCourseIds.has(t.courseId) ||
+            enrolledCourseCodes.has(t.courseCode),
+        )
+        .map((t: any) => ({
+          ...t,
+          day: t.day,
+          courseName:
+            allCourses.find((c: any) => c.code === t.courseCode)?.name ||
+            t.courseName ||
+            'Unknown',
+          instructor:
+            allCourses.find((c: any) => c.code === t.courseCode)?.instructor ||
+            t.facultyName ||
+            'TBA',
+        }));
 
-      // Calculate stats per semester first
-      const semStats: Record<number, {points: number, credits: number}> = {};
-      
-      parsedGrades.forEach((grade: any) => {
-           // Fallback semester from course if 0 (though we defaulted credits, semester is crucial)
-           let sem = grade.semester;
-           if (sem === 0 && grade.courseId) {
-                const c = allCoursesData.find(course => course.id === grade.courseId);
-                if (c) sem = c.semester;
-           }
-           
-           if (sem > 0) {
-               if (!semStats[sem]) semStats[sem] = { points: 0, credits: 0 };
-               semStats[sem].points += (grade.gradePoints * grade.credits);
-               semStats[sem].credits += grade.credits;
-           }
-      });
+      const getScheduleForDay = (dayName: string) => {
+        return scheduleItems
+          .filter((item: any) => item.day === dayName)
+          .sort((a: any, b: any) => (a.startTime || '').localeCompare(b.startTime || ''));
+      };
 
-      // Calculate Cumulative GPA (CGPA) trend
-      let runningPoints = 0;
-      let runningCredits = 0;
-      
-      const semData = Object.keys(semStats)
-        .map(Number)
-        .sort((a, b) => a - b)
-        .map(sem => {
-            const current = semStats[sem];
-            
-            // For trend line/bar, user wants Cumulative Performance
-            runningPoints += current.points;
-            runningCredits += current.credits;
-            
-            const sgpa = current.credits > 0 ? (current.points / current.credits) : 0;
-            const cgpa = runningCredits > 0 ? (runningPoints / runningCredits) : 0;
+      let activeSchedule = getScheduleForDay(todayStr);
+      let activeDay = todayStr;
+      let displayLabel = 'Today';
 
-            return {
-                semester: `S${sem}`, // Short label S1, S2
-                sgpa: Number(sgpa.toFixed(2)),
-                cgpa: Number(cgpa.toFixed(2)), // We will plot this
-                displayValue: Number(cgpa.toFixed(2)) // Universal key for the render
-            };
-        });
-        
-      setSemesterGrades(semData as any);
-
-      // --- Process Assignments ---
-      const submissions = submissionsSnap.docs.map((d: any) => d.data().assignmentId);
-      const allAssignments = assignmentsSnap.docs ? assignmentsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })) : [];
-      
-      const pending = allAssignments.filter((a: any) => !submissions.includes(a.id));
-      const pendingCount = pending.length;
-
-      // Sort Assignments
-      const upcoming = pending
-        .sort((a: any, b: any) => {
-          const dateA = a.dueDate?.toDate?.() || new Date(a.dueDate);
-          const dateB = b.dueDate?.toDate?.() || new Date(b.dueDate);
-          return dateA.getTime() - dateB.getTime();
-        })
-        .slice(0, 3)
-        .map((a: any) => {
-            const course = allCoursesData.find(c => c.id === a.courseId);
-            return {
-                ...a,
-                courseCode: course?.code || 'N/A',
-                courseName: course?.name || 'Unknown'
-            };
-        });
-      setUpcomingAssignments(upcoming);
-
-      // --- Process Applications ---
-      setApplications(appsSnap.docs.map((d: any) => ({ id: d.id, ...d.data() })));
-
-      // --- Process Timetable (Smart Schedule) ---
-      if (timetableSnap && timetableSnap.docs) {
-          const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-          const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+      if (activeSchedule.length === 0) {
+        const todayIndex = daysOfWeek.indexOf(todayStr);
+        for (let i = 1; i < 7; i++) {
+          const nextDayIndex = (todayIndex + i) % 7;
+          const nextDay = daysOfWeek[nextDayIndex];
+          const nextSchedule = getScheduleForDay(nextDay);
           
-          let scheduleItems = timetableSnap.docs.map(d => d.data());
-          let activeDay = todayStr;
-          let displayLabel = "Today";
-          
-          // Helper to get formatted schedule for a specific day
-          const getScheduleForDay = (dayName: string) => {
-             return scheduleItems
-                .filter((item: any) => item.day === dayName)
-                .map((item: any) => {
-                    const course = allCoursesData.find(c => c.code === item.courseCode);
-                    return {
-                        ...item,
-                        courseName: course?.name || 'Unknown Course',
-                        instructor: course?.instructor || 'TBA',
-                        startTime: item.timeSlot?.split('-')[0] || '09:00',
-                        endTime: item.timeSlot?.split('-')[1] || '10:00',
-                    };
-                })
-                .sort((a: any, b: any) => a.startTime.localeCompare(b.startTime));
-          };
-
-          let activeSchedule = getScheduleForDay(todayStr);
-
-          // If no classes today, find next working day
-          if (activeSchedule.length === 0) {
-             const todayIndex = daysOfWeek.indexOf(todayStr);
-             for (let i = 1; i < 7; i++) {
-                const nextDayIndex = (todayIndex + i) % 7;
-                const nextDay = daysOfWeek[nextDayIndex];
-                const nextSchedule = getScheduleForDay(nextDay);
-                
-                if (nextSchedule.length > 0) {
-                   activeSchedule = nextSchedule;
-                   activeDay = nextDay;
-                   displayLabel = i === 1 ? "Tomorrow" : nextDay;
-                   break;
-                }
-             }
+          if (nextSchedule.length > 0) {
+            activeSchedule = nextSchedule;
+            activeDay = nextDay;
+            displayLabel = i === 1 ? 'Tomorrow' : nextDay;
+            break;
           }
-          
-          setTodayClasses(activeSchedule);
-          setScheduleDay(displayLabel);
+        }
       }
 
-      // Update Stats State
-      const latestCGPA = semData.length > 0 ? semData[semData.length - 1].cgpa : 0;
+      setTodayClasses(activeSchedule);
+      setScheduleDay(displayLabel);
+
+      // --- Calculate Grades/CGPA from API grades ---
+      const courseMap = new Map(allCourses.map((course: any) => [course.id, course]));
+      const semesterBuckets = new Map<number, { weightedPoints: number; totalCredits: number }>();
+
+      for (const grade of gradeRecords) {
+        const course = courseMap.get(grade.courseId);
+        if (!course) continue;
+
+        const semesterKey = Number(course.semester) || 0;
+        const credits = Number(grade.credits ?? course.credits ?? 0);
+        if (credits <= 0) continue;
+
+        const normalized = typeof grade.total === 'number'
+          ? Math.max(0, Math.min(10, grade.total / 10))
+          : 0;
+
+        const bucket = semesterBuckets.get(semesterKey) || { weightedPoints: 0, totalCredits: 0 };
+        bucket.weightedPoints += normalized * credits;
+        bucket.totalCredits += credits;
+        semesterBuckets.set(semesterKey, bucket);
+      }
+
+      const computedSemesterGrades = Array.from(semesterBuckets.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([semesterValue, values]) => ({
+          semester: `S${semesterValue}`,
+          cgpa: Number((values.weightedPoints / Math.max(values.totalCredits, 1)).toFixed(2)),
+        }));
+
+      setSemesterGrades(computedSemesterGrades);
+
+      const overallCredits = Array.from(semesterBuckets.values()).reduce(
+        (sum, value) => sum + value.totalCredits,
+        0,
+      );
+      const overallPoints = Array.from(semesterBuckets.values()).reduce(
+        (sum, value) => sum + value.weightedPoints,
+        0,
+      );
+      const computedCgpa = overallCredits > 0
+        ? Number((overallPoints / overallCredits).toFixed(2))
+        : 0;
+
+      // Update Stats
       setStats({
         attendancePercentage,
-        cgpa: latestCGPA,
-        enrolledCourses: enrolledCount,
-        pendingAssignments: pendingCount,
+        cgpa: computedCgpa,
+        enrolledCourses: enrolledCourses.length,
       });
 
     } catch (error) {
       console.error('Error fetching stats:', error);
+      setLoadError('Unable to refresh dashboard data.');
+      throw error;
     }
   };
 
   if (loading) {
     return (
-       <div className="space-y-6">
+       <div className="space-y-6 md:space-y-8">
           <div className="flex justify-between items-center">
              <div className="space-y-2">
                 <div className="h-8 w-64 bg-muted animate-pulse rounded-md" />
@@ -354,10 +329,8 @@ export function StudentDashboard() {
              </div>
              <div className="h-10 w-32 bg-muted animate-pulse rounded-md" />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-             {[1,2,3,4].map(i => <div key={i} className="h-24 bg-muted animate-pulse rounded-xl" />)}
-          </div>
-          <div className="grid gap-6 lg:grid-cols-3">
+          <LoadingGrid count={3} className="grid gap-4 md:grid-cols-2 xl:grid-cols-3" itemClassName="h-24 rounded-md" />
+          <div className="grid gap-5 md:gap-6 xl:grid-cols-3">
              <div className="lg:col-span-2 h-64 bg-muted animate-pulse rounded-xl" />
              <div className="h-64 bg-muted animate-pulse rounded-xl" />
           </div>
@@ -365,8 +338,22 @@ export function StudentDashboard() {
     );
   }
 
+  if (loadError) {
+    return (
+      <ErrorState
+        title="Dashboard unavailable"
+        description={loadError}
+        actionLabel="Try again"
+        onAction={() => {
+          setLoading(true);
+          void fetchStudentStats().finally(() => setLoading(false));
+        }}
+      />
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 md:space-y-8">
       {/* Welcome Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -396,11 +383,11 @@ export function StudentDashboard() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+        className="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
       >
         <motion.div 
             variants={item} 
-            className="card-elevated p-5 cursor-pointer hover:bg-muted/50 transition-colors"
+            className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
             onClick={() => navigate(orgSlug ? `/${orgSlug}/examinations` : '/examinations')}
         >
           <div className="flex items-center gap-3">
@@ -416,7 +403,7 @@ export function StudentDashboard() {
 
         <motion.div 
             variants={item} 
-            className="card-elevated p-5 cursor-pointer hover:bg-muted/50 transition-colors"
+          className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
             onClick={() => navigate(orgSlug ? `/${orgSlug}/attendance` : '/attendance')}
         >
           <div className="flex items-center gap-3">
@@ -432,7 +419,7 @@ export function StudentDashboard() {
 
         <motion.div 
             variants={item} 
-            className="card-elevated p-5 cursor-pointer hover:bg-muted/50 transition-colors"
+          className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
             onClick={() => navigate(orgSlug ? `/${orgSlug}/courses` : '/courses')}
         >
           <div className="flex items-center gap-3">
@@ -446,26 +433,11 @@ export function StudentDashboard() {
           </div>
         </motion.div>
 
-        <motion.div 
-            variants={item} 
-            className="card-elevated p-5 cursor-pointer hover:bg-muted/50 transition-colors"
-            onClick={() => navigate(orgSlug ? `/${orgSlug}/assignments` : '/assignments')}
-        >
-          <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-xl ${stats.pendingAssignments > 0 ? 'bg-warning/10' : 'bg-muted'}`}>
-              <FileText className={`w-5 h-5 ${stats.pendingAssignments > 0 ? 'text-warning' : 'text-muted-foreground'}`} />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Pending Tasks</p>
-              <p className="text-2xl font-bold text-foreground">{stats.pendingAssignments}</p>
-            </div>
-          </div>
-        </motion.div>
       </motion.div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-5 md:gap-6 xl:grid-cols-3">
         {/* Enrolled Courses - Primary */}
-        <motion.div variants={item} className="lg:col-span-2 card-elevated p-6">
+        <motion.div variants={item} className="xl:col-span-2 card-elevated ui-card-pad">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-accent" />
@@ -478,7 +450,13 @@ export function StudentDashboard() {
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {enrolledCoursesList.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8 col-span-2">No active enrollments</p>
+              <EmptyState
+                className="col-span-2"
+                title="No active enrollments"
+                description="Enroll in a course to see your course cards here."
+                actionLabel="Browse courses"
+                onAction={() => navigate(orgSlug ? `/${orgSlug}/courses` : '/courses')}
+              />
             ) : (
               enrolledCoursesList.slice(0, 4).map((course, idx) => (
                 <div 
@@ -511,7 +489,7 @@ export function StudentDashboard() {
         </motion.div>
 
         {/* Today's Schedule */}
-        <motion.div variants={item} className="card-elevated p-6">
+        <motion.div variants={item} className="card-elevated ui-card-pad">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
@@ -524,9 +502,10 @@ export function StudentDashboard() {
           </div>
           <div className="space-y-3">
             {todayClasses.length === 0 ? (
-              <div className="text-center py-8">
-                  <p className="text-sm text-muted-foreground">No classes scheduled</p>
-              </div>
+              <EmptyState
+                title="No classes scheduled"
+                description="You’re all clear for this day."
+              />
             ) : (
               todayClasses.map((cls, idx) => (
                 <div key={idx} className="p-3 rounded-lg border border-border bg-secondary/10">
@@ -552,86 +531,6 @@ export function StudentDashboard() {
           </div>
         </motion.div>
 
-        {/* My Applications */}
-        <motion.div variants={item} className="card-elevated p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-foreground" />
-              Applications
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate(orgSlug ? `/${orgSlug}/placements` : '/placement')}>
-              Browse
-              <ArrowUpRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {applications.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No active applications</p>
-            ) : (
-              applications.slice(0, 3).map((app) => (
-                <div key={app.id} className="p-3 rounded-lg border border-border bg-card/50 hover:bg-accent/30 transition-colors">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-semibold text-foreground line-clamp-1">{app.jobTitle}</span>
-                    <Badge variant="outline" className={
-                        app.status === 'offered' ? 'text-success border-success/30 bg-success/10' :
-                        app.status === 'rejected' ? 'text-destructive border-destructive/30 bg-destructive/10' :
-                        'text-primary border-primary/30 bg-primary/10'
-                    }>
-                      {app.status}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-                     <Briefcase className="w-3 h-3" />
-                     {app.companyName}
-                  </p>
-                </div>
-              ))
-            )}
-          </div>
-        </motion.div>
-
-        {/* Upcoming Assignments */}
-        <motion.div variants={item} className="lg:col-span-2 card-elevated p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              Upcoming Deadlines
-            </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate(orgSlug ? `/${orgSlug}/assignments` : '/assignments')}>
-              View All
-              <ArrowUpRight className="w-4 h-4 ml-1" />
-            </Button>
-          </div>
-          <div className="space-y-3">
-            {upcomingAssignments.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No pending assignments</p>
-            ) : (
-              <div className="grid sm:grid-cols-2 gap-3">
-                {upcomingAssignments.map((assignment: any) => {
-                  const dueDate = assignment.dueDate?.toDate?.() || new Date(assignment.dueDate);
-                  const daysLeft = Math.ceil((dueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                  const isUrgent = daysLeft <= 2;
-
-                  return (
-                    <div 
-                        key={assignment.id} 
-                        className="p-3 rounded-xl border border-border group hover:border-warning/30 transition-colors cursor-pointer"
-                        onClick={() => navigate(orgSlug ? `/${orgSlug}/assignments` : '/assignments')}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-warning uppercase">{assignment.courseCode}</span>
-                        <Badge variant={isUrgent ? 'destructive' : 'secondary'} className="text-[9px]">
-                          {daysLeft} days left
-                        </Badge>
-                      </div>
-                      <p className="text-sm font-semibold text-foreground line-clamp-1">{assignment.title}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </motion.div>
       </div>
 
       {/* Quick Actions */}
@@ -641,7 +540,7 @@ export function StudentDashboard() {
       <motion.div variants={item} className="grid gap-6 lg:grid-cols-2">
          {/* Grades History */}
          <div 
-            className="card-elevated p-6 cursor-pointer hover:bg-muted/50 transition-colors"
+          className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
             onClick={() => navigate(orgSlug ? `/${orgSlug}/examinations` : '/examinations')}
          >
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-6">
@@ -697,15 +596,13 @@ export function StudentDashboard() {
                     </ResponsiveContainer>
                 </div>
             ) : (
-                <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
-                   No grade history data
-                </div>
+              <EmptyState title="No grade history" description="Your grade trend will appear once results are published." />
             )}
          </div>
          
          {/* Attendance Overview (Quick Graph) */}
          <div 
-            className="card-elevated p-6 cursor-pointer hover:bg-muted/50 transition-colors"
+          className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
             onClick={() => navigate(orgSlug ? `/${orgSlug}/attendance` : '/attendance')}
          >
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-6">
@@ -744,11 +641,13 @@ export function StudentDashboard() {
           </DialogHeader>
           <QRAttendanceScanner
             onSuccess={() => {
+              setStats((prev) => ({
+                ...prev,
+                attendancePercentage: Math.min(100, prev.attendancePercentage + 1),
+              }));
               setShowQRScanner(false);
               // Refresh attendance data
-              if (auth.currentUser && profileData) {
-                fetchStudentStats(auth.currentUser.uid, profileData);
-              }
+              void fetchStudentStats();
             }}
             onClose={() => setShowQRScanner(false)}
           />

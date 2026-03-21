@@ -22,7 +22,7 @@ export function GDPR() {
           <section>
             <h2 className="text-2xl font-bold mb-4">Our GDPR Commitment</h2>
             <p className="text-muted-foreground leading-relaxed">
-              OmniFlow is fully committed to complying with the General Data Protection Regulation (GDPR) and all
+              PEC is fully committed to complying with the General Data Protection Regulation (GDPR) and all
               applicable data protection laws. We recognize that data protection is a fundamental right and we take
               this responsibility seriously.
             </p>
@@ -54,7 +54,7 @@ export function GDPR() {
             <h2 className="text-2xl font-bold mb-4">Contact Our DPO</h2>
             <p className="text-muted-foreground leading-relaxed">
               If you have questions about our GDPR compliance or wish to exercise your data rights, please contact our
-              Data Protection Officer at dpo@omniflow.app
+              Data Protection Officer at dpo@pec.app
             </p>
           </section>
         </motion.div>

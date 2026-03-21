@@ -29,10 +29,10 @@ import { HelpContent } from '@/components/help/HelpContent';
 const articles = [
   { 
     icon: Rocket, 
-    title: 'Welcome to OmniFlow', 
+    title: 'Welcome to PEC', 
     description: 'An introduction to the platform and its capabilities', 
     readTime: '3 min',
-    content: `OmniFlow is a comprehensive Campus Operating System designed to streamline every aspect of university life. From academic tracking to late-night snacking, it brings everything into one unified dashboard.
+    content: `PEC is a comprehensive Campus Operating System designed to streamline every aspect of university life. From academic tracking to late-night snacking, it brings everything into one unified dashboard.
 
 Key modules include:
 • Academic Management (Courses, Grades, Attendance)
@@ -50,7 +50,7 @@ Our goal is to reduce administrative friction and let you focus on what matters 
     content: `The Student Dashboard is your central hub. Here's how to navigate it:
 
 1. **Main Overview**: See your current GPA, attendance summary, and upcoming classes at a glance.
-2. **Side Module Links**: Access courses, assignments, and materials directly.
+2. **Side Module Links**: Access courses and materials directly.
 3. **Quick Actions**: Use the plus icon or search bar to quickly find people or documents.
 4. **Theme Customization**: Switch between Dark, Light, and Ivy-League themes in the bottom sidebar.
 
@@ -75,7 +75,7 @@ Admins can access these through the specific 'Admin' labeled links in the sideba
     title: 'Understanding Navigation', 
     description: 'How to use the sidebar and quick actions efficiently', 
     readTime: '3 min',
-    content: `Navigation in OmniFlow is designed for speed:
+    content: `Navigation in PEC is designed for speed:
 
 • **Sidebar**: Your primary tool. It collapses to save space on desktop and hides on mobile (accessible via the hamburger menu).
 • **Search Bar**: Press (Ctrl + K) to search across students, courses, and documents.

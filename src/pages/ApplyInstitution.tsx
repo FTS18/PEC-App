@@ -24,12 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/config/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/config/firebase';
-import { doc, setDoc } from 'firebase/firestore';
-
+import { authClient } from '@/lib/auth-client';
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -86,49 +81,11 @@ export default function ApplyInstitution() {
     setLoading(true);
 
     try {
-      // Generate slug from institution name
-      const slug = formData.institutionName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .trim();
-
-      // Create organization with pending status
-      const orgRef = await addDoc(collection(db, 'organizations'), {
-        name: formData.institutionName,
-        shortName: formData.institutionShortName,
-        slug: slug,
-        type: formData.institutionType,
-        location: formData.location,
-        email: formData.email,
-        phone: formData.phone,
-        website: formData.website || '',
-        status: 'pending',
-        verified: false,
-        totalUsers: 0,
-        totalStudents: 0,
-        totalFaculty: 0,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
-
-      // Create college admin user
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.adminEmail,
-        formData.adminPassword
-      );
-
-      // Add user document with college_admin role
-      await setDoc(doc(db, 'users', userCredential.user.uid), {
-        name: formData.adminName,
+      await authClient.signup({
         email: formData.adminEmail,
+        password: formData.adminPassword,
+        name: formData.adminName,
         role: 'college_admin',
-        organizationId: orgRef.id,
-        profileComplete: false,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
       });
 
       setSubmitted(true);
@@ -136,7 +93,7 @@ export default function ApplyInstitution() {
       
     } catch (error: any) {
       console.error('Error submitting application:', error);
-      if (error.code === 'auth/email-already-in-use') {
+      if (error.code === '({} as any)/email-already-in-use') {
         toast.error('Email already registered');
       } else {
         toast.error('Failed to submit application. Please try again.');
@@ -161,7 +118,7 @@ export default function ApplyInstitution() {
             Application Submitted!
           </h1>
           <p className="text-muted-foreground mb-8">
-            Thank you for applying to join OmniFlow. Our team will review your application and get back to you within 24-48 hours.
+            Thank you for applying to join PEC. Our team will review your application and get back to you within 24-48 hours.
           </p>
           <div className="bg-secondary/30 border border-border rounded-lg p-4 mb-8">
             <p className="text-sm text-muted-foreground">
@@ -208,7 +165,7 @@ export default function ApplyInstitution() {
               <Building2 className="w-8 h-8 text-accent" />
             </div>
             <h1 className="text-3xl font-bold text-foreground mb-2">
-              Join OmniFlow
+              Join PEC
             </h1>
             <p className="text-muted-foreground">
               Fill out the form below to apply. Our team will review and get back to you within 48 hours.

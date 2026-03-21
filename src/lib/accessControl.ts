@@ -1,6 +1,3 @@
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/config/firebase';
-
 /**
  * Check if user has faculty access to a specific resource
  */
@@ -13,7 +10,7 @@ export async function checkFacultyAccess(
     if (resourceType === 'course') {
       // Check if faculty is assigned to this course
       const assignmentsQuery = query(
-        collection(db, 'facultyAssignments'),
+        collection(({} as any), 'facultyAssignments'),
         where('facultyId', '==', facultyId),
         where('courseId', '==', resourceId)
       );
@@ -27,9 +24,9 @@ export async function checkFacultyAccess(
       const courseIds = facultyCourses.map(c => c.courseId);
       
       const enrollmentQuery = query(
-        collection(db, 'enrollments'),
+        collection(({} as any), 'enrollments'),
         where('studentId', '==', resourceId),
-        where('courseId', 'in', courseIds.slice(0, 10)) // Firestore 'in' limit
+        where('courseId', 'in', courseIds.slice(0, 10)) // backend filter limit
       );
       const snapshot = await getDocs(enrollmentQuery);
       return !snapshot.empty;
@@ -41,14 +38,11 @@ export async function checkFacultyAccess(
     return false;
   }
 }
-
-/**
- * Get all courses assigned to a faculty member
- */
+ /** Get all courses assigned to a faculty member
 export async function getFacultyAssignments(facultyId: string) {
   try {
     const assignmentsQuery = query(
-      collection(db, 'facultyAssignments'),
+      collection(({} as any), 'facultyAssignments'),
       where('facultyId', '==', facultyId)
     );
     const snapshot = await getDocs(assignmentsQuery);
@@ -58,10 +52,7 @@ export async function getFacultyAssignments(facultyId: string) {
     return [];
   }
 }
-
-/**
- * Filter courses to show only faculty-assigned courses
- */
+ /** Filter courses to show only faculty-assigned courses
 export async function filterCoursesByFaculty(
   courses: any[],
   facultyId: string
@@ -76,10 +67,7 @@ export async function filterCoursesByFaculty(
     return courses;
   }
 }
-
-/**
- * Filter students to show only those enrolled in faculty's courses
- */
+ /** Filter students to show only those enrolled in faculty's courses
 export async function filterStudentsByFaculty(
   students: any[],
   facultyId: string
@@ -92,7 +80,7 @@ export async function filterStudentsByFaculty(
     
     // Get all enrollments for faculty's courses
     const enrollmentQuery = query(
-      collection(db, 'enrollments'),
+      collection(({} as any), 'enrollments'),
       where('courseId', 'in', courseIds.slice(0, 10))
     );
     const snapshot = await getDocs(enrollmentQuery);
@@ -104,10 +92,7 @@ export async function filterStudentsByFaculty(
     return students;
   }
 }
-
-/**
- * Filter attendance records by faculty's courses
- */
+ /** Filter attendance records by faculty's courses
 export async function filterAttendanceByFaculty(
   attendanceRecords: any[],
   facultyId: string
@@ -122,17 +107,11 @@ export async function filterAttendanceByFaculty(
     return attendanceRecords;
   }
 }
-
-/**
- * Check if user has admin or specific role
- */
+ /** Check if user has admin or specific role
 export function hasRole(userRole: string, requiredRoles: string[]): boolean {
   return requiredRoles.includes(userRole);
 }
-
-/**
- * Get faculty-specific data filter
- */
+ /** Get faculty-specific data filter
 export function getFacultyDataFilter(facultyId: string, dataType: 'courses' | 'students' | 'attendance') {
   return {
     facultyId,
@@ -151,10 +130,7 @@ export function getFacultyDataFilter(facultyId: string, dataType: 'courses' | 's
     }
   };
 }
-
-/**
- * Get faculty's assigned course IDs
- */
+ /** Get faculty's assigned course IDs
 export async function getFacultyCourseIds(facultyId: string): Promise<string[]> {
   try {
     const assignments = await getFacultyAssignments(facultyId);
@@ -164,10 +140,7 @@ export async function getFacultyCourseIds(facultyId: string): Promise<string[]> 
     return [];
   }
 }
-
-/**
- * Check if student is enrolled in faculty's course
- */
+ /** Check if student is enrolled in faculty's course
 export async function isFacultyStudent(
   facultyId: string,
   studentId: string
@@ -178,7 +151,7 @@ export async function isFacultyStudent(
     if (courseIds.length === 0) return false;
     
     const enrollmentsQuery = query(
-      collection(db, 'enrollments'),
+      collection(({} as any), 'enrollments'),
       where('studentId', '==', studentId),
       where('courseId', 'in', courseIds.slice(0, 10)),
       where('status', '==', 'active')
@@ -191,10 +164,7 @@ export async function isFacultyStudent(
     return false;
   }
 }
-
-/**
- * Check if faculty can perform action on resource
- */
+ /** Check if faculty can perform action on resource
 export async function checkFacultyAuthority(
   facultyId: string,
   action: 'view' | 'create' | 'edit' | 'delete',
@@ -251,10 +221,7 @@ export async function checkFacultyAuthority(
     return false;
   }
 }
-
-/**
- * Check if faculty owns/created the resource
- */
+ /** Check if faculty owns/created the resource
 export async function isFacultyResource(
   facultyId: string,
   resourceType: 'assignment' | 'material' | 'exam',
@@ -267,7 +234,7 @@ export async function isFacultyResource(
     
     // Query the resource collection
     const resourceQuery = query(
-      collection(db, `${resourceType}s`),
+      collection(({} as any), `${resourceType}s`),
       where('id', '==', resourceId)
     );
     
@@ -281,10 +248,7 @@ export async function isFacultyResource(
     return false;
   }
 }
-
-/**
- * Get faculty permissions for a specific resource
- */
+ /** Get faculty permissions for a specific resource
 export interface FacultyPermissions {
   canView: boolean;
   canCreate: boolean;

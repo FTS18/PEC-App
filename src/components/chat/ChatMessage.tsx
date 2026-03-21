@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils';
 import { Download, FileText, Star, Trash2, Copy, MoreVertical, Reply } from 'lucide-react';
 import { ChatMessage as ChatMessageType } from '@/lib/messages.service';
 import { deleteMessage, toggleStarMessage } from '@/lib/messages.service';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { ImageLightbox } from '@/components/chat/ImageLightbox';
@@ -71,7 +71,7 @@ export function ChatMessage({ message, showSenderName = true, roomId = '', onRep
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const isStarred = message.starredBy?.includes(user?.uid || "") || false;
   const userRole = user?.role as string;
-  const isAdmin = userRole === "admin" || userRole === "super_admin" || userRole === "college_admin";
+  const isAdmin = userRole === "admin" || userRole === "college_admin";
   const canDelete = message.isOwn || isAdmin; // Owner or admin can delete
   const canStar = !!roomId; // Anyone can star if roomId exists
   const canCopy = !!message.content; // Can copy if there's text

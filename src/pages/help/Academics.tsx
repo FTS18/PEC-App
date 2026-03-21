@@ -15,7 +15,6 @@ import {
   Award,
   Target,
   Layers,
-  ListChecks,
   FileSpreadsheet,
   CalendarDays,
   BookMarked
@@ -58,7 +57,7 @@ You can also sync your timetable with Google Calendar via the 'Export' button.`
     title: 'Attendance Tracking', 
     description: 'Understanding attendance calculation and reporting discrepancies', 
     readTime: '3 min',
-    content: `OmniFlow makes attendance transparent:
+    content: `PEC makes attendance transparent:
 
 • **Live Stats**: Your attendance percentage is updated as soon as a faculty marks it in class.
 • **Threshold Alerts**: Receive a warning if your attendance drops below the required 75%.
@@ -74,7 +73,7 @@ Faculty can mark attendance by scanning student IDs or via a manual checklist on
     readTime: '2 min',
     content: `Your academic progress is visualized through the Grades module:
 
-1. **Current Semester**: See marks for internal assessments, mid-terms, and assignments as they are released.
+1. **Current Semester**: See marks for internal assessments and mid-terms as they are released.
 2. **Final Results**: Once the semester ends, view your official Grade Point and letter grade.
 3. **GPA Calculator**: The system automatically calculates your SGPA and CGPA based on credit weightage.
 4. **Historical Data**: Access results from previous semesters through the academic year dropdown.`
@@ -90,18 +89,6 @@ Faculty can mark attendance by scanning student IDs or via a manual checklist on
 • **Hall Ticket**: Download and print your exam permit once the administration releases it.
 • **Venues**: Find your assigned seat number and room block to avoid last-minute confusion.
 • **Guidelines**: Read the specific do's and don'ts for the examination hall provided by the controller of exams.`
-  },
-  { 
-    icon: ListChecks, 
-    title: 'Assignment Management', 
-    description: 'Submitting assignments and tracking faculty feedback', 
-    readTime: '3 min',
-    content: `Never miss a deadline again:
-
-1. **Upcoming Deadlines**: See a chronologically sorted list of all assignments due.
-2. **Digital Submission**: Upload PDF or ZIP files directly through the platform.
-3. **Plagiarism Check**: The system automatically runs a similarity check on your submissions.
-4. **Grades & Feedback**: View detailed comments from your faculty members on your work once graded.`
   }
 ];
 

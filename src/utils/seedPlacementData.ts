@@ -6,18 +6,6 @@
  * - 160+ companies, 461 offers
  */
 
-import { db } from '@/config/firebase';
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDocs, 
-  query, 
-  where,
-  writeBatch,
-  serverTimestamp,
-  Timestamp
-} from 'firebase/firestore';
 import type { 
   PlacementProfile, 
   ExtendedJob, 
@@ -175,7 +163,7 @@ export const sampleProjects: Project[] = [
     id: 'proj5',
     title: 'College ERP System',
     description: 'Comprehensive ERP system for managing student records, attendance, and examinations',
-    technologies: ['React', 'Firebase', 'TypeScript', 'Tailwind CSS'],
+    technologies: ['React', 'PostgreSQL', 'TypeScript', 'Tailwind CSS'],
     isOngoing: true,
     startDate: '2025-03',
   },
@@ -363,7 +351,7 @@ const facultyFirstNames = ['Rajesh', 'Priya', 'Amit', 'Neha', 'Vikram', 'Anita',
 const facultyLastNames = ['Sharma', 'Verma', 'Kumar', 'Singh', 'Patel', 'Jain', 'Gupta', 'Bhatia', 'Agarwal', 'Reddy', 'Rao', 'Iyer'];
 
 async function seedFacultyAndDepartments(): Promise<{ departments: number; faculty: number }> {
-  const batch = writeBatch(db);
+  const batch = writeBatch(({} as any));
   let deptCount = 0;
   let facultyCount = 0;
 
@@ -379,7 +367,7 @@ async function seedFacultyAndDepartments(): Promise<{ departments: number; facul
     const hodEmail = `${hodFirstName.toLowerCase()}.${dept.code.toLowerCase()}@pec.edu.in`;
 
     // HOD User
-    batch.set(doc(db, 'users', hodId), {
+    batch.set(doc(({} as any), 'users', hodId), {
       id: hodId,
       fullName: hodName,
       email: hodEmail,
@@ -392,7 +380,7 @@ async function seedFacultyAndDepartments(): Promise<{ departments: number; facul
     });
 
     // HOD Faculty Profile
-    batch.set(doc(db, 'facultyProfiles', hodId), {
+    batch.set(doc(({} as any), 'facultyProfiles', hodId), {
       uid: hodId,
       fullName: hodName,
       email: hodEmail,
@@ -418,7 +406,7 @@ async function seedFacultyAndDepartments(): Promise<{ departments: number; facul
       const fId = `faculty_${dept.code.toLowerCase()}_${j}_${Date.now()}`;
       const fEmail = `${fFirstName.toLowerCase()}.${fLastName.toLowerCase()}@pec.edu.in`;
 
-      batch.set(doc(db, 'users', fId), {
+      batch.set(doc(({} as any), 'users', fId), {
         id: fId,
         fullName: fName,
         email: fEmail,
@@ -430,7 +418,7 @@ async function seedFacultyAndDepartments(): Promise<{ departments: number; facul
         updatedAt: serverTimestamp(),
       });
 
-      batch.set(doc(db, 'facultyProfiles', fId), {
+      batch.set(doc(({} as any), 'facultyProfiles', fId), {
         uid: fId,
         fullName: fName,
         email: fEmail,
@@ -446,7 +434,7 @@ async function seedFacultyAndDepartments(): Promise<{ departments: number; facul
     }
 
     // Create Department
-    batch.set(doc(db, 'departments', deptId), {
+    batch.set(doc(({} as any), 'departments', deptId), {
       code: dept.code,
       name: dept.name,
       hodId,
@@ -460,7 +448,7 @@ async function seedFacultyAndDepartments(): Promise<{ departments: number; facul
 
   // Create Placement Officer (TPO)
   const tpoId = `faculty_tpo_pec_${Date.now()}`;
-  batch.set(doc(db, 'users', tpoId), {
+  batch.set(doc(({} as any), 'users', tpoId), {
     id: tpoId,
     fullName: 'Dr. Placement Officer',
     email: 'tpo@pec.edu.in',
@@ -472,7 +460,7 @@ async function seedFacultyAndDepartments(): Promise<{ departments: number; facul
     updatedAt: serverTimestamp(),
   });
 
-  batch.set(doc(db, 'facultyProfiles', tpoId), {
+  batch.set(doc(({} as any), 'facultyProfiles', tpoId), {
     uid: tpoId,
     fullName: 'Dr. Placement Officer',
     email: 'tpo@pec.edu.in',
@@ -491,9 +479,8 @@ async function seedFacultyAndDepartments(): Promise<{ departments: number; facul
   return { departments: deptCount, faculty: facultyCount };
 }
 
-
 async function seedJobs(): Promise<string[]> {
-  const batch = writeBatch(db);
+  const batch = writeBatch(({} as any));
   const jobIds: string[] = [];
   
   const jobTypes = ['full-time', 'internship'];
@@ -541,7 +528,7 @@ async function seedJobs(): Promise<string[]> {
         ],
       };
       
-      const docRef = doc(db, 'jobs', jobId);
+      const docRef = doc(({} as any), 'jobs', jobId);
       batch.set(docRef, job);
       jobIds.push(jobId);
     }
@@ -552,7 +539,7 @@ async function seedJobs(): Promise<string[]> {
 }
 
 async function seedPlacementDrives(): Promise<string[]> {
-  const batch = writeBatch(db);
+  const batch = writeBatch(({} as any));
   const driveIds: string[] = [];
   
   const topCompanies = pecCompanies.filter(c => c.maxPackage >= 20).slice(0, 8);
@@ -594,7 +581,7 @@ async function seedPlacementDrives(): Promise<string[]> {
       updatedAt: serverTimestamp(),
     };
     
-    const docRef = doc(db, 'placementDrives', driveId);
+    const docRef = doc(({} as any), 'placementDrives', driveId);
     batch.set(docRef, drive);
     driveIds.push(driveId);
   }
@@ -604,7 +591,7 @@ async function seedPlacementDrives(): Promise<string[]> {
 }
 
 async function seedStudentProfiles(): Promise<string[]> {
-  const batch = writeBatch(db);
+  const batch = writeBatch(({} as any));
   const profileIds: string[] = [];
   
   // Create 30 realistic student profiles with full user accounts
@@ -634,7 +621,7 @@ async function seedStudentProfiles(): Promise<string[]> {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
-    batch.set(doc(db, 'users', userId), user);
+    batch.set(doc(({} as any), 'users', userId), user);
     
     // =====================
     // 2. Create Student Profile (Academic)
@@ -658,7 +645,7 @@ async function seedStudentProfiles(): Promise<string[]> {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
-    batch.set(doc(db, 'studentProfiles', userId), studentProfile);
+    batch.set(doc(({} as any), 'studentProfiles', userId), studentProfile);
     
     // =====================
     // 3. Create Placement Profile
@@ -723,7 +710,7 @@ async function seedStudentProfiles(): Promise<string[]> {
       updatedAt: serverTimestamp(),
     };
     
-    batch.set(doc(db, 'placementProfiles', userId), placementProfile);
+    batch.set(doc(({} as any), 'placementProfiles', userId), placementProfile);
     profileIds.push(userId);
   }
   
@@ -732,7 +719,7 @@ async function seedStudentProfiles(): Promise<string[]> {
 }
 
 async function seedApplications(jobIds: string[], profileIds: string[]): Promise<number> {
-  const batch = writeBatch(db);
+  const batch = writeBatch(({} as any));
   let count = 0;
   
   const statuses: JobApplication['status'][] = [
@@ -759,7 +746,7 @@ async function seedApplications(jobIds: string[], profileIds: string[]): Promise
         updatedAt: serverTimestamp(),
       };
       
-      const docRef = doc(db, 'applications', applicationId);
+      const docRef = doc(({} as any), 'applications', applicationId);
       batch.set(docRef, application);
       count++;
     }

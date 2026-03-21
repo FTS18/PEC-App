@@ -9,7 +9,6 @@ import {
   FileText,
   Users,
   BarChart3,
-  Search,
   Gift,
   Cog,
   TrendingUp,
@@ -37,9 +36,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { db } from '@/config/firebase';
-import { collection, query, where, getDocs, limit, orderBy, doc, getDoc } from 'firebase/firestore';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import type { UserRole } from '@/types';
 
@@ -97,7 +94,7 @@ const quickLinks: QuickLink[] = [
     description: 'Browse available positions',
     path: '/placements/jobs',
     color: 'from-orange-500 to-amber-500',
-    roles: ['student', 'placement_officer', 'recruiter'],
+    roles: ['student', 'faculty', 'college_admin'],
   },
   {
     icon: Building2,
@@ -105,7 +102,7 @@ const quickLinks: QuickLink[] = [
     description: 'Upcoming campus drives',
     path: '/placements/drives',
     color: 'from-cyan-500 to-teal-500',
-    roles: ['student', 'placement_officer', 'recruiter', 'faculty'],
+    roles: ['student', 'faculty', 'college_admin'],
   },
   {
     icon: FileText,
@@ -115,14 +112,14 @@ const quickLinks: QuickLink[] = [
     color: 'from-pink-500 to-rose-500',
     roles: ['student'],
   },
-  // TPO links
+  // Faculty/Admin links
   {
     icon: Users,
     label: 'Student Readiness',
     description: 'Track profile completion',
     path: '/placements/student-readiness',
     color: 'from-blue-500 to-indigo-500',
-    roles: ['placement_officer'],
+    roles: ['faculty', 'college_admin'],
   },
   {
     icon: BarChart3,
@@ -130,7 +127,7 @@ const quickLinks: QuickLink[] = [
     description: 'Analytics & statistics',
     path: '/placements/reports',
     color: 'from-green-500 to-emerald-500',
-    roles: ['placement_officer', 'college_admin'],
+    roles: ['faculty', 'college_admin'],
   },
   {
     icon: Users,
@@ -138,32 +135,15 @@ const quickLinks: QuickLink[] = [
     description: 'Manage all applications',
     path: '/placements/applications',
     color: 'from-purple-500 to-violet-500',
-    roles: ['placement_officer', 'recruiter'],
+    roles: ['faculty', 'college_admin'],
   },
   {
     icon: Building2,
-    label: 'Recruiters',
+    label: 'Partner Companies',
     description: 'Partner companies',
-    path: '/placements/recruiters',
+    path: '/placements/applications',
     color: 'from-orange-500 to-amber-500',
-    roles: ['placement_officer'],
-  },
-  // Recruiter links
-  {
-    icon: Search,
-    label: 'Candidate Discovery',
-    description: 'Find talented students',
-    path: '/placements/candidates',
-    color: 'from-blue-500 to-indigo-500',
-    roles: ['recruiter'],
-  },
-  {
-    icon: Gift,
-    label: 'Offer Management',
-    description: 'Create & track offers',
-    path: '/placements/offers',
-    color: 'from-green-500 to-emerald-500',
-    roles: ['recruiter'],
+    roles: ['faculty', 'college_admin'],
   },
   // Admin links
   {
@@ -206,7 +186,7 @@ export default function CareerPortal() {
       try {
         // Load recent jobs
         const jobsQuery = query(
-          collection(db, 'jobs'),
+          collection(({} as any), 'jobs'),
           where('status', '==', 'open'),
           orderBy('postedAt', 'desc'),
           limit(4)
@@ -217,7 +197,7 @@ export default function CareerPortal() {
 
         // Count all open jobs
         const allJobsQuery = query(
-          collection(db, 'jobs'),
+          collection(({} as any), 'jobs'),
           where('status', '==', 'open')
         );
         const allJobsSnap = await getDocs(allJobsQuery);
@@ -225,12 +205,12 @@ export default function CareerPortal() {
         // Load student-specific stats
         if (userRole === 'student' && user?.uid) {
           // Get placement profile
-          const profileRef = doc(db, 'placementProfiles', user.uid);
+          const profileRef = doc(({} as any), 'placementProfiles', user.uid);
           const profileSnap = await getDoc(profileRef);
           
           // Get applications for this student
           const applicationsQuery = query(
-            collection(db, 'applications'),
+            collection(({} as any), 'applications'),
             where('studentId', '==', user.uid)
           );
           const applicationsSnap = await getDocs(applicationsQuery);
@@ -238,7 +218,7 @@ export default function CareerPortal() {
           
           // Count interviews (actual scheduled meetings)
           const interviewsQuery = query(
-            collection(db, 'interviews'),
+            collection(({} as any), 'interviews'),
             where('studentId', '==', user.uid)
           );
           const interviewsSnap = await getDocs(interviewsQuery);
@@ -296,8 +276,6 @@ export default function CareerPortal() {
               <h1 className="text-4xl font-bold text-foreground">Career Portal</h1>
               <p className="text-lg text-muted-foreground mt-2">
                 {userRole === 'student' && 'Build your career, track applications, and land your dream job'}
-                {userRole === 'placement_officer' && 'Manage placements, track students, and coordinate with recruiters'}
-                {userRole === 'recruiter' && 'Discover talent, manage applications, and build your team'}
                 {userRole === 'college_admin' && 'Monitor placement performance and configure settings'}
                 {userRole === 'faculty' && 'View placement drives and support student placements'}
               </p>
@@ -475,7 +453,7 @@ export default function CareerPortal() {
                 <div>
                   <h3 className="font-semibold text-lg">Boost Your Profile</h3>
                   <p className="text-muted-foreground mt-1">
-                    Complete your placement profile to increase your chances of getting shortlisted by recruiters.
+                    Complete your placement profile to improve your chances of getting shortlisted by companies.
                   </p>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Button size="sm" asChild>
