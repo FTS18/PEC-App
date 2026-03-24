@@ -1,5 +1,5 @@
-import { motion, useScroll, useTransform } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+﻿import { motion, useScroll, useTransform } from "framer-motion";
+import { Link, useRouter } from "next/navigation";
 import {
   GraduationCap,
   Users,
@@ -230,7 +230,7 @@ const FloatingParticles = () => {
 
 export function LandingPage() {
   const [activeFAQIndex, setActiveFAQIndex] = useState<number | null>(null);
-  const navigate = useNavigate();
+  const router = useRouter();
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll();
   const y = useTransform(scrollYProgress, [0, 1], ["0%", "50%"]);
@@ -298,7 +298,7 @@ export function LandingPage() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link to="/">
+            <Link href="/">
               <motion.div
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -333,7 +333,7 @@ export function LandingPage() {
                 className="rounded-lg bg-white/20 text-white hover:bg-white/30 font-semibold px-6 backdrop-blur-sm border border-white/30 transition-all duration-200"
                 aria-label="Get started with test credentials"
               >
-                <Link to="/auth">Get Started</Link>
+                <Link href="/auth">Get Started</Link>
               </Button>
             </motion.div>
           </div>
@@ -413,7 +413,7 @@ export function LandingPage() {
               className="neo-brutal-btn group bg-white text-black px-8 py-6 text-base border-2 border-black"
               aria-label="View test credentials and start trial"
             >
-              <Link to="/auth" className="flex items-center gap-3">
+              <Link href="/auth" className="flex items-center gap-3">
                 Start Free Trial
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
@@ -425,7 +425,7 @@ export function LandingPage() {
               className="neo-brutal-btn group bg-transparent border-2 border-white hover:bg-white/10 px-8 py-6 text-base font-bold text-white hover:text-white"
               aria-label="Apply to onboard your institution"
             >
-              <Link to="/apply-institution" className="flex items-center gap-3">
+              <Link href="/apply-institution" className="flex items-center gap-3">
                 <Building2 className="w-5 h-5" />
                 Apply as Institution
               </Link>
@@ -685,7 +685,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: 0.1 }}
-                onClick={() => navigate('/profile')}
+                onClick={() => router.push('/profile')}
                 className="col-span-1 sm:col-span-2 md:col-span-2 row-span-1 md:row-span-2 bg-sky-900 border-2 border-sky-500 hover:bg-sky-800 rounded-none p-6 sm:p-8 relative overflow-hidden group transition-all duration-300 cursor-pointer"
               >
                 <div className="absolute top-8 right-8 w-32 h-32 bg-white/5 rounded-none transform rotate-45" />
@@ -717,7 +717,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.1 }}
-                onClick={() => navigate('/courses')}
+                onClick={() => router.push('/courses')}
                 className="col-span-1 sm:col-span-2 md:col-span-2 row-span-1 bg-indigo-900 border-2 border-indigo-600 rounded-none p-6 sm:p-8 flex flex-col justify-between group hover:shadow-none neo-brutal-shadow transition-all duration-300 cursor-pointer"
               >
                 <div className="w-14 h-14 bg-black border-2 border-indigo-600 p-3 neo-brutal-shadow">
@@ -739,7 +739,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.2 }}
-                onClick={() => navigate('/attendance')}
+                onClick={() => router.push('/attendance')}
                 className="col-span-1 row-span-1 md:row-span-2 bg-blue-900 border-2 border-blue-600 rounded-none p-6 flex flex-col justify-between group hover:shadow-none neo-brutal-shadow transition-all duration-300 cursor-pointer"
               >
                 <div className="w-12 h-12 bg-black border-2 border-blue-600 p-2.5 neo-brutal-shadow">
@@ -761,7 +761,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.3 }}
-                onClick={() => navigate('/placements')}
+                onClick={() => router.push('/placements')}
                 className="col-span-1 row-span-1 bg-cyan-900 border-2 border-cyan-600 rounded-none p-6 flex flex-col justify-between group hover:shadow-none neo-brutal-shadow transition-all duration-300 cursor-pointer"
               >
                 <div className="w-12 h-12 bg-black border-2 border-cyan-600 p-2.5 neo-brutal-shadow">
@@ -781,7 +781,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.4 }}
-                onClick={() => navigate('/examinations')}
+                onClick={() => router.push('/examinations')}
                 className="col-span-1 row-span-1 md:row-span-2 bg-violet-900 border-2 border-violet-600 rounded-none p-6 sm:p-8 flex flex-col justify-between group hover:shadow-none neo-brutal-shadow transition-all duration-300 cursor-pointer"
               >
                 <div className="w-14 h-14 bg-black border-2 border-violet-600 p-3 neo-brutal-shadow">
@@ -803,7 +803,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.5 }}
-                onClick={() => navigate('/finance')}
+                onClick={() => router.push('/finance')}
                 className="col-span-1 row-span-1 md:row-span-2 bg-sky-900 border-2 border-sky-600 rounded-none p-6 flex flex-col justify-between group hover:shadow-none neo-brutal-shadow transition-all duration-300 cursor-pointer"
               >
                 <div className="w-12 h-12 bg-black border-2 border-sky-600 p-2.5 neo-brutal-shadow">
@@ -827,7 +827,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.6 }}
-                onClick={() => navigate('/resume-builder')}
+                onClick={() => router.push('/resume-builder')}
                 className="col-span-1 row-span-1 md:row-span-2 bg-cyan-900 border-2 border-cyan-600 rounded-none p-6 flex flex-col justify-between group hover:shadow-none neo-brutal-shadow transition-all duration-300 cursor-pointer"
               >
                 <div className="w-12 h-12 bg-black border-2 border-cyan-600 p-2.5 neo-brutal-shadow">
@@ -849,7 +849,7 @@ export function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: 0.7 }}
-                onClick={() => navigate('/dashboard')}
+                onClick={() => router.push('/dashboard')}
                 className="col-span-1 md:col-span-1 row-span-1 bg-indigo-900 border-2 border-indigo-600 rounded-none p-6 flex flex-col justify-between group hover:shadow-none neo-brutal-shadow transition-all duration-300 cursor-pointer"
               >
                 <div className="w-12 h-12 bg-black border-2 border-indigo-600 p-2.5 neo-brutal-shadow">
@@ -1114,7 +1114,7 @@ export function LandingPage() {
             className="text-center mt-16"
           >
             <Button size="lg" asChild className="rounded-full px-8">
-              <Link to="/onboarding" className="flex items-center gap-2">
+              <Link href="/onboarding" className="flex items-center gap-2">
                 Start Your Free Trial
                 <ArrowRight className="w-4 h-4" />
               </Link>
@@ -1458,7 +1458,7 @@ export function LandingPage() {
                     size="lg"
                     className="w-full mb-6 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-bold border-2 border-white/40 rounded-xl py-6"
                   >
-                    <Link to="/onboarding" className="flex items-center justify-center gap-2">
+                    <Link href="/onboarding" className="flex items-center justify-center gap-2">
                       Get Started
                       <ArrowRight className="w-5 h-5" />
                     </Link>
@@ -1574,7 +1574,7 @@ export function LandingPage() {
                         size="lg"
                         className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm py-6 rounded-lg"
                       >
-                        <Link to="/onboarding" className="flex items-center justify-center gap-2">
+                        <Link href="/onboarding" className="flex items-center justify-center gap-2">
                           Get Started
                           <ArrowRight className="w-4 h-4" />
                         </Link>
@@ -1586,7 +1586,7 @@ export function LandingPage() {
                         size="lg"
                         className="w-full bg-gradient-to-r from-teal-500 to-cyan-500 hover:from-teal-600 hover:to-cyan-600 text-white font-bold text-sm py-6 rounded-lg shadow-xl"
                       >
-                        <Link to="/onboarding" className="flex items-center justify-center gap-2">
+                        <Link href="/onboarding" className="flex items-center justify-center gap-2">
                           Get Started
                           <ArrowRight className="w-4 h-4" />
                         </Link>
@@ -1598,7 +1598,7 @@ export function LandingPage() {
                         size="lg"
                         className="w-full bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 text-white font-bold text-sm py-6 rounded-lg"
                       >
-                        <Link to="/onboarding" className="flex items-center justify-center gap-2">
+                        <Link href="/onboarding" className="flex items-center justify-center gap-2">
                           Get Started
                           <ArrowRight className="w-4 h-4" />
                         </Link>
@@ -1798,7 +1798,7 @@ export function LandingPage() {
                 size="lg"
                 aria-label="Start your free 14-day trial"
               >
-                <Link to="/onboarding" className="flex items-center gap-2">
+                <Link href="/onboarding" className="flex items-center gap-2">
                   Start Your Free Trial
                   <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
@@ -1847,7 +1847,7 @@ export function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
             >
-              <Link to="/">
+              <Link href="/">
                 <div className="flex items-center gap-3 mb-6 hover:opacity-80 transition-opacity">
                   <span className="text-2xl font-bold text-white">
                     PEC

@@ -44,7 +44,7 @@ import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
 
 const container = {

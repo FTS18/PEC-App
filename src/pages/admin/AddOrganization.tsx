@@ -1,6 +1,6 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Building2,
@@ -39,7 +39,7 @@ const item = {
 };
 
 export function AddOrganization() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -54,7 +54,7 @@ export function AddOrganization() {
       description: 'The organization has been successfully registered.',
     });
     
-    navigate('/admin/organizations');
+    router.push('/admin/organizations');
   };
 
   return (
@@ -66,7 +66,7 @@ export function AddOrganization() {
     >
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/organizations')}>
+        <Button variant="ghost" size="icon" onClick={() => router.push('/admin/organizations')}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div>
@@ -220,7 +220,7 @@ export function AddOrganization() {
 
         {/* Actions */}
         <motion.div variants={item} className="flex justify-end gap-4">
-          <Button type="button" variant="outline" onClick={() => navigate('/admin/organizations')}>
+          <Button type="button" variant="outline" onClick={() => router.push('/admin/organizations')}>
             Cancel
           </Button>
           <Button type="submit" variant="gradient" disabled={isSubmitting}>

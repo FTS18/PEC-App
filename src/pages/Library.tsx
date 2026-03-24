@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Book, BookOpen, Search, Plus, Loader2, Edit2, Trash2 } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 
 import {

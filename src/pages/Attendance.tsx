@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Calendar as CalendarIcon,
@@ -33,7 +33,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useDepartmentFilter } from '@/hooks/useDepartmentFilter';
 import BulkUpload from '@/components/BulkUpload';
@@ -78,7 +78,7 @@ const parseDateValue = (value: any): Date => {
 };
 
 export default function Attendance() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAdmin, isFaculty, isStudent, user, loading: authLoading } = usePermissions();
   const { filterByDepartment } = useDepartmentFilter();
   const [loading, setLoading] = useState(true);
@@ -87,7 +87,7 @@ export default function Attendance() {
     if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
     setLoading(false);

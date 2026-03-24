@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'next/navigation';
 import {
   ArrowLeft,
   Mail,
@@ -75,7 +75,7 @@ export function FacultyDetail() {
     >
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link to="/faculty">
+        <Link href="/faculty">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="w-5 h-5" />
           </Button>

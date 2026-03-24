@@ -21,7 +21,7 @@ const limit = (...args: any) => {};
 // Initialize OpenAI only if API key is available
 let openai: OpenAI | null = null;
 try {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
   if (apiKey) {
     openai = new OpenAI({
       apiKey,

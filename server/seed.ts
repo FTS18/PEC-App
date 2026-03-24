@@ -617,6 +617,7 @@ function buildDailyTargets(totalSessions: number, seed: string) {
       remaining -= 1;
     }
     pointer += 1;
+    if (pointer > 100) break; // Safety break
   }
 
   return targets;
@@ -993,6 +994,7 @@ async function seedEnrollmentsAssignmentsAttendance(
   let assignmentCount = 0;
   let attendanceCount = 0;
 
+  const attendanceData: any[] = [];
   for (const student of students) {
     const semesterCourses = courses.filter(
       (course) =>
@@ -1016,22 +1018,25 @@ async function seedEnrollmentsAssignmentsAttendance(
       enrollmentCount += 1;
 
       for (let sessionIndex = 0; sessionIndex < 10; sessionIndex += 1) {
-        await prisma.attendance.create({
-          data: {
-            date: daysAgo(sessionIndex + 1),
-            status:
-              sessionIndex % 7 === 0
-                ? 'late'
-                : sessionIndex % 9 === 0
-                  ? 'absent'
-                  : 'present',
-            subject: course.code,
-            studentId: student.id,
-          },
+        attendanceData.push({
+          date: daysAgo(sessionIndex + 1),
+          status:
+            sessionIndex % 7 === 0
+              ? 'late'
+              : sessionIndex % 9 === 0
+                ? 'absent'
+                : 'present',
+          subject: course.code,
+          studentId: student.id,
         });
         attendanceCount += 1;
       }
     }
+  }
+
+  // Batch insert attendance
+  if (attendanceData.length > 0) {
+    await prisma.attendance.createMany({ data: attendanceData });
   }
 
   for (const course of courses) {
@@ -1071,6 +1076,7 @@ async function seedFeeRecords(students: StudentSeed[]) {
 
   let feeRecordCount = 0;
 
+  const feeData: any[] = [];
   for (const student of students) {
     const recordsPerStudent = 2 + (hashString(student.id) % 3);
 
@@ -1103,39 +1109,41 @@ async function seedFeeRecords(students: StudentSeed[]) {
       const paidDate = status === 'paid' ? daysAgo(hashString(`${student.id}-${idx}-paid`) % 40) : null;
       const transactionPrefix = `${student.departmentCode}${student.semester}${idx}`;
 
-      await (prisma as any).feeRecord.create({
-        data: {
-          studentId: student.id,
-          amount,
-          description:
-            descriptions[category][
-              hashString(`${student.id}-${category}-${idx}`) % descriptions[category].length
-            ],
-          dueDate,
-          category,
-          status,
-          paidDate,
-          pendingTransactionId:
-            status === 'pending' || status === 'pending_verification'
-              ? `PEND-${transactionPrefix}-${String(hashString(`${student.id}-${idx}-pend`) % 100000).padStart(5, '0')}`
-              : null,
-          paymentTransactionId:
-            status === 'paid'
-              ? `TXN-${transactionPrefix}-${String(hashString(`${student.id}-${idx}-txn`) % 1000000).padStart(6, '0')}`
-              : null,
-          lastPaymentAttempt:
-            status === 'pending' || status === 'pending_verification'
-              ? daysAgo(hashString(`${student.id}-${idx}-attempt`) % 5)
-              : null,
-          verificationSubmittedAt:
-            status === 'pending_verification'
-              ? daysAgo(hashString(`${student.id}-${idx}-verify`) % 3)
-              : null,
-        },
+      feeData.push({
+        studentId: student.id,
+        amount,
+        description:
+          descriptions[category][
+            hashString(`${student.id}-${category}-${idx}`) % descriptions[category].length
+          ],
+        dueDate,
+        category,
+        status,
+        paidDate,
+        pendingTransactionId:
+          status === 'pending' || status === 'pending_verification'
+            ? `PEND-${transactionPrefix}-${String(hashString(`${student.id}-${idx}-pend`) % 100000).padStart(5, '0')}`
+            : null,
+        paymentTransactionId:
+          status === 'paid'
+            ? `TXN-${transactionPrefix}-${String(hashString(`${student.id}-${idx}-txn`) % 1000000).padStart(6, '0')}`
+            : null,
+        lastPaymentAttempt:
+          status === 'pending' || status === 'pending_verification'
+            ? daysAgo(hashString(`${student.id}-${idx}-attempt`) % 5)
+            : null,
+        verificationSubmittedAt:
+          status === 'pending_verification'
+            ? daysAgo(hashString(`${student.id}-${idx}-verify`) % 3)
+            : null,
       });
 
       feeRecordCount += 1;
     }
+  }
+
+  if (feeData.length > 0) {
+    await (prisma as any).feeRecord.createMany({ data: feeData });
   }
 
   console.log(`Created ${feeRecordCount} fee records`);
@@ -1147,6 +1155,7 @@ async function seedTimetable(courses: CourseSeed[]) {
   const occupiedFaculty = new Set<string>();
 
   for (const department of DEPARTMENTS) {
+    console.log(`Generating timetable for department: ${department.code}...`);
     for (const semester of ACTIVE_SEMESTERS) {
       const semesterCourses = courses.filter(
         (course) =>
@@ -1167,10 +1176,13 @@ async function seedTimetable(courses: CourseSeed[]) {
       const pending = createExpandedCourseSessions(semesterCourses, seed);
       const orderedDays = rotate(TIMETABLE_DAYS, hashString(seed) % TIMETABLE_DAYS.length);
 
-      const trySchedule = async (
+      const timetableData: any[] = [];
+      let attempts = 0;
+      const trySchedule = (
         session: { course: CourseSeed; ordinal: number },
         allowRepeatCourseDay: boolean,
       ) => {
+        attempts++;
         for (const day of orderedDays) {
           if (dayCounts[day] >= 5) continue;
           if (!allowRepeatCourseDay && dayCounts[day] >= dayTargets[day]) continue;
@@ -1199,21 +1211,19 @@ async function seedTimetable(courses: CourseSeed[]) {
             const room = roomOrder.find((candidate) => !roomsBusy.has(candidate));
             if (!room) continue;
 
-            await prisma.timetable.create({
-              data: {
-                courseId: session.course.id,
-                courseName: session.course.name,
-                courseCode: session.course.code,
-                facultyId: session.course.facultyId,
-                facultyName: session.course.facultyName,
-                day,
-                startTime,
-                endTime,
-                room,
-                department: department.name,
-                semester,
-                batch: batchForSemester(semester),
-              },
+            timetableData.push({
+              courseId: session.course.id,
+              courseName: session.course.name,
+              courseCode: session.course.code,
+              facultyId: session.course.facultyId,
+              facultyName: session.course.facultyName,
+              day,
+              startTime,
+              endTime,
+              room,
+              department: department.name,
+              semester,
+              batch: batchForSemester(semester),
             });
 
             roomsBusy.add(room);
@@ -1232,7 +1242,7 @@ async function seedTimetable(courses: CourseSeed[]) {
       };
 
       for (let index = 0; index < pending.length; ) {
-        const scheduled = await trySchedule(pending[index], false);
+        const scheduled = trySchedule(pending[index], false);
         if (scheduled) {
           pending.splice(index, 1);
         } else {
@@ -1241,7 +1251,11 @@ async function seedTimetable(courses: CourseSeed[]) {
       }
 
       for (const session of pending) {
-        await trySchedule(session, true);
+        trySchedule(session, true);
+      }
+
+      if (timetableData.length > 0) {
+        await prisma.timetable.createMany({ data: timetableData });
       }
     }
   }

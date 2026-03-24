@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -12,7 +12,7 @@ import {
   Mail,
   Phone,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -36,7 +36,7 @@ import { useDepartmentFilter } from '@/hooks/useDepartmentFilter';
 import api from '@/lib/api';
 
 export default function Students() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAdmin, isFaculty, user, loading: authLoading } = usePermissions();
   const { filterByDepartment } = useDepartmentFilter();
   const [loading, setLoading] = useState(true);
@@ -60,13 +60,13 @@ export default function Students() {
     if (authLoading) return;
     
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
     if (!isAdmin && !isFaculty) {
       toast.error('Access denied. Faculty or Admin only.');
-      navigate('/dashboard');
+      router.push('/dashboard');
       return;
     }
 

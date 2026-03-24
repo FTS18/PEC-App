@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+﻿import { useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { usePermissions } from '@/hooks/usePermissions';
 import api from '@/lib/api';
 
@@ -11,7 +11,7 @@ export function useOrgSlug() {
 
 /** Redirects organization-scoped users onto `/:orgSlug/...` routes. */
 export function OrgRedirect({ children }: { children: React.ReactNode }) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const { user } = usePermissions();
 
@@ -35,7 +35,7 @@ export function OrgRedirect({ children }: { children: React.ReactNode }) {
 
           if (resolvedSlug) {
             const currentPath = window.location.pathname;
-            navigate(`/${resolvedSlug}${currentPath}`, { replace: true });
+            router.replace(`/${resolvedSlug}${currentPath}`);
           }
         }
       } catch (error) {

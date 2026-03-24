@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Briefcase,
@@ -50,7 +50,7 @@ import {
   Timestamp,
 } from '@/lib/dataClient';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { usePermissions } from '@/hooks/usePermissions';
 import BulkUpload from '@/components/BulkUpload';
 import { cn } from '@/lib/utils';
@@ -85,7 +85,7 @@ interface Application {
 }
 
 export default function Placements() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAdmin, user, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
 
@@ -93,7 +93,7 @@ export default function Placements() {
     if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
     setLoading(false);
@@ -205,7 +205,7 @@ function PlacementsManager({ userId, userRole }: { userId: string; userRole: str
 }
 
 function StudentPlacementsView({ userId }: { userId: string }) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [searchQuery, setSearchQuery] = useState('');

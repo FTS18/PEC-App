@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { GraduationCap, Mail, Lock, User, Eye, EyeOff, ArrowRight, Chrome, Shield, X, Lightbulb, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { getRolePermissions } from '@/features/auth/lib/rolePermissions';
 import { authClient } from '@/lib/auth-client';
 
 export default function Auth() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
@@ -44,7 +44,7 @@ export default function Auth() {
 
       toast.success(`Logged in successfully!`);
       setIsLoading(false);
-      navigate('/dashboard');
+      router.push('/dashboard');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Login failed');
       setIsLoading(false);
@@ -72,7 +72,7 @@ export default function Auth() {
 
       toast.success('Account created successfully!');
       setIsLoading(false);
-      navigate('/dashboard');
+      router.push('/dashboard');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Registration failed');
       setIsLoading(false);

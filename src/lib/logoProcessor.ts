@@ -1,7 +1,7 @@
 // Background removal using remove.bg API (free tier: 50 images/month)
 // Get API key from: https://www.remove.bg/api
 
-const REMOVEBG_API_KEY = import.meta.env.VITE_REMOVEBG_API_KEY;
+const REMOVEBG_API_KEY = process.env.NEXT_PUBLIC_REMOVEBG_API_KEY;
 
 export async function removeBackground(file: File): Promise<Blob> {
   if (!REMOVEBG_API_KEY) {

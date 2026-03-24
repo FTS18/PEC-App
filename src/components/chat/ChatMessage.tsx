@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 // Generate consistent color for user based on their ID
 const getUserColor = (userId: string) => {

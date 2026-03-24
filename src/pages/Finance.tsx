@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import {
   DollarSign,
   Plus,
@@ -14,7 +14,7 @@ import {
   ExternalLink,
   Settings,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -50,7 +50,7 @@ import BulkUpload from '@/components/BulkUpload';
 import * as XLSX from 'xlsx';
 
 export default function Finance() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAdmin, user, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [feeRecords, setFeeRecords] = useState<any[]>([]);
@@ -138,7 +138,7 @@ export default function Finance() {
     if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
@@ -288,7 +288,7 @@ export default function Finance() {
           {isAdmin && (
             <Button 
               variant="outline" 
-              onClick={() => navigate('/admin/payment-settings')} 
+              onClick={() => router.push('/admin/payment-settings')} 
               className="flex-1 lg:flex-none"
               title="Configure payment method (Razorpay or UPI)"
             >
@@ -408,7 +408,7 @@ export default function Finance() {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center justify-end gap-2">
-                        <Button variant="ghost" size="sm" onClick={() => navigate(`/finance/${fee.id}`)}>
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/finance/${fee.id}`)}>
                           <ExternalLink className="w-4 h-4" />
                         </Button>
                         {isAdmin && (

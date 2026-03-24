@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -24,7 +24,7 @@ import {
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
 
@@ -64,7 +64,7 @@ interface Props {
 }
 
 export default function PaymentSettings({ embedded }: Props) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, isAdmin, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -90,7 +90,7 @@ export default function PaymentSettings({ embedded }: Props) {
   useEffect(() => {
     if (authLoading) return;
     if (!user || !isAdmin) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
@@ -224,7 +224,7 @@ export default function PaymentSettings({ embedded }: Props) {
     >
       {/* Back Button */}
       {!embedded && (
-        <Button variant="ghost" onClick={() => navigate('/finance')} className="gap-2">
+        <Button variant="ghost" onClick={() => router.push('/finance')} className="gap-2">
           <ArrowLeft className="w-4 h-4" />
           Back to Finance
         </Button>
@@ -598,7 +598,7 @@ export default function PaymentSettings({ embedded }: Props) {
           <Button
             variant="outline"
             size="lg"
-            onClick={() => navigate('/finance')}
+            onClick={() => router.push('/finance')}
           >
             Cancel
           </Button>

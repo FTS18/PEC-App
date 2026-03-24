@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   BookOpen,
@@ -36,7 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useDepartmentFilter } from '@/hooks/useDepartmentFilter';
 import BulkUpload from '@/components/BulkUpload';
@@ -67,7 +67,7 @@ interface Course {
 }
 
 export default function Courses() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { permissions, isAdmin, isFaculty, isStudent, user, role, loading: authLoading } = usePermissions();
   const { filterByDepartment, canManageItem } = useDepartmentFilter();
   const [loading, setLoading] = useState(true);
@@ -243,7 +243,7 @@ export default function Courses() {
     if (authLoading) return;
     
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 

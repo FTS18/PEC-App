@@ -1,12 +1,12 @@
-import { useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
 import { StudentDashboard } from './dashboards/StudentDashboard';
 import { AdminDashboard } from './dashboards/AdminDashboard';
 
 export function Dashboard() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, loading, isAuthenticated } = useAuth();
 
   const role = useMemo(() => user?.role ?? null, [user?.role]);
@@ -16,12 +16,12 @@ export function Dashboard() {
 
     // If not authenticated, redirect to auth
     if (!isAuthenticated || !user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
     if (!user.role) {
-      navigate('/role-selection', { replace: true });
+      router.replace('/role-selection');
       return;
     }
   }, [loading, isAuthenticated, user, navigate]);

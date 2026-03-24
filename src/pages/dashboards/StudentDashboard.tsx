@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   BookOpen,
@@ -20,7 +20,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -77,7 +77,7 @@ const isNotFoundError = (error: unknown) =>
   !!(error as any)?.response && (error as any).response.status === 404;
 
 export function StudentDashboard() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
@@ -101,12 +101,12 @@ export function StudentDashboard() {
     if (authLoading) return;
 
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
     if (user.role !== 'student') {
-      navigate('/dashboard', { replace: true });
+      router.replace('/dashboard');
       return;
     }
 
@@ -388,7 +388,7 @@ export function StudentDashboard() {
         <motion.div 
             variants={item} 
             className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
-            onClick={() => navigate(orgSlug ? `/${orgSlug}/examinations` : '/examinations')}
+            onClick={() => router.push(orgSlug ? `/${orgSlug}/examinations` : '/examinations')}
         >
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-foreground/10">
@@ -404,7 +404,7 @@ export function StudentDashboard() {
         <motion.div 
             variants={item} 
           className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
-            onClick={() => navigate(orgSlug ? `/${orgSlug}/attendance` : '/attendance')}
+            onClick={() => router.push(orgSlug ? `/${orgSlug}/attendance` : '/attendance')}
         >
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-success/10">
@@ -420,7 +420,7 @@ export function StudentDashboard() {
         <motion.div 
             variants={item} 
           className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
-            onClick={() => navigate(orgSlug ? `/${orgSlug}/courses` : '/courses')}
+            onClick={() => router.push(orgSlug ? `/${orgSlug}/courses` : '/courses')}
         >
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-foreground/10">
@@ -443,7 +443,7 @@ export function StudentDashboard() {
               <BookOpen className="w-5 h-5 text-accent" />
               My Enrolled Courses
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate(orgSlug ? `/${orgSlug}/courses` : '/courses')}>
+            <Button variant="ghost" size="sm" onClick={() => router.push(orgSlug ? `/${orgSlug}/courses` : '/courses')}>
               View All
               <ArrowUpRight className="w-4 h-4 ml-1" />
             </Button>
@@ -455,14 +455,14 @@ export function StudentDashboard() {
                 title="No active enrollments"
                 description="Enroll in a course to see your course cards here."
                 actionLabel="Browse courses"
-                onAction={() => navigate(orgSlug ? `/${orgSlug}/courses` : '/courses')}
+                onAction={() => router.push(orgSlug ? `/${orgSlug}/courses` : '/courses')}
               />
             ) : (
               enrolledCoursesList.slice(0, 4).map((course, idx) => (
                 <div 
                     key={idx} 
                     className="p-4 rounded-xl border border-border bg-card/50 hover:bg-accent/50 hover:border-accent transition-all group cursor-pointer relative overflow-hidden"
-                    onClick={() => navigate(orgSlug ? `/${orgSlug}/courses/${course.id}` : `/courses/${course.id}`)}
+                    onClick={() => router.push(orgSlug ? `/${orgSlug}/courses/${course.id}` : `/courses/${course.id}`)}
                 >
                   <div className="flex items-start justify-between relative z-10">
                     <div>
@@ -480,7 +480,7 @@ export function StudentDashboard() {
             )}
             {enrolledCoursesList.length > 4 && (
                 <div className="col-span-2 flex justify-center mt-2">
-                    <Button variant="link" size="sm" onClick={() => navigate(orgSlug ? `/${orgSlug}/courses` : '/courses')} className="text-xs text-muted-foreground">
+                    <Button variant="link" size="sm" onClick={() => router.push(orgSlug ? `/${orgSlug}/courses` : '/courses')} className="text-xs text-muted-foreground">
                         +{enrolledCoursesList.length - 4} more courses
                     </Button>
                 </div>
@@ -495,7 +495,7 @@ export function StudentDashboard() {
               <Calendar className="w-5 h-5 text-primary" />
               {scheduleDay}'s Schedule
             </h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate(orgSlug ? `/${orgSlug}/timetable` : '/timetable')}>
+            <Button variant="ghost" size="sm" onClick={() => router.push(orgSlug ? `/${orgSlug}/timetable` : '/timetable')}>
               Full
               <ArrowUpRight className="w-4 h-4 ml-1" />
             </Button>
@@ -541,7 +541,7 @@ export function StudentDashboard() {
          {/* Grades History */}
          <div 
           className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
-            onClick={() => navigate(orgSlug ? `/${orgSlug}/examinations` : '/examinations')}
+            onClick={() => router.push(orgSlug ? `/${orgSlug}/examinations` : '/examinations')}
          >
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-6">
                <TrendingUp className="w-5 h-5 text-primary" />
@@ -603,7 +603,7 @@ export function StudentDashboard() {
          {/* Attendance Overview (Quick Graph) */}
          <div 
           className="card-elevated ui-card-pad cursor-pointer hover:bg-muted/50 transition-colors duration-150"
-            onClick={() => navigate(orgSlug ? `/${orgSlug}/attendance` : '/attendance')}
+            onClick={() => router.push(orgSlug ? `/${orgSlug}/attendance` : '/attendance')}
          >
             <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-6">
                <ClipboardCheck className="w-5 h-5 text-success" />

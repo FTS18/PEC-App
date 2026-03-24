@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+﻿import { useState, useEffect } from 'react';
+import { Outlet, useRouter, usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Sidebar } from './Sidebar';
@@ -12,8 +12,8 @@ import type { UserRole } from '@/types';
 
 
 export function MainLayout() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const location = usePathname();
+  const router = useRouter();
   const { user, loading, isAuthenticated } = useAuth();
   
   // Initialize from localStorage, default to false
@@ -58,21 +58,21 @@ export function MainLayout() {
 
     if (!isAuthenticated || !user) {
       if (location.pathname !== '/auth') {
-        navigate('/auth', { replace: true });
+        router.replace('/auth');
       }
       return;
     }
 
     if (!user.role) {
       if (location.pathname !== '/role-selection') {
-        navigate('/role-selection', { replace: true });
+        router.replace('/role-selection');
       }
       return;
     }
 
     if (!user.profileComplete) {
       if (location.pathname !== '/onboarding') {
-        navigate('/onboarding', { replace: true });
+        router.replace('/onboarding');
       }
     }
   }, [loading, isAuthenticated, user, navigate, location.pathname]);

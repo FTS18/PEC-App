@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -16,7 +16,7 @@ import {
   Crown,
   MoreVertical,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -41,7 +41,7 @@ import api from '@/lib/api';
 import { usePermissions } from '@/hooks/usePermissions';
 
 export default function Faculty() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAdmin, user, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [faculty, setFaculty] = useState<any[]>([]);
@@ -139,13 +139,13 @@ export default function Faculty() {
     if (authLoading) return;
 
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
     if (!isAdmin) {
       toast.error('Access denied. Admin only.');
-      navigate('/dashboard', { replace: true });
+      router.replace('/dashboard');
       return;
     }
 
@@ -408,7 +408,7 @@ export default function Faculty() {
                   <tr 
                     key={fac.id} 
                     className="hover:bg-muted/20 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/users/${fac.id}`)}
+                    onClick={() => router.push(`/users/${fac.id}`)}
                   >
                     <td className="p-4 font-medium text-foreground">{fac.employeeId || 'N/A'}</td>
                     <td className="p-4 text-foreground">{fac.fullName}</td>

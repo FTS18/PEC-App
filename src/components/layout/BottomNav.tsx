@@ -1,5 +1,5 @@
 
-import { NavLink, useLocation, useParams } from 'react-router-dom';
+import { NavLink, usePathname, useParams } from 'next/navigation';
 import { 
   LayoutDashboard, 
   MessageCircle, 
@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 export function BottomNav() {
-  const location = useLocation();
+  const location = usePathname();
   const { orgSlug } = useParams<{ orgSlug: string }>();
 
   const navItems = [

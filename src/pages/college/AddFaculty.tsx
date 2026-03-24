@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+﻿import { motion } from 'framer-motion';
+import { Link, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 export function AddFaculty() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -24,7 +24,7 @@ export function AddFaculty() {
       title: "Faculty Added",
       description: "New faculty member has been added successfully.",
     });
-    navigate('/faculty');
+    router.push('/faculty');
   };
 
   return (
@@ -35,7 +35,7 @@ export function AddFaculty() {
     >
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link to="/faculty">
+        <Link href="/faculty">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -138,7 +138,7 @@ export function AddFaculty() {
           <Button type="submit" variant="gradient" className="flex-1">
             Add Faculty
           </Button>
-          <Link to="/faculty" className="flex-1">
+          <Link href="/faculty" className="flex-1">
             <Button type="button" variant="outline" className="w-full">
               Cancel
             </Button>

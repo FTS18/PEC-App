@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link } from 'next/navigation';
 import { 
   Settings, 
   ArrowLeft,
@@ -96,7 +96,7 @@ export default function SettingsPrivacy() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to="/help">
+        <Link href="/help">
           <Button variant="ghost" size="sm" className="mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Help
@@ -203,7 +203,7 @@ export default function SettingsPrivacy() {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" asChild>
-                          <Link to="/settings">Open Settings</Link>
+                          <Link href="/settings">Open Settings</Link>
                         </Button>
                       </div>
                     </CardContent>

@@ -9,8 +9,8 @@ export function getCloudinaryConfig(orgSettings?: {
 }) {
   // Use org settings if available, otherwise fall back to env
   return {
-    cloudName: orgSettings?.cloudinary?.cloudName || import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "demo",
-    uploadPreset: orgSettings?.cloudinary?.uploadPreset || import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "ml_default"
+    cloudName: orgSettings?.cloudinary?.cloudName || process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || "demo",
+    uploadPreset: orgSettings?.cloudinary?.uploadPreset || process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || "ml_default"
   };
 }
 

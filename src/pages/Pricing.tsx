@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { Check, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link } from "next/navigation";
 
 const plans = [
   {
@@ -170,7 +170,7 @@ export function Pricing() {
                       size="sm"
                       className="w-full bg-white text-foreground hover:bg-white/90 font-semibold text-xs"
                     >
-                      <Link to="/onboarding" className="flex items-center justify-center gap-1">
+                      <Link href="/onboarding" className="flex items-center justify-center gap-1">
                         {plan.cta}
                         <ArrowRight className="w-3 h-3" />
                       </Link>
@@ -222,7 +222,7 @@ export function Pricing() {
                 asChild
                 className="w-full mb-8 bg-white text-foreground hover:bg-white/90 font-semibold shadow-lg"
               >
-                <Link to="/onboarding" className="flex items-center justify-center gap-2">
+                <Link href="/onboarding" className="flex items-center justify-center gap-2">
                   {plan.cta}
                   <ArrowRight className="w-4 h-4" />
                 </Link>

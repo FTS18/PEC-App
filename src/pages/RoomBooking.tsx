@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Calendar, MapPin, Clock, Plus, Loader2, Filter } from 'lucide-react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 
 import {

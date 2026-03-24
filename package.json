@@ -2,22 +2,19 @@
   "name": "pec-campus-erp",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "api": "cd server && npm run start:dev",
+    "dev:all": "concurrently \"npm run api\" \"npm run dev\"",
     "dev:docker": "docker compose -f docker-compose.dev.yml up -d",
     "dev:docker:down": "docker compose -f docker-compose.dev.yml down",
     "dev:docker:logs": "docker compose -f docker-compose.dev.yml logs -f --tail=100",
     "dev:docker:restart": "docker compose -f docker-compose.dev.yml restart",
     "prod:docker": "docker compose up -d --build",
-    "prod:docker:down": "docker compose down",
-    "api": "node local-api-server.js",
-    "dev:all": "concurrently \"npm run api\" \"npm run dev\"",
-    "build": "vite build",
-    "build:dev": "vite build --mode development",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "vercel-build": "vite build"
+    "prod:docker:down": "docker compose down"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.2.8",
@@ -73,6 +70,7 @@
     "mongodb": "^7.0.0",
     "mongoose": "^9.1.2",
     "motion": "^12.23.26",
+    "next": "^15.1.6",
     "next-themes": "^0.4.3",
     "openai": "^6.16.0",
     "papaparse": "^5.5.3",
@@ -85,7 +83,6 @@
     "react-hook-form": "^7.61.1",
     "react-markdown": "^10.1.0",
     "react-resizable-panels": "^2.1.9",
-    "react-router-dom": "^6.30.1",
     "recharts": "^2.15.4",
     "remark-gfm": "^4.0.1",
     "sonner": "^1.7.4",
@@ -97,7 +94,6 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@eslint/js": "^9.32.0",
     "@tailwindcss/typography": "^0.5.16",
     "@types/mathjs": "^9.4.1",
     "@types/node": "^22.19.3",
@@ -105,18 +101,13 @@
     "@types/pdfjs-dist": "^2.10.377",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "@vitejs/plugin-react": "^4.3.4",
-    "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.1",
     "eslint": "^9.32.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^15.15.0",
+    "eslint-config-next": "^15.1.6",
+    "globals": "^17.4.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "typescript": "^5.8.3",
-    "typescript-eslint": "^8.38.0",
-    "vite": "^6.0.0"
+    "typescript": "^5.8.3"
   }
 }

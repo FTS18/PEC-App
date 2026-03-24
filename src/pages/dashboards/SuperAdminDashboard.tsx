@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import {
   Building2,
   Users,
@@ -44,7 +44,7 @@ interface Organization {
 }
 
 export function SuperAdminDashboard() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -126,11 +126,11 @@ export function SuperAdminDashboard() {
           <p className="text-muted-foreground">Monitor all organizations and system health</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/organizations')}>
+          <Button variant="outline" onClick={() => router.push('/organizations')}>
             <Building2 className="w-4 h-4" />
             View All Organizations
           </Button>
-          <Button variant="gradient" onClick={() => navigate('/organizations')}>
+          <Button variant="gradient" onClick={() => router.push('/organizations')}>
             <Building2 className="w-4 h-4" />
             Add Organization
           </Button>
@@ -176,7 +176,7 @@ export function SuperAdminDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Organizations</h2>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/organizations')}>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/organizations')}>
                 Manage All
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Button>
@@ -206,7 +206,7 @@ export function SuperAdminDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Recent Activity</h2>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/admin/logs')}>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/admin/logs')}>
                 View Logs
                 <ArrowUpRight className="w-3.5 h-3.5" />
               </Button>
@@ -268,7 +268,7 @@ export function SuperAdminDashboard() {
                 count={3}
               />
             </div>
-            <Button variant="outline" className="w-full mt-4" size="sm" onClick={() => navigate('/admin/approvals')}>
+            <Button variant="outline" className="w-full mt-4" size="sm" onClick={() => router.push('/admin/approvals')}>
               Review All
             </Button>
           </motion.div>

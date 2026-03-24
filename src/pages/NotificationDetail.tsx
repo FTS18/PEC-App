@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+﻿import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -127,7 +127,7 @@ const notifications: NotificationDetail[] = [
 
 export default function NotificationDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   
   const notification = notifications.find(n => n.id === id);
   
@@ -138,7 +138,7 @@ export default function NotificationDetail() {
           title="Notification not found"
           description="This notification may have been removed."
           actionLabel="Back to Notifications"
-          onAction={() => navigate('/notifications')}
+          onAction={() => router.push('/notifications')}
           className="max-w-md mx-auto"
         />
       </div>
@@ -164,7 +164,7 @@ export default function NotificationDetail() {
       className="max-w-3xl mx-auto space-y-6 md:space-y-8"
     >
       {/* Back Button */}
-      <Button variant="ghost" onClick={() => navigate('/notifications')} className="gap-2">
+      <Button variant="ghost" onClick={() => router.push('/notifications')} className="gap-2">
         <ArrowLeft className="w-4 h-4" />
         Back to Notifications
       </Button>
@@ -221,7 +221,7 @@ export default function NotificationDetail() {
               <Button 
                 key={i} 
                 variant={i === 0 ? 'default' : 'outline'}
-                onClick={() => navigate(action.link)}
+                onClick={() => router.push(action.link)}
               >
                 {action.label}
                 <ExternalLink className="w-4 h-4 ml-2" />

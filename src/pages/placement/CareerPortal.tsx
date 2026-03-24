@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams } from 'next/navigation';
 import {
   Briefcase,
   User,
@@ -395,7 +395,7 @@ export default function CareerPortal() {
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Recent Opportunities</h2>
             <Button variant="ghost" asChild>
-              <Link to={buildPath('/placements/jobs')}>
+              <Link href={buildPath('/placements/jobs')}>
                 View All <ChevronRight className="w-4 h-4 ml-1" />
               </Link>
             </Button>
@@ -457,12 +457,12 @@ export default function CareerPortal() {
                   </p>
                   <div className="flex flex-wrap gap-2 mt-3">
                     <Button size="sm" asChild>
-                      <Link to={buildPath('/placements/profile')}>
+                      <Link href={buildPath('/placements/profile')}>
                         Complete Profile
                       </Link>
                     </Button>
                     <Button size="sm" variant="outline" asChild>
-                      <Link to={buildPath('/resume-builder')}>
+                      <Link href={buildPath('/resume-builder')}>
                         Build Resume
                       </Link>
                     </Button>

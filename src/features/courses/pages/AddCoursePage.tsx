@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+﻿import { motion } from 'framer-motion';
+import { Link, useRouter } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +15,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 export function AddCourse() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -24,7 +24,7 @@ export function AddCourse() {
       title: "Course Created",
       description: "New course has been created successfully.",
     });
-    navigate('/courses');
+    router.push('/courses');
   };
 
   return (
@@ -35,7 +35,7 @@ export function AddCourse() {
     >
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link to="/dashboard?role=college_admin">
+        <Link href="/dashboard?role=college_admin">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="w-5 h-5" />
           </Button>
@@ -128,7 +128,7 @@ export function AddCourse() {
           <Button type="submit" variant="gradient" className="flex-1">
             Create Course
           </Button>
-          <Link to="/dashboard?role=college_admin" className="flex-1">
+          <Link href="/dashboard?role=college_admin" className="flex-1">
             <Button type="button" variant="outline" className="w-full">
               Cancel
             </Button>

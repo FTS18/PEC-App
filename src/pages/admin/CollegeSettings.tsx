@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { uploadToCloudinary } from '@/lib/cloudinaryManager';
 import { processLogoImage } from '@/lib/logoProcessor';
 import { doc, getDoc, setDoc, serverTimestamp } from '@/lib/dataClient';
@@ -42,7 +42,7 @@ interface Props {
 }
 
 export default function CollegeSettings({ embedded }: Props) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, isAdmin, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -72,7 +72,7 @@ export default function CollegeSettings({ embedded }: Props) {
   useEffect(() => {
     if (authLoading) return;
     if (!user || !isAdmin) {
-      navigate('/dashboard');
+      router.push('/dashboard');
       return;
     }
 
@@ -290,7 +290,7 @@ export default function CollegeSettings({ embedded }: Props) {
     >
       {/* Back Button */}
       {!embedded && (
-        <Button variant="ghost" onClick={() => navigate('/dashboard')} className="gap-2">
+        <Button variant="ghost" onClick={() => router.push('/dashboard')} className="gap-2">
           <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
         </Button>
@@ -643,7 +643,7 @@ export default function CollegeSettings({ embedded }: Props) {
           <Button
             variant="outline"
             size="lg"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => router.push('/dashboard')}
           >
             Cancel
           </Button>

@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import type { ElementType } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import axios from 'axios';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -20,7 +20,7 @@ import { GraduationCap, Users, Building2, Loader2, CheckCircle2 } from 'lucide-r
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type StudentFormData = {
   enrollmentNumber: string;
@@ -64,7 +64,7 @@ const roleLabels: Record<UserRole, string> = {
 };
 
 export default function Onboarding() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, token, loading: authLoading } = useAuth();
 
   const [checking, setChecking] = useState(true);
@@ -103,17 +103,17 @@ export default function Onboarding() {
     if (authLoading) return;
 
     if (!user || !token) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
     if (!user.role) {
-      navigate('/role-selection', { replace: true });
+      router.replace('/role-selection');
       return;
     }
 
     if (user.profileComplete) {
-      navigate('/dashboard', { replace: true });
+      router.replace('/dashboard');
       return;
     }
 
@@ -141,7 +141,7 @@ export default function Onboarding() {
 
     window.dispatchEvent(new Event('auth-change'));
     toast.success('Profile completed successfully');
-    navigate('/dashboard', { replace: true });
+    router.replace('/dashboard');
   };
 
   const onSubmit = async (event: React.FormEvent) => {

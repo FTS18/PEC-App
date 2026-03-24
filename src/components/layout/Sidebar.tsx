@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   IconLayoutDashboard,
@@ -180,7 +181,7 @@ export function Sidebar({
   mobileMenuOpen, 
   onMobileClose 
 }: SidebarProps) {
-  const location = useLocation();
+  const location = usePathname();
   const appLogoSrc = '/logo.png';
   const filteredItems = navItems.filter((item) => item.roles.includes(role));
   const sectionConfig: Array<{ title: string; paths: string[] }> = [
@@ -210,7 +211,7 @@ export function Sidebar({
     .filter((section) => section.items.length > 0);
 
   const renderNavItem = (item: NavItem) => {
-    const currentPath = location.pathname;
+    const currentPath = location ?? '';
     let isActive = false;
 
     if (item.path === '/settings') {
@@ -231,8 +232,8 @@ export function Sidebar({
 
     return (
       <li key={item.path} className={cn(!collapsed && "flex")}>
-        <NavLink
-          to={item.path}
+        <Link
+          href={item.path}
           onMouseEnter={() => prefetchRoute(item.path)}
           onFocus={() => prefetchRoute(item.path)}
           onPointerDown={() => prefetchRoute(item.path)}
@@ -264,7 +265,7 @@ export function Sidebar({
               </motion.span>
             </AnimatePresence>
           )}
-        </NavLink>
+        </Link>
       </li>
     );
   };
@@ -283,8 +284,8 @@ export function Sidebar({
       };
     }
 
-    const timeout = window.setTimeout(warmup, 120);
-    return () => window.clearTimeout(timeout);
+    const timeout = globalThis.setTimeout(warmup, 120);
+    return () => globalThis.clearTimeout(timeout);
   }, [filteredItems]);
 
   return (

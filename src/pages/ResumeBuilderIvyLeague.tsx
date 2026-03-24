@@ -92,7 +92,7 @@ interface AnalysisResult {
   suggestions: string[];
   keywordMatch: { keyword: string; found: boolean }[];
 }
-const openAiApiKey = import.meta.env.VITE_OPENAI_API_KEY;
+const openAiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
 
 let openAiClientPromise: Promise<any> | null = null;
 let pdfJsPromise: Promise<any> | null = null;
