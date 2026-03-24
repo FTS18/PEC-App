@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-;
+import Link from 'next/link';
 import {
   ArrowLeft,
   Download,
@@ -15,7 +15,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import {
-import Link from 'next/link';
   Select,
   SelectContent,
   SelectItem,

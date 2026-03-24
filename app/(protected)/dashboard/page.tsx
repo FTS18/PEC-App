@@ -2,11 +2,33 @@
 
 import { useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-;
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Loader2 } from 'lucide-react';
-import { StudentDashboard } from './dashboards/StudentDashboard';
-import { AdminDashboard } from './dashboards/AdminDashboard';
+
+const StudentDashboard = dynamic(
+  () => import('./dashboards/StudentDashboard').then((mod) => mod.StudentDashboard),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
+
+const AdminDashboard = dynamic(
+  () => import('./dashboards/AdminDashboard').then((mod) => mod.AdminDashboard),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
 
 export default function Dashboard() {
   const router = useRouter();

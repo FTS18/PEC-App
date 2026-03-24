@@ -14,7 +14,7 @@ import { ExaminationsModule } from './examinations/examinations.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { FeatureFlagsModule } from './feature-flags/feature-flags.module';
 import { BackgroundJobsModule } from './background-jobs/background-jobs.module';
-import { FeeRecordsModule } from './fee-records/fee-records.module';
+
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 import { InputSanitizationMiddleware } from './common/middleware/input-sanitization.middleware';
@@ -34,7 +34,6 @@ import { RequestLoggingMiddleware } from './common/middleware/request-logging.mi
     DepartmentsModule,
     FeatureFlagsModule,
     BackgroundJobsModule,
-    FeeRecordsModule,
   ],
   controllers: [AppController],
   providers: [

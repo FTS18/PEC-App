@@ -2,12 +2,10 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Bot, Send, Sparkles, X, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import OpenAI from "openai";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import api from "@/lib/api";
-import { string } from "mathjs";
 
 // Dummy data-client stubs
 const collection = (...args: any) => {};
@@ -17,21 +15,6 @@ const getDocs = async (...args: any) => ({ empty: true, docs: [] });
 const query = (...args: any) => {};
 const where = (...args: any) => {};
 const limit = (...args: any) => {};
-
-// Initialize OpenAI only if API key is available
-let openai: OpenAI | null = null;
-try {
-  const apiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-  if (apiKey) {
-    openai = new OpenAI({
-      apiKey,
-      dangerouslyAllowBrowser: true,
-      baseURL: "https://models.github.ai/inference",
-    });
-  }
-} catch (error) {
-  console.warn("OpenAI API key not configured. AI chat will be disabled.");
-}
 
 const SYSTEM_PROMPT = `
 You are the PEC AI Assistant. 
@@ -282,19 +265,6 @@ const FloatingAIChat = () => {
     setIsTyping(true);
 
     try {
-      // Check if OpenAI is configured
-      if (!openai) {
-        const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: "⚠️ AI Chat is not configured. Please set the VITE_OPENAI_API_KEY environment variable to enable this feature.",
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, errorMessage]);
-        setIsTyping(false);
-        return;
-      }
-
       const attendanceData = context?.attendance || [];
       const present = attendanceData.filter(
         (a) => a.status === "present",
@@ -339,32 +309,42 @@ const FloatingAIChat = () => {
             .join(" | ") || "No fee records",
       };
 
-      const completion = await openai!.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `${SYSTEM_PROMPT} 
-            
-            PERSONALIZED STUDENT DATA:
-            ${JSON.stringify(studentSummary, null, 2)}
-            use this data 
-            
-            Strictly answer questions based on this data. Use the student's name (${studentSummary.name}) to personalize your response.`,
-          },
-          ...messages
-            .slice(-6)
-            .map((m) => ({ role: m.role, content: m.content })),
-          { role: "user", content: userText },
-        ] as any,
+      const completionResponse = await fetch("/api/openai", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            {
+              role: "system",
+              content: `${SYSTEM_PROMPT} 
+              
+              PERSONALIZED STUDENT DATA:
+              ${JSON.stringify(studentSummary, null, 2)}
+              use this data 
+              
+              Strictly answer questions based on this data. Use the student's name (${studentSummary.name}) to personalize your response.`,
+            },
+            ...messages
+              .slice(-6)
+              .map((m) => ({ role: m.role, content: m.content })),
+            { role: "user", content: userText },
+          ],
+        }),
       });
+
+      if (!completionResponse.ok) {
+        throw new Error("AI proxy request failed");
+      }
+
+      const completion = await completionResponse.json();
 
       const aiResponse: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content:
-          completion.choices[0].message.content ||
-          "I couldn't process that request.",
+        content: completion?.choices?.[0]?.message?.content || "I couldn't process that request.",
         timestamp: new Date(),
       };
       console.log(context);

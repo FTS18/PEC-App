@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-;
+import Link from 'next/link';
 import {
   ArrowLeft,
   FileText,
@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
-import Link from 'next/link';
   Select,
   SelectContent,
   SelectItem,

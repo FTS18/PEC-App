@@ -52,7 +52,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
-  const navigate = useRouter();
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
@@ -120,7 +120,7 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
         setLoading(false);
       }
     })();
-  }, [authLoading, user, isAdmin, navigate, viewingOrgId]);
+  }, [authLoading, user, isAdmin, router, viewingOrgId]);
 
   const fetchAdminData = async () => {
     try {
