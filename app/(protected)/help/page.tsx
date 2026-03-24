@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-;
+import Link from 'next/link';
 import { 
   HelpCircle, 
   Search, 
@@ -21,7 +21,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-import Link from 'next/link';
   Accordion,
   AccordionContent,
   AccordionItem,

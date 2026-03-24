@@ -39,9 +39,7 @@ import { authClient } from '@/lib/auth-client';
 import { LoadingGrid } from '@/components/common/AsyncState';
 // Admin Settings
 import CollegeSettings from './admin/CollegeSettings';
-import PaymentSettings from './admin/PaymentSettings';
-import PlacementSettingsPage from './admin/PlacementSettings';
-import { Building2, CreditCard, Cog } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 
 interface ConnectedAccount {
   id: string;
@@ -76,9 +74,7 @@ export default function Settings() {
     email: true,
     push: true,
     sms: false,
-    placements: true,
     attendance: true,
-    grades: true,
     deadlines: true,
   });
 
@@ -138,7 +134,7 @@ export default function Settings() {
     };
 
     void loadUserData();
-  }, [authLoading, navigate, profilePrefsKey, user]);
+  }, [authLoading, profilePrefsKey, router, user]);
 
   const saveLocalProfilePrefs = (changes: Record<string, any>) => {
     if (!profilePrefsKey) return;
@@ -253,14 +249,6 @@ export default function Settings() {
               <TabsTrigger value="college" className="gap-2">
                 <Building2 className="w-4 h-4" />
                 College
-              </TabsTrigger>
-              <TabsTrigger value="payment" className="gap-2">
-                <CreditCard className="w-4 h-4" />
-                Payment
-              </TabsTrigger>
-              <TabsTrigger value="placement" className="gap-2">
-                <Cog className="w-4 h-4" />
-                Placement
               </TabsTrigger>
             </>
           )}
@@ -437,10 +425,8 @@ export default function Settings() {
               <h3 className="font-semibold text-foreground mb-6">Notification Types</h3>
               <div className="space-y-4">
                 {[
-                  { key: 'placements', label: 'Placement Updates', description: 'New jobs and application status' },
                   { key: 'attendance', label: 'Attendance Alerts', description: 'Low attendance warnings' },
-                  { key: 'grades', label: 'Grade Updates', description: 'New grades and results' },
-                  { key: 'deadlines', label: 'Deadline Reminders', description: 'Assignment and fee deadlines' },
+                  { key: 'deadlines', label: 'Deadline Reminders', description: 'Course and exam deadlines' },
                 ].map((item) => (
                   <div key={item.key} className="flex items-center justify-between py-3 border-b border-border last:border-0">
                     <div>
@@ -705,12 +691,6 @@ export default function Settings() {
           <>
             <TabsContent value="college">
               <CollegeSettings embedded={true} />
-            </TabsContent>
-            <TabsContent value="payment">
-              <PaymentSettings embedded={true} />
-            </TabsContent>
-            <TabsContent value="placement">
-              <PlacementSettingsPage embedded={true} />
             </TabsContent>
           </>
         )}

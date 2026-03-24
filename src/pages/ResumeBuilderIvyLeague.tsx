@@ -92,23 +92,22 @@ interface AnalysisResult {
   suggestions: string[];
   keywordMatch: { keyword: string; found: boolean }[];
 }
-const openAiApiKey = process.env.NEXT_PUBLIC_OPENAI_API_KEY;
-
-let openAiClientPromise: Promise<any> | null = null;
 let pdfJsPromise: Promise<any> | null = null;
 
-const getOpenAiClient = async () => {
-  if (!openAiApiKey) return null;
-  if (!openAiClientPromise) {
-    openAiClientPromise = import("openai").then(({ default: OpenAI }) =>
-      new OpenAI({
-        apiKey: openAiApiKey,
-        dangerouslyAllowBrowser: true,
-        baseURL: "https://models.github.ai/inference",
-      })
-    );
+const callOpenAI = async (payload: unknown) => {
+  const response = await fetch('/api/openai', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new Error('AI proxy request failed');
   }
-  return openAiClientPromise;
+
+  return response.json();
 };
 
 const getPdfJs = async () => {
@@ -527,12 +526,6 @@ const handleAnalyze = async (customFile?: File) => {
       return;
     }
 
-    const openai = await getOpenAiClient();
-    if (!openai) {
-      toast.error("AI is not configured. Set VITE_OPENAI_API_KEY to enable analysis.");
-      return;
-    }
-
     setIsAnalyzing(true);
     setAnalysisResult(null);
 
@@ -554,7 +547,7 @@ const handleAnalyze = async (customFile?: File) => {
         resumeContext = JSON.stringify(resumeData, null, 2);
       }
 
-      const response = await openai.chat.completions.create({
+      const response = await callOpenAI({
         model: "gpt-4o-mini", // Optimized for high-speed text analysis
         messages: [
           {

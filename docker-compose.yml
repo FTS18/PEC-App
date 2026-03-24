@@ -24,7 +24,7 @@ services:
       JWT_SECRET: "pec_secret_key_2026"
       PORT: "3000"
       NODE_ENV: "production"
-      CORS_ORIGINS: "http://localhost:5173"
+      CORS_ORIGINS: "http://localhost:3001"
       DB_HOST: "postgres"
       DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/pec"
     command: >
@@ -42,10 +42,11 @@ services:
     container_name: pec_frontend
     restart: always
     ports:
-      - "5173:5173"
+      - "3001:3000"
     environment:
+      NEXT_PUBLIC_API_URL: "http://localhost:3000"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
       VITE_API_URL: "http://localhost:3000"
-      VITE_OPENAI_API_KEY: "${VITE_OPENAI_API_KEY:-}"
     depends_on:
       - backend
 
