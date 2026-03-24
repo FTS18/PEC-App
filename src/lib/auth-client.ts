@@ -237,12 +237,15 @@ class AuthClient {
   }
 
   async requestPasswordReset(email: string): Promise<{ accepted: boolean }> {
-    const response = await fetch(`${API_BASE_URL}/auth/request-password-reset`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-      credentials: "include",
-    });
+    const response = await fetch(
+      `${API_BASE_URL}/auth/request-password-reset`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+        credentials: "include",
+      },
+    );
 
     if (!response.ok) {
       const message = await this.parseErrorMessage(

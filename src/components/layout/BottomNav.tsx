@@ -8,7 +8,6 @@ import {
   User 
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
 
 export function BottomNav() {
   const pathname = usePathname() || '/';
@@ -63,10 +62,7 @@ export function BottomNav() {
               <div className="relative">
                 <item.icon className={cn("w-6 h-6", isActive && "fill-current")} />
                 {isActive && (
-                    <motion.div
-                        layoutId="bottom-nav-indicator"
-                        className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full"
-                    />
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
                 )}
               </div>
               <span className="text-[10px] font-medium">{item.label}</span>
