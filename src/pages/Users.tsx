@@ -1,4 +1,4 @@
-import { useDeferredValue, useMemo, useState, useEffect } from 'react';
+﻿import { useDeferredValue, useMemo, useState, useEffect } from 'react';
 import { exportUserListPDF } from '@/lib/pdfExport';
 import PDFExportButton from '@/components/common/PDFExportButton';
 import {
@@ -13,7 +13,7 @@ import {
   Download,
   Key,
 } from 'lucide-react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useRouter, useParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -49,7 +49,7 @@ import { VirtualList } from '@/components/ui/virtual-list';
 import api from '@/lib/api';
 
 export default function Users() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const { isAdmin, isFaculty, user, loading: authLoading } = usePermissions();
   const { filterByDepartment, canManageItem, userDepartment } = useDepartmentFilter();
@@ -80,14 +80,14 @@ export default function Users() {
     if (authLoading) return;
 
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
     // Check access permissions
     if (!isAdmin && !isFaculty) {
       toast.error('Access denied.');
-      navigate('/dashboard');
+      router.push('/dashboard');
       return;
     }
 
@@ -525,7 +525,7 @@ export default function Users() {
               <div
                 key={user.id}
                 className="grid grid-cols-[1.4fr_1.6fr_0.9fr_0.7fr_0.9fr] gap-4 items-center border-b border-border px-[var(--table-cell-x)] py-[var(--table-cell-y)] hover:bg-muted/20 cursor-pointer transition-colors duration-150"
-                onClick={() => navigate(`/users/${user.id}`)}
+                onClick={() => router.push(`/users/${user.id}`)}
               >
                 <div className="font-medium text-foreground truncate">{user.fullName}</div>
                 <div className="text-muted-foreground truncate">{user.email}</div>

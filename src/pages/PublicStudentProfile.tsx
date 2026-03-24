@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   User,
@@ -18,7 +18,7 @@ import {
   Loader2,
   AlertTriangle
 } from 'lucide-react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -41,7 +41,7 @@ const item = {
 
 export default function PublicStudentProfile() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [profileData, setProfileData] = useState<any>(null);
@@ -131,10 +131,10 @@ export default function PublicStudentProfile() {
   const handleMessage = () => {
     if (!user) {
       toast.error('Please login to message this student');
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
-    navigate(`/chat?userId=${id}`);
+    router.push(`/chat?userId=${id}`);
   };
 
   if (loading) {
@@ -153,7 +153,7 @@ export default function PublicStudentProfile() {
         </div>
         <h1 className="text-2xl font-bold mb-2">User not found</h1>
         <p className="text-muted-foreground mb-6">The profile you are looking for does not exist.</p>
-        <Button onClick={() => navigate('/')}>Go Home</Button>
+        <Button onClick={() => router.push('/')}>Go Home</Button>
       </div>
     );
   }
@@ -166,7 +166,7 @@ export default function PublicStudentProfile() {
         </div>
         <h1 className="text-2xl font-bold mb-2">Private Profile</h1>
         <p className="text-muted-foreground mb-6">This student has kept their profile private.</p>
-        <Button onClick={() => navigate('/')}>Go Home</Button>
+        <Button onClick={() => router.push('/')}>Go Home</Button>
       </div>
     );
   }

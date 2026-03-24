@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Calendar, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "next/navigation";
 
 const posts = [
   {

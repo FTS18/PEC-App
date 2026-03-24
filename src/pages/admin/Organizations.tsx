@@ -1,6 +1,6 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useRouter } from 'next/navigation';
 import {
   Building2,
   Search,
@@ -102,7 +102,7 @@ const mockOrganizations = [
 
 export function Organizations() {
   const [searchQuery, setSearchQuery] = useState('');
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const filteredOrgs = mockOrganizations.filter(org =>
     org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -122,7 +122,7 @@ export function Organizations() {
           <h1 className="text-2xl font-bold text-foreground">Organizations</h1>
           <p className="text-muted-foreground">Manage all enrolled universities and institutions</p>
         </div>
-        <Button variant="gradient" onClick={() => navigate('/admin/organizations/new')}>
+        <Button variant="gradient" onClick={() => router.push('/admin/organizations/new')}>
           <Plus className="w-4 h-4" />
           Add Organization
         </Button>
@@ -242,7 +242,7 @@ function OrgCard({ org }: OrgCardProps) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link to={`/admin/organizations/${org.id}`}>View Details</Link>
+                <Link href={`/admin/organizations/${org.id}`}>View Details</Link>
               </DropdownMenuItem>
               <DropdownMenuItem>Edit Organization</DropdownMenuItem>
               <DropdownMenuItem>Manage Admin</DropdownMenuItem>

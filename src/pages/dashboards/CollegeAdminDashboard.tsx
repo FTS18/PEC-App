@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useRouter } from 'next/navigation';
 import {
   Users,
   GraduationCap,
@@ -37,7 +37,7 @@ const item = {
 };
 
 export function CollegeAdminDashboard() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, loading: authLoading, isAdmin } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -55,13 +55,13 @@ export function CollegeAdminDashboard() {
     if (authLoading) return;
 
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
     if (!isAdmin) {
       toast.error('Access denied');
-      navigate('/dashboard', { replace: true });
+      router.replace('/dashboard');
       return;
     }
 
@@ -154,13 +154,13 @@ export function CollegeAdminDashboard() {
           <p className="text-muted-foreground">Manage your college operations and analytics</p>
         </div>
         <div className="flex gap-2">
-          <Link to="/reports">
+          <Link href="/reports">
             <Button variant="outline">
               <BarChart3 className="w-4 h-4 mr-2" />
               Reports
             </Button>
           </Link>
-          <Link to="/users/add">
+          <Link href="/users/add">
             <Button>
               <Users className="w-4 h-4 mr-2" />
               Add User
@@ -221,7 +221,7 @@ export function CollegeAdminDashboard() {
                     <motion.div variants={item} className="card-elevated p-6">
                         <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-semibold text-foreground">Department Overview</h2>
-                        <Link to="/departments">
+                        <Link href="/departments">
                             <Button variant="ghost" size="sm">
                             View All
                             <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
@@ -248,13 +248,13 @@ export function CollegeAdminDashboard() {
                 <div className="space-y-6">
                      <motion.div variants={item} className="card-elevated p-6">
                          <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
-                         <Link to="/courses/add">
+                         <Link href="/courses/add">
                              <Button variant="outline" size="sm" className="justify-start w-full">
                                  <BookOpen className="w-4 h-4 mr-2" />
                                  New Course
                              </Button>
                          </Link>
-                         <Link to="/timetable" className="mt-2 block">
+                         <Link href="/timetable" className="mt-2 block">
                              <Button variant="outline" size="sm" className="justify-start w-full">
                                  <Calendar className="w-4 h-4 mr-2" />
                                  Schedule
@@ -273,7 +273,7 @@ export function CollegeAdminDashboard() {
                     <motion.div variants={item} className="card-elevated p-6">
                         <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-semibold text-foreground">Recent Admissions</h2>
-                        <Link to="/users">
+                        <Link href="/users">
                             <Button variant="ghost" size="sm">
                             View All
                             <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
@@ -306,7 +306,7 @@ export function CollegeAdminDashboard() {
                             <p className="text-sm text-muted-foreground mt-1">
                             Pending profile approvals
                             </p>
-                            <Link to="/users?filter=pending">
+                            <Link href="/users?filter=pending">
                                 <Button size="sm" variant="link" className="px-0 h-auto mt-2 text-orange-600">Review</Button>
                             </Link>
                         </div>
@@ -314,7 +314,7 @@ export function CollegeAdminDashboard() {
                     </motion.div>
                     <motion.div variants={item} className="card-elevated p-6">
                          <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
-                         <Link to="/users/add">
+                         <Link href="/users/add">
                              <Button variant="outline" size="sm" className="justify-start w-full">
                                  <Users className="w-4 h-4 mr-2" />
                                  Add Faculty
@@ -333,7 +333,7 @@ export function CollegeAdminDashboard() {
                       <motion.div variants={item} className="card-elevated p-6">
                         <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-semibold text-foreground">Fee Collection Status</h2>
-                        <Link to="/finance">
+                        <Link href="/finance">
                             <Button variant="ghost" size="sm">
                             Financial Report
                             <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
@@ -366,7 +366,7 @@ export function CollegeAdminDashboard() {
                  <div className="space-y-6">
                      <motion.div variants={item} className="card-elevated p-6">
                          <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
-                         <Link to="/finance">
+                         <Link href="/finance">
                              <Button variant="outline" size="sm" className="justify-start w-full">
                                  <CreditCard className="w-4 h-4 mr-2" />
                                  Fee Setup

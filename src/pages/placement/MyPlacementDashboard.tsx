@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Briefcase,
@@ -42,7 +42,7 @@ import {
   doc
 } from '@/lib/dataClient';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useRouter, useParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { format, formatDistanceToNow, isAfter, isBefore, addDays } from 'date-fns';
 import type { JobApplication, ExtendedJob, InterviewSchedule, PlacementProfile } from '@/types';
@@ -74,7 +74,7 @@ const statusConfig: Record<JobApplication['status'], { label: string; color: str
 
 export default function MyPlacementDashboard() {
   const { user } = useAuth();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { orgSlug } = useParams<{ orgSlug: string }>();
   const [loading, setLoading] = useState(true);
   const [applications, setApplications] = useState<(JobApplication & { job?: ExtendedJob })[]>([]);
@@ -229,13 +229,13 @@ export default function MyPlacementDashboard() {
         </div>
         <div className="flex gap-3">
           <Button variant="outline" asChild>
-            <Link to={orgSlug ? `/${orgSlug}/placements/profile` : '/placements/profile'}>
+            <Link href={orgSlug ? `/${orgSlug}/placements/profile` : '/placements/profile'}>
               <FileText className="w-4 h-4 mr-2" />
               Edit Profile
             </Link>
           </Button>
           <Button asChild>
-            <Link to={orgSlug ? `/${orgSlug}/placements/jobs` : '/placements/jobs'}>
+            <Link href={orgSlug ? `/${orgSlug}/placements/jobs` : '/placements/jobs'}>
               <Briefcase className="w-4 h-4 mr-2" />
               Browse Jobs
             </Link>
@@ -256,7 +256,7 @@ export default function MyPlacementDashboard() {
              </div>
           </div>
           <Button variant="destructive" asChild size="sm">
-            <Link to={orgSlug ? `/${orgSlug}/placements/profile` : '/placements/profile'}>
+            <Link href={orgSlug ? `/${orgSlug}/placements/profile` : '/placements/profile'}>
               <FileText className="w-4 h-4 mr-2" />
               Upload Resume
             </Link>
@@ -405,7 +405,7 @@ export default function MyPlacementDashboard() {
                     Start applying to jobs to track your progress here
                   </p>
                   <Button asChild className="mt-4">
-                    <Link to={orgSlug ? `/${orgSlug}/placements/jobs` : '/placements/jobs'}>
+                    <Link href={orgSlug ? `/${orgSlug}/placements/jobs` : '/placements/jobs'}>
                       Browse Jobs
                     </Link>
                   </Button>
@@ -548,7 +548,7 @@ export default function MyPlacementDashboard() {
                     Complete your profile to get personalized job recommendations
                   </p>
                   <Button asChild className="mt-4" variant="outline">
-                    <Link to={orgSlug ? `/${orgSlug}/placements/profile` : '/placements/profile'}>
+                    <Link href={orgSlug ? `/${orgSlug}/placements/profile` : '/placements/profile'}>
                       Complete Profile
                     </Link>
                   </Button>
@@ -558,7 +558,7 @@ export default function MyPlacementDashboard() {
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {recommendedJobs.map((job) => (
                   <Card key={job.id} className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => navigate(orgSlug ? `/${orgSlug}/placements/jobs` : '/placements/jobs')}
+                    onClick={() => router.push(orgSlug ? `/${orgSlug}/placements/jobs` : '/placements/jobs')}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">

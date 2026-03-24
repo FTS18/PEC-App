@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link } from 'next/navigation';
 import { 
   FileText, 
   ArrowLeft,
@@ -98,7 +98,7 @@ export default function AcademicsHelp() {
   return (
     <div className="space-y-6">
       <div>
-        <Link to="/help">
+        <Link href="/help">
           <Button variant="ghost" size="sm" className="mb-4">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Help

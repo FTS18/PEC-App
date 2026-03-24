@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   User,
@@ -32,7 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import api from '@/lib/api';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { usePermissions } from '@/hooks/usePermissions';
 import { authClient } from '@/lib/auth-client';
@@ -65,7 +65,7 @@ const extractData = <T,>(payload: any): T => {
 };
 
 export default function Settings() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
@@ -115,7 +115,7 @@ export default function Settings() {
     if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
@@ -196,7 +196,7 @@ export default function Settings() {
       await authClient.logout();
       window.dispatchEvent(new Event('auth-change'));
       toast.success('Signed out successfully');
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
     } catch (error) {
       console.error('Sign out error:', error);
       toast.error('Failed to sign out');

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   FileText,
@@ -25,7 +25,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useDepartmentFilter } from '@/hooks/useDepartmentFilter';
 import BulkUpload from '@/components/BulkUpload';
@@ -58,7 +58,7 @@ const formatUploadedDate = (uploadedAt: unknown) => {
 };
 
 export default function CourseMaterials() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAdmin, isFaculty, user, loading: authLoading } = usePermissions();
   const { filterByDepartment } = useDepartmentFilter();
   const [loading, setLoading] = useState(true);
@@ -67,7 +67,7 @@ export default function CourseMaterials() {
     if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
     setLoading(false);

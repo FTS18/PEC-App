@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Building2,
@@ -11,7 +11,7 @@ import {
   Upload,
   Download,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -29,7 +29,7 @@ import { usePermissions } from '@/hooks/usePermissions';
 import api from '@/lib/api';
 
 export default function Departments() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, loading: authLoading, isAdmin } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [departments, setDepartments] = useState<any[]>([]);
@@ -49,13 +49,13 @@ export default function Departments() {
     if (authLoading) return;
 
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
     if (!isAdmin) {
       toast.error('Access denied. Admin only.');
-      navigate('/dashboard', { replace: true });
+      router.replace('/dashboard');
       return;
     }
 
@@ -289,7 +289,7 @@ export default function Departments() {
                   <tr 
                     key={dept.id} 
                     className="hover:bg-muted/20 cursor-pointer transition-colors"
-                    onClick={() => navigate(`/departments/${dept.id}`)}
+                    onClick={() => router.push(`/departments/${dept.id}`)}
                   >
                     <td className="p-4 font-medium text-foreground">{dept.code}</td>
                     <td className="p-4 text-foreground">{dept.name}</td>

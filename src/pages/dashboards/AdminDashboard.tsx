@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -16,7 +16,7 @@ import {
   ClipboardCheck,
   GraduationCap,
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -52,7 +52,7 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 
 export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [userData, setUserData] = useState<any>(null);
@@ -98,7 +98,7 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
     if (authLoading) return;
 
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
@@ -106,7 +106,7 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
 
     if (!isAdmin) {
       toast.error('Access denied. Admin only.');
-      navigate('/dashboard', { replace: true });
+      router.replace('/dashboard');
       return;
     }
 
@@ -336,7 +336,7 @@ export function AdminDashboard({ viewingOrgId }: { viewingOrgId?: string }) {
           <Button 
             variant="outline" 
             size="sm"
-            onClick={() => navigate('/admin/college-settings')}
+            onClick={() => router.push('/admin/college-settings')}
             className="gap-2"
           >
             <Settings className="w-4 h-4" />

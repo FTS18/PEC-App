@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+﻿import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   BookOpen,
@@ -108,7 +108,7 @@ const courses: Course[] = [
 
 export default function CourseDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   
   const course = courses.find(c => c.id === id);
   
@@ -117,7 +117,7 @@ export default function CourseDetail() {
       <div className="flex flex-col items-center justify-center py-20">
         <BookOpen className="w-12 h-12 text-muted-foreground mb-4" />
         <h2 className="text-xl font-semibold">Course not found</h2>
-        <Button variant="outline" onClick={() => navigate('/courses')} className="mt-4">
+        <Button variant="outline" onClick={() => router.push('/courses')} className="mt-4">
           Back to Courses
         </Button>
       </div>
@@ -143,7 +143,7 @@ export default function CourseDetail() {
       className="space-y-6"
     >
       {/* Back Button */}
-      <Button variant="ghost" onClick={() => navigate('/courses')} className="gap-2">
+      <Button variant="ghost" onClick={() => router.push('/courses')} className="gap-2">
         <ArrowLeft className="w-4 h-4" />
         Back to Courses
       </Button>

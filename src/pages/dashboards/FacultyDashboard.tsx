@@ -1,6 +1,6 @@
-import { motion } from 'framer-motion';
+﻿import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useRouter, Link } from 'next/navigation';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { exportTimetablePDF, exportAttendanceReport } from '@/lib/pdfExport';
 import PDFExportButton from '@/components/common/PDFExportButton';
@@ -44,7 +44,7 @@ const item = {
 };
 
 export function FacultyDashboard() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [showQRModal, setShowQRModal] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
@@ -57,7 +57,7 @@ export function FacultyDashboard() {
     if (authLoading) return;
 
     if (!user || user.role !== 'faculty') {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
@@ -190,7 +190,7 @@ export function FacultyDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">Today's Schedule</h2>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/timetable')}>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/timetable')}>
                 Full Timetable
                 <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
               </Button>
@@ -235,7 +235,7 @@ export function FacultyDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-foreground">My Courses</h2>
-              <Button variant="ghost" size="sm" onClick={() => navigate('/courses')}>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/courses')}>
                 Manage
                 <ArrowUpRight className="w-3.5 h-3.5 ml-2" />
               </Button>
@@ -329,19 +329,19 @@ export function FacultyDashboard() {
           <motion.div variants={item} className="card-elevated p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">Quick Actions</h2>
             <div className="space-y-2">
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/attendance')}>
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => router.push('/attendance')}>
                 <ClipboardCheck className="w-4 h-4 mr-2" />
                 Mark Attendance
               </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/assignments')}>
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => router.push('/assignments')}>
                 <FileText className="w-4 h-4 mr-2" />
                 Create Assignment
               </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/examinations')}>
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => router.push('/examinations')}>
                 <TrendingUp className="w-4 h-4 mr-2" />
                 Upload Grades
               </Button>
-              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => navigate('/examinations')}>
+              <Button variant="outline" size="sm" className="w-full justify-start" onClick={() => router.push('/examinations')}>
                 <Calendar className="w-4 h-4 mr-2" />
                 Schedule Test
               </Button>

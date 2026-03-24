@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link, useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Users,
@@ -23,7 +23,7 @@ import { toast } from 'sonner';
 
 export function DepartmentDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [department, setDepartment] = useState<any>(null);
   const [faculty, setFaculty] = useState<any[]>([]);
@@ -54,7 +54,7 @@ export function DepartmentDetail() {
         const deptDoc = await getDoc(doc(({} as any), 'departments', id));
         if (!deptDoc.exists()) {
           toast.error('Department not found');
-          navigate('/departments');
+          router.push('/departments');
           return;
         }
         const deptData = { id: deptDoc.id, ...(deptDoc.data() as any) };
@@ -131,7 +131,7 @@ export function DepartmentDetail() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/departments">
+          <Link href="/departments">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="w-5 h-5" />
             </Button>
@@ -186,7 +186,7 @@ export function DepartmentDetail() {
             <Calendar className="w-5 h-5 text-primary" />
             Departmental Schedule
           </h2>
-          <Link to="/timetable">
+          <Link href="/timetable">
             <Button variant="outline" size="sm">Manage Full Timetable</Button>
           </Link>
         </div>
@@ -231,7 +231,7 @@ export function DepartmentDetail() {
                               <div 
                                 key={idx}
                                 className="p-2 rounded-lg bg-primary/5 border border-primary/10 hover:bg-primary/10 transition-colors cursor-pointer group shadow-sm"
-                                onClick={() => navigate(`/courses/${slot.courseId}`)}
+                                onClick={() => router.push(`/courses/${slot.courseId}`)}
                               >
                                 <div className="flex items-center justify-between gap-1">
                                   <p className="text-[10px] font-bold text-primary truncate group-hover:underline">
@@ -306,7 +306,7 @@ export function DepartmentDetail() {
               <BookOpen className="w-5 h-5 text-success" />
               Academic Courses
             </h2>
-            <Link to="/courses">
+            <Link href="/courses">
               <Button variant="ghost" size="sm" className="text-xs font-bold text-primary">Browse All</Button>
             </Link>
           </div>
@@ -316,7 +316,7 @@ export function DepartmentDetail() {
                 <div 
                   key={course.id} 
                   className="flex items-center justify-between p-4 rounded-xl border border-border/50 hover:border-primary/30 hover:bg-primary/5 cursor-pointer transition-all duration-300 group shadow-sm bg-card"
-                  onClick={() => navigate(`/courses/${course.id}`)}
+                  onClick={() => router.push(`/courses/${course.id}`)}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-lg bg-success/10 flex items-center justify-center font-bold text-success text-xs border border-success/20">
@@ -350,7 +350,7 @@ export function DepartmentDetail() {
               <Users className="w-5 h-5 text-accent" />
               Faculty Members
             </h2>
-            <Link to="/faculty">
+            <Link href="/faculty">
               <Button variant="ghost" size="sm" className="text-xs font-bold text-accent">Full Directory</Button>
             </Link>
           </div>
@@ -360,7 +360,7 @@ export function DepartmentDetail() {
                 <div 
                   key={member.id} 
                   className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border/50 hover:bg-accent/5 hover:border-accent/30 cursor-pointer transition-all shadow-sm"
-                  onClick={() => navigate(`/users/${member.id}`)}
+                  onClick={() => router.push(`/users/${member.id}`)}
                 >
                   <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center border border-accent/20">
                     <span className="text-sm font-black text-accent">
@@ -398,7 +398,7 @@ export function DepartmentDetail() {
                 <div 
                   key={student.id} 
                   className="flex items-center justify-between p-4 rounded-xl bg-card border border-border/50 hover:bg-primary/5 hover:border-primary/30 cursor-pointer transition-all shadow-sm"
-                  onClick={() => navigate(`/users/${student.id}`)}
+                  onClick={() => router.push(`/users/${student.id}`)}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">

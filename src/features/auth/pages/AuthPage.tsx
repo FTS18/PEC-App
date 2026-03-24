@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { getRolePermissions } from '@/features/auth/lib/rolePermissions';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -11,7 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Mail, Lock, User, Eye, EyeOff, Loader, AlertCircle, CheckCircle, X, Lightbulb, GraduationCap, Users, Building2, Shield } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 type UserRole = 'student' | 'faculty' | 'college_admin';
 
@@ -25,7 +25,7 @@ interface AuthFormData {
 }
 
 export default function AuthEnhanced() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, isAuthenticated, loading: authLoading, login } = useAuth();
   const [activeTab, setActiveTab] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [showPassword, setShowPassword] = useState(false);
@@ -62,7 +62,7 @@ export default function AuthEnhanced() {
         : !user?.profileComplete ? '/onboarding'
         : '/dashboard';
       
-      navigate(redirectPath, { replace: true });
+      router.replace(redirectPath);
     }
   }, [authLoading, isAuthenticated, user, navigate]);
 
@@ -496,7 +496,7 @@ export default function AuthEnhanced() {
                     </p>
                     <Button
                       type="button"
-                      onClick={() => navigate('/apply-institution')}
+                      onClick={() => router.push('/apply-institution')}
                       className="w-full"
                     >
                       Apply as Institution

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+﻿import { useState, useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Mail, Phone, Building2, Calendar, User, BookOpen, ClipboardCheck, Award, CreditCard, Receipt, Wrench, ShieldAlert, UtensilsCrossed, ExternalLink } from 'lucide-react';
@@ -9,7 +9,7 @@ import api from '@/lib/api';
 
 export default function UserDetail() {
   const { userId } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [enrollments, setEnrollments] = useState<any[]>([]);
@@ -24,7 +24,7 @@ export default function UserDetail() {
     const fetchAllData = async () => {
       try {
         if (!userId) {
-          navigate('/users');
+          router.push('/users');
           return;
         }
 
@@ -35,7 +35,7 @@ export default function UserDetail() {
 
         if (!userData) {
           toast.error('User not found');
-          navigate('/users');
+          router.push('/users');
           return;
         }
 
@@ -133,7 +133,7 @@ export default function UserDetail() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/users')}>
+          <Button variant="ghost" size="sm" onClick={() => router.push('/users')}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Users
           </Button>
@@ -198,7 +198,7 @@ export default function UserDetail() {
                 <label className="text-sm text-muted-foreground">Department</label>
                 <p 
                   className="text-foreground font-medium cursor-pointer hover:text-primary transition-colors hover:underline"
-                  onClick={() => navigate('/departments')}
+                  onClick={() => router.push('/departments')}
                   title="View Departments"
                 >
                   {user.department || profileData?.department}
@@ -273,7 +273,7 @@ export default function UserDetail() {
                   <div 
                     key={enrollment.id} 
                     className="p-4 border border-border rounded-lg cursor-pointer hover:bg-muted/20 transition-colors"
-                    onClick={() => navigate(`/courses/${enrollment.courseId}`)}
+                    onClick={() => router.push(`/courses/${enrollment.courseId}`)}
                   >
                     <div className="flex items-center justify-between">
                       <div>
@@ -431,7 +431,7 @@ export default function UserDetail() {
                 <div 
                   key={issue.id} 
                   className="group p-4 border border-border rounded-lg cursor-pointer hover:bg-muted/10 transition-all"
-                  onClick={() => navigate('/admin/hostel')}
+                  onClick={() => router.push('/admin/hostel')}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex gap-3">

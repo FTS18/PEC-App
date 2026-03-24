@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
@@ -226,7 +226,7 @@ export function About() {
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-primary-foreground" />
             </div>
@@ -234,7 +234,7 @@ export function About() {
           </Link>
           <div className="flex items-center gap-4">
             <Button variant="ghost" asChild>
-              <Link to="/">
+              <Link href="/">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Home
               </Link>
@@ -243,7 +243,7 @@ export function About() {
               asChild
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
-              <Link to="/onboarding">Get Started</Link>
+              <Link href="/onboarding">Get Started</Link>
             </Button>
           </div>
         </div>

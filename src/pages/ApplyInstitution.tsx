@@ -1,6 +1,6 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useNavigate, Link } from 'react-router-dom';
+import { useRouter, Link } from 'next/navigation';
 import {
   Building2,
   MapPin,
@@ -39,7 +39,7 @@ const item = {
 };
 
 export default function ApplyInstitution() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -127,7 +127,7 @@ export default function ApplyInstitution() {
           </div>
           <Button
             variant="outline"
-            onClick={() => navigate('/')}
+            onClick={() => router.push('/')}
             className="w-full"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -143,7 +143,7 @@ export default function ApplyInstitution() {
       {/* Header */}
       <div className="border-b border-border bg-background/60 backdrop-blur-xl sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+          <Link href="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Back to Home
           </Link>
@@ -347,7 +347,7 @@ export default function ApplyInstitution() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate('/')}
+                onClick={() => router.push('/')}
                 disabled={loading}
               >
                 Cancel

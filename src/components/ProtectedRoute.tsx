@@ -1,5 +1,5 @@
-import { ReactNode, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { ReactNode, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useHasPermission } from '@/features/auth/hooks/useAuth';
 import { RolePermissions } from '@/features/auth/lib/rolePermissions';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,13 +14,13 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requiredPermission, fallback }: ProtectedRouteProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, loading } = useAuth();
   const hasPermission = requiredPermission ? useHasPermission(requiredPermission) : true;
 
   useEffect(() => {
     if (!loading && !user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
     }
   }, [loading, user, navigate]);
 
@@ -50,7 +50,7 @@ export function ProtectedRoute({ children, requiredPermission, fallback }: Prote
               <p className="text-sm text-muted-foreground">
                 You need to be signed in to access this resource.
               </p>
-              <Button onClick={() => navigate('/auth', { replace: true })} className="w-full">
+              <Button onClick={() => router.replace('/auth')} className="w-full">
                 Go to Login
               </Button>
             </CardContent>
@@ -76,7 +76,7 @@ export function ProtectedRoute({ children, requiredPermission, fallback }: Prote
                   You don't have permission to access this resource. Please contact your administrator if you believe this is an error.
                 </p>
               </div>
-              <Button onClick={() => navigate('/dashboard', { replace: true })} className="w-full">
+              <Button onClick={() => router.replace('/dashboard')} className="w-full">
                 Go to Dashboard
               </Button>
             </CardContent>

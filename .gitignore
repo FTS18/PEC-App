@@ -1,5 +1,24 @@
-# Logs
-logs
+# Dependencies
+node_modules
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+/.next/
+/out/
+# next-env.d.ts # Often recommended to keep for CI, but common in gitignore
+
+# Production
+/build
+dist
+dist-ssr
+
+# Misc
+.DS_Store
+*.pem
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,20 +26,58 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Environment
+.env
+.env*.local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Migration & Temporary Scripts (PEC-App Specific)
+fix-*.js
+migrate-pages.js
+migration-helper.ts
+*.sh
+MIGRATION-COMPLETE.md
+MIGRATION-SUMMARY.md
+API_FIXES.md
+local-api-server.js
+
+# Competitive Programming Helper
+.cph/
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.env
-.vercel
+*.code-workspace
+
+# OS-specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+[Dd]esktop.ini
+
+# Old Vite/React files (kept for reference but not needed)
+index.html
+vite.config.ts
+tsconfig.app.json
+tsconfig.node.json

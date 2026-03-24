@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+﻿import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { 
   Search as SearchIcon, 
@@ -30,7 +30,7 @@ const extractData = <T,>(payload: any): T => {
 
 export default function Search() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   const initialQuery = searchParams.get('q') || '';
   const [searchTerm, setSearchTerm] = useState(initialQuery);
   const [loading, setLoading] = useState(false);
@@ -354,7 +354,7 @@ export default function Search() {
 
 function UserCard({ user, navigate }: { user: any, navigate: any }) {
   return (
-    <Card className="hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate(`/users/${user.id}`)}>
+    <Card className="hover:border-primary/50 transition-colors cursor-pointer" onClick={() => router.push(`/users/${user.id}`)}>
       <CardContent className="p-4 flex items-center gap-3">
         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
           {user.fullName?.[0] || 'U'}
@@ -370,7 +370,7 @@ function UserCard({ user, navigate }: { user: any, navigate: any }) {
 
 function JobCard({ job, navigate }: { job: any, navigate: any }) {
   return (
-    <Card className="hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate(`/career`)}>
+    <Card className="hover:border-primary/50 transition-colors cursor-pointer" onClick={() => router.push(`/career`)}>
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
           <div>
@@ -391,7 +391,7 @@ function JobCard({ job, navigate }: { job: any, navigate: any }) {
 
 function DriveCard({ drive, navigate }: { drive: any, navigate: any }) {
   return (
-    <Card className="hover:border-primary/50 transition-colors cursor-pointer" onClick={() => navigate(`/placements/drives`)}>
+    <Card className="hover:border-primary/50 transition-colors cursor-pointer" onClick={() => router.push(`/placements/drives`)}>
       <CardContent className="p-4">
         <div className="flex justify-between items-start mb-2">
            <div>
@@ -413,7 +413,7 @@ function DriveCard({ drive, navigate }: { drive: any, navigate: any }) {
 
 function PageCard({ page, navigate }: { page: any, navigate: any }) {
   return (
-    <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => navigate(page.path)}>
+    <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => router.push(page.path)}>
       <CardContent className="p-4 flex items-center gap-3">
         <div className="h-10 w-10 rounded-lg bg-secondary group-hover:bg-primary/10 flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
           <page.icon className="w-5 h-5" />
@@ -432,7 +432,7 @@ function PageCard({ page, navigate }: { page: any, navigate: any }) {
 
 function SubjectCard({ subject, navigate }: { subject: any, navigate: any }) {
   return (
-    <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => navigate(`/courses`)}>
+    <Card className="hover:border-primary/50 transition-colors cursor-pointer group" onClick={() => router.push(`/courses`)}>
       <CardContent className="p-4 flex items-center gap-3">
         <div className="h-10 w-10 rounded-lg bg-emerald-500/10 flex items-center justify-center text-emerald-600 font-bold">
           {subject.code?.slice(0,2) || 'CS'}

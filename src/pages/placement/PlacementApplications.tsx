@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FileText,
@@ -53,7 +53,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { usePermissions } from '@/hooks/usePermissions';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 interface Application {
   id: string;
@@ -75,7 +75,7 @@ interface Application {
 
 export default function PlacementApplications() {
   const { isRecruiter, isPlacementOfficer, isAdmin, user } = usePermissions();
-  const navigate = useNavigate();
+  const router = useRouter();
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -209,7 +209,7 @@ export default function PlacementApplications() {
       }
 
       // 3. Navigate to chat
-      navigate(`/chat?room=${roomId}`);
+      router.push(`/chat?room=${roomId}`);
     } catch (error) {
       console.error("Error starting chat:", error);
       toast.error('Failed to start chat');
@@ -457,7 +457,7 @@ export default function PlacementApplications() {
                       {app.studentName?.[0] || 'S'}
                     </div>
                     <div>
-                      <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors cursor-pointer" onClick={() => navigate(`/users/${app.studentId}`)}>
+                      <h3 className="font-bold text-lg text-foreground group-hover:text-primary transition-colors cursor-pointer" onClick={() => router.push(`/users/${app.studentId}`)}>
                         {app.studentName}
                       </h3>
                       <p className="text-sm text-muted-foreground">{app.studentDepartment}</p>
@@ -522,7 +522,7 @@ export default function PlacementApplications() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem onClick={() => navigate(`/users/${app.studentId}`)}>
+                          <DropdownMenuItem onClick={() => router.push(`/users/${app.studentId}`)}>
                             <User className="w-4 h-4 mr-2" /> View Profile
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleSendEmail(app.studentEmail)}>

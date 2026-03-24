@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -48,13 +48,13 @@ const roleOptions: RoleOption[] = [
 ];
 
 export default function RoleSelection() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, token } = useAuth();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
   const apiUrl = useMemo(
     () =>
-      (import.meta.env.VITE_API_URL as string) ||
+      (process.env.NEXT_PUBLIC_API_URL as string) ||
       (import.meta.env.DEV ? 'http://localhost:3001' : 'http://localhost:3001'),
     [],
   );
@@ -82,7 +82,7 @@ export default function RoleSelection() {
         description: 'Complete your profile to get started.',
       });
 
-      navigate('/onboarding');
+      router.push('/onboarding');
     } catch (error: any) {
       console.error('Error updating role:', error);
       toast.error('Failed to update role. Please try again.');
@@ -95,7 +95,7 @@ export default function RoleSelection() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <p className="text-muted-foreground mb-4">Please login to select your role.</p>
-          <Button onClick={() => navigate('/auth')}>Go to Login</Button>
+          <Button onClick={() => router.push('/auth')}>Go to Login</Button>
         </div>
       </div>
     );

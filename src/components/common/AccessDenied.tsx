@@ -1,7 +1,7 @@
-import React from 'react';
+﻿import React from 'react';
 import { AlertTriangle, ArrowLeft, Home, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 interface AccessDeniedProps {
   message?: string;
@@ -14,7 +14,7 @@ export default function AccessDenied({
   reason = "You don't have permission to access this resource.",
   showContactAdmin = true 
 }: AccessDeniedProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -39,7 +39,7 @@ export default function AccessDenied({
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button 
               variant="outline" 
-              onClick={() => navigate(-1)}
+              onClick={() => router.push(-1)}
               className="gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
@@ -47,7 +47,7 @@ export default function AccessDenied({
             </Button>
             
             <Button 
-              onClick={() => navigate('/dashboard')}
+              onClick={() => router.push('/dashboard')}
               className="gap-2"
             >
               <Home className="w-4 h-4" />

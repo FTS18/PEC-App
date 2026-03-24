@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import {
   Bell,
   Search,
@@ -54,7 +54,7 @@ interface HeaderProps {
 }
 
 export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityMode, onDensityModeChange }: HeaderProps) {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [hasNotifications] = useState(true);
   const appLogoSrc = '/logo.png';
   const showNavbarLogo = Boolean(isMobile) || sidebarCollapsed;
@@ -64,7 +64,7 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
       await authClient.logout();
       window.dispatchEvent(new Event('auth-change'));
       toast.success('Signed out successfully');
-      navigate('/auth');
+      router.push('/auth');
     } catch (error) {
       console.error('Sign out error:', error);
       toast.error('Failed to sign out');
@@ -100,7 +100,7 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
         {showNavbarLogo && (
           <button
             type="button"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => router.push('/dashboard')}
             className="mr-2 h-10 w-10 md:h-11 md:w-11 shrink-0 overflow-hidden bg-background/60 hover:bg-secondary transition-colors"
             aria-label="Go to dashboard"
           >
@@ -110,7 +110,7 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
 
         {/* Search */}
         <div className="relative flex-1 max-w-md mx-2 md:w-80 md:flex-none group z-50">
-           <CommandMenu navigate={navigate} />
+           <CommandMenu />
         </div>
 
         {/* Right Section */}
@@ -149,7 +149,7 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
             variant="ghost" 
             size="icon" 
             className="relative text-muted-foreground hover:text-foreground border border-transparent hover:border-border"
-            onClick={() => navigate('/notifications')}
+            onClick={() => router.push('/notifications')}
           >
             <Bell className="w-5 h-5" />
             {hasNotifications && (
@@ -181,11 +181,11 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
                 <p className="swiss-meta-label normal-case tracking-normal">{user.email}</p>
               </div>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate('/profile')}>
+              <DropdownMenuItem onClick={() => router.push('/profile')}>
                 <User className="w-4 h-4 mr-2" />
                 View Profile
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => navigate('/settings')}>
+              <DropdownMenuItem onClick={() => router.push('/settings')}>
                 <Settings className="w-4 h-4 mr-2" />
                 Settings
               </DropdownMenuItem>
@@ -207,7 +207,8 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
   );
 }
 
-function CommandMenu({ navigate }: { navigate: any }) {
+function CommandMenu() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -247,7 +248,7 @@ function CommandMenu({ navigate }: { navigate: any }) {
                   className="px-1 h-auto font-normal text-primary" 
                   onClick={() => {
                     setOpen(false);
-                    navigate(`/search?q=${encodeURIComponent(query)}`);
+                    router.push(`/search?q=${encodeURIComponent(query)}`);
                   }}
                 >
                   Search for "{query}"
@@ -264,7 +265,7 @@ function CommandMenu({ navigate }: { navigate: any }) {
                 key={route.path}
                 onSelect={() => {
                   setOpen(false);
-                  navigate(route.path);
+                  router.push(route.path);
                 }}
               >
                 <route.icon className="mr-2 h-4 w-4" />
@@ -279,7 +280,7 @@ function CommandMenu({ navigate }: { navigate: any }) {
              <CommandItem
                 onSelect={() => {
                   setOpen(false);
-                  navigate(`/search?q=${encodeURIComponent(query)}`);
+                  router.push(`/search?q=${encodeURIComponent(query)}`);
                 }}
               >
                 <Search className="mr-2 h-4 w-4" />

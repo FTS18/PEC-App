@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import {
   Calendar,
   Clock,
@@ -16,7 +16,7 @@ import BulkUpload from "@/components/BulkUpload";
 import { exportTimetablePDF } from "@/lib/pdfExport";
 import PDFExportButton from "@/components/common/PDFExportButton";
 import * as XLSX from "xlsx";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -110,7 +110,7 @@ const fetchAllPages = async <T,>(
 };
 
 export default function Timetable() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAdmin, isFaculty, user, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [courses, setCourses] = useState<any[]>([]);
@@ -138,7 +138,7 @@ export default function Timetable() {
     if (authLoading) return; // Wait for ({} as any) to load
 
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 

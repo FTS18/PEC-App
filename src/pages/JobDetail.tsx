@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+﻿import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Briefcase,
@@ -144,7 +144,7 @@ const jobs: Job[] = [
 
 export default function JobDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   
   const job = jobs.find(j => j.id === id);
   
@@ -153,7 +153,7 @@ export default function JobDetail() {
       <div className="flex flex-col items-center justify-center py-20">
         <Briefcase className="w-12 h-12 text-muted-foreground mb-4" />
         <h2 className="text-xl font-semibold">Job not found</h2>
-        <Button variant="outline" onClick={() => navigate('/placements')} className="mt-4">
+        <Button variant="outline" onClick={() => router.push('/placements')} className="mt-4">
           Back to Placements
         </Button>
       </div>
@@ -182,7 +182,7 @@ export default function JobDetail() {
       className="space-y-6"
     >
       {/* Back Button */}
-      <Button variant="ghost" onClick={() => navigate('/placements')} className="gap-2">
+      <Button variant="ghost" onClick={() => router.push('/placements')} className="gap-2">
         <ArrowLeft className="w-4 h-4" />
         Back to Placements
       </Button>

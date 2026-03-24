@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ interface AuthFormData {
 }
 
 export default function AuthEnhanced() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -59,7 +59,7 @@ export default function AuthEnhanced() {
         await authClient.refreshAccessToken();
         if (active) {
           setUserAuthenticated(true);
-          setTimeout(() => navigate('/dashboard'), 500);
+          setTimeout(() => router.push('/dashboard'), 500);
         }
       } catch {
         if (active) {
@@ -136,7 +136,7 @@ export default function AuthEnhanced() {
       window.dispatchEvent(new Event("auth-change"));
 
       setSuccess(`Account created successfully!`);
-      setTimeout(() => navigate('/dashboard'), 2000);
+      setTimeout(() => router.push('/dashboard'), 2000);
     } catch (err: any) {
       setError(err.message || 'Failed to create account');
     } finally {
@@ -164,7 +164,7 @@ export default function AuthEnhanced() {
       window.dispatchEvent(new Event("auth-change"));
 
       setSuccess('Signing in...');
-      setTimeout(() => navigate('/dashboard'), 1500);
+      setTimeout(() => router.push('/dashboard'), 1500);
     } catch (err: any) {
       setError(err.message || 'Failed to sign in');
     } finally {
@@ -483,7 +483,7 @@ export default function AuthEnhanced() {
                     </p>
                     <Button
                       type="button"
-                      onClick={() => navigate('/apply-institution')}
+                      onClick={() => router.push('/apply-institution')}
                       className="w-full"
                     >
                       Apply as Institution

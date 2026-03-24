@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+﻿import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Building2,
@@ -68,7 +68,7 @@ const mockOrgDetails = {
 
 export function OrganizationDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <motion.div
@@ -79,7 +79,7 @@ export function OrganizationDetail() {
     >
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/admin/organizations')}>
+        <Button variant="ghost" size="icon" onClick={() => router.push('/admin/organizations')}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1">

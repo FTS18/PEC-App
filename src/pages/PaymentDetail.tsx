@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from 'react-router-dom';
+﻿import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -61,7 +61,7 @@ const bankDetails = {
 
 export default function PaymentDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, isAdmin, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [invoice, setInvoice] = useState<any>(null);
@@ -77,7 +77,7 @@ export default function PaymentDetail() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
 
@@ -94,7 +94,7 @@ export default function PaymentDetail() {
           // RBAC check
           if (!isAdmin && data.studentId !== user.uid) {
             toast.error('Unauthorized access');
-            navigate('/finance');
+            router.push('/finance');
             return;
           }
           setInvoice({ id: docSnap.id, ...data });
@@ -306,7 +306,7 @@ export default function PaymentDetail() {
       <div className="flex flex-col items-center justify-center py-20">
         <CreditCard className="w-12 h-12 text-muted-foreground mb-4" />
         <h2 className="text-xl font-semibold">Invoice not found</h2>
-        <Button variant="outline" onClick={() => navigate('/finance')} className="mt-4">
+        <Button variant="outline" onClick={() => router.push('/finance')} className="mt-4">
           Back to Finance
         </Button>
       </div>
@@ -349,7 +349,7 @@ export default function PaymentDetail() {
       className="space-y-6"
     >
       {/* Back Button */}
-      <Button variant="ghost" onClick={() => navigate('/finance')} className="gap-2">
+      <Button variant="ghost" onClick={() => router.push('/finance')} className="gap-2">
         <ArrowLeft className="w-4 h-4" />
         Back to Finance
       </Button>

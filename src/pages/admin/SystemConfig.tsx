@@ -1,5 +1,5 @@
-import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
+﻿import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import {
   Settings,
   ArrowLeft,
@@ -39,7 +39,7 @@ const item = {
 };
 
 export function SystemConfig() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <motion.div
@@ -50,7 +50,7 @@ export function SystemConfig() {
     >
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+        <Button variant="ghost" size="icon" onClick={() => router.push('/dashboard')}>
           <ArrowLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1">

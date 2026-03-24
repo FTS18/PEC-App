@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link } from 'next/navigation';
 import {
   ArrowLeft,
   Search,
@@ -107,7 +107,7 @@ export function Admissions() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Link to="/dashboard?role=college_admin">
+          <Link href="/dashboard?role=college_admin">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="w-5 h-5" />
             </Button>

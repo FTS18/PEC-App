@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, FileText, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { usePermissions } from '@/hooks/usePermissions';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 
 type ApiResponse<T> = { success: boolean; data: T; meta?: { total?: number } };
 
@@ -54,13 +54,13 @@ const isNotFoundError = (error: unknown) =>
   !!(error as any)?.response && (error as any).response.status === 404;
 
 export default function Examinations() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { isAdmin, isFaculty, user, loading: authLoading } = usePermissions();
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
     }
   }, [authLoading, user, navigate]);
 

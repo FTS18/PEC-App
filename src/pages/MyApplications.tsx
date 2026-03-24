@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+﻿import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Briefcase,
@@ -47,7 +47,7 @@ const formatDate = (value: any) => {
 };
 
 export default function MyApplications() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const { user, loading: authLoading } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [applications, setApplications] = useState<Application[]>([]);
@@ -58,7 +58,7 @@ export default function MyApplications() {
     if (authLoading) return; // Wait for ({} as any) to load
     
     if (!user) {
-      navigate('/auth', { replace: true });
+      router.replace('/auth');
       return;
     }
     
@@ -153,7 +153,7 @@ export default function MyApplications() {
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/placements')}>
+          <Button variant="ghost" size="icon" onClick={() => router.push('/placements')}>
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
@@ -278,7 +278,7 @@ export default function MyApplications() {
                       </div>
 
                       <div className="flex gap-2 shrink-0">
-                        <Button variant="outline" onClick={() => navigate(`/placements`)}>
+                        <Button variant="outline" onClick={() => router.push(`/placements`)}>
                           <Eye className="w-4 h-4 mr-2" />
                           View Jobs
                         </Button>

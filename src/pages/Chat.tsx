@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useLocation } from "react-router-dom";
+import { usePathname } from "next/navigation";
 import { MessageCircle, ArrowLeft, Info } from "lucide-react";
 
 import { ChatSidebar } from "@/components/chat/ChatSidebar";
@@ -21,7 +21,7 @@ export default function ChatPage() {
 
   const { rooms, loading: roomsLoading } = useChatRooms(user);
 
-  const { search } = useLocation();
+  const { search } = usePathname();
   const queryParams = new URLSearchParams(search);
   const roomFromUrl = queryParams.get('room');
 

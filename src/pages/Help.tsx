@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link } from 'next/navigation';
 import { 
   HelpCircle, 
   Search, 
@@ -117,7 +117,7 @@ export default function Help() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.1 }}
           >
-            <Link to={category.path}>
+            <Link href={category.path}>
               <Card className="hover:shadow-md transition-shadow cursor-pointer group">
                 <CardContent className="pt-6">
                   <div className="flex items-center justify-between">
