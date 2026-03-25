@@ -17,6 +17,25 @@ type ApiRoom = {
   }>;
 };
 
+const SYSTEM_ROOM_NAMES = new Set(["Campus Community"]);
+
+type ApiSuccess<T> = {
+  success: true;
+  data: T;
+};
+
+const unwrap = <T>(payload: T | ApiSuccess<T>): T => {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    "success" in (payload as Record<string, unknown>) &&
+    "data" in (payload as Record<string, unknown>)
+  ) {
+    return (payload as ApiSuccess<T>).data;
+  }
+  return payload as T;
+};
+
 const mapRoom = (room: ApiRoom, currentUserId: string): ChatRoom => {
   const participants = Array.isArray(room.participants)
     ? room.participants.map((p) => p.userId)
@@ -36,15 +55,22 @@ const mapRoom = (room: ApiRoom, currentUserId: string): ChatRoom => {
   }, {});
 
   const isDm = !room.isGroup && participants.length <= 2;
+  const isCommunityRoom = room.isGroup && SYSTEM_ROOM_NAMES.has(room.name);
   const dmOtherId = isDm
     ? participants.find((id) => id !== currentUserId)
     : undefined;
   const dmTitle = dmOtherId ? participantNames[dmOtherId] : "Direct Message";
+  const roomType: ChatRoom["type"] = isDm
+    ? "dm"
+    : isCommunityRoom
+      ? "general"
+      : "group";
 
   return {
     id: room.id,
-    type: isDm ? "dm" : "group",
+    type: roomType,
     title: isDm ? dmTitle : room.name,
+    isSystem: isCommunityRoom,
     organizationId: "",
     participants,
     participantNames,
@@ -60,19 +86,44 @@ export async function fetchChatRooms(user: {
   department?: string;
   organizationId: string;
 }) {
-  const res = await api.get<ApiRoom[]>("/chat/rooms");
-  const rooms = Array.isArray(res.data) ? res.data : [];
+  const res = await api.get<ApiRoom[] | ApiSuccess<ApiRoom[]>>("/chat/rooms");
+  const data = unwrap(res.data);
+  const rooms = Array.isArray(data) ? data : [];
   return rooms.map((room) => mapRoom(room, user.uid));
 }
 
-export async function findUserByEmail(email: string) {
-  const res = await api.get("/users/search", {
-    params: { email },
-    validateStatus: (status) => status === 200 || status === 404,
+export type ChatSearchUser = {
+  id: string;
+  uid: string;
+  email: string;
+  fullName: string;
+  role: string | null;
+};
+
+export async function fetchChatUsers(q?: string): Promise<ChatSearchUser[]> {
+  const res = await api.get<
+    Array<{ id: string; name?: string | null; email: string; role: string | null }> |
+      ApiSuccess<Array<{ id: string; name?: string | null; email: string; role: string | null }>>
+  >("/chat/users", {
+    params: q ? { q } : undefined,
   });
 
-  if (res.status === 404) return null;
-  return res.data;
+  const users = unwrap(res.data);
+  if (!Array.isArray(users)) return [];
+
+  return users.map((user) => ({
+    id: user.id,
+    uid: user.id,
+    email: user.email,
+    fullName: user.name || user.email,
+    role: user.role,
+  }));
+}
+
+export async function findUserByEmail(email: string) {
+  const normalized = email.toLowerCase().trim();
+  const users = await fetchChatUsers(normalized);
+  return users.find((user) => user.email.toLowerCase() === normalized) || null;
 }
 
 export async function createOrFindDMRoom(
@@ -80,12 +131,12 @@ export async function createOrFindDMRoom(
   otherUserId: string,
   orgId: string,
 ) {
-  const res = await api.post<ApiRoom>("/chat/room", {
+  const res = await api.post<ApiRoom | ApiSuccess<ApiRoom>>("/chat/room", {
     name: "DM",
     isGroup: false,
     userIds: [otherUserId],
   });
-  return mapRoom(res.data, currentUserId);
+  return mapRoom(unwrap(res.data), currentUserId);
 }
 
 export async function createGroupRoom(options: {
@@ -97,12 +148,12 @@ export async function createGroupRoom(options: {
   admins: string[];
 }) {
   const memberIds = Array.from(new Set(options.members.filter(Boolean)));
-  const res = await api.post<ApiRoom>("/chat/room", {
+  const res = await api.post<ApiRoom | ApiSuccess<ApiRoom>>("/chat/room", {
     name: options.title,
     isGroup: true,
     userIds: memberIds,
   });
-  return mapRoom(res.data, options.creatorId);
+  return mapRoom(unwrap(res.data), options.creatorId);
 }
 
 export async function updateGroupRoom(
@@ -114,8 +165,13 @@ export async function updateGroupRoom(
   });
 }
 
+export async function deleteChatRoom(roomId: string) {
+  await api.delete(`/chat/room/${roomId}`);
+}
+
+/**
+ * @deprecated Use deleteChatRoom instead.
+ */
 export async function deleteGroupRoom(roomId: string) {
-  await api.patch(`/chat/room/${roomId}`, {
-    name: "[Archived] Group",
-  });
+  return deleteChatRoom(roomId);
 }

@@ -2,15 +2,12 @@ import { useState, useRef, useEffect, KeyboardEvent, forwardRef, useImperativeHa
 import { Send, Paperclip, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { MediaUpload } from '@/components/chat/MediaUpload';
-import { collection, getDocs, query, where } from '@/lib/dataClient';
-
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 import { toast } from 'sonner';
-import { uploadToCloudinary } from '@/lib/cloudinaryManager';
+import { getFileType, uploadMedia, validateFileSize } from '@/lib/cloudinary.service';
 import { sendMediaMessage } from '@/lib/messages.service';
+import { fetchChatUsers } from '@/lib/chatRooms.service';
 
 // Generate consistent color for user based on their ID
 const getUserColor = (userId: string) => {
@@ -48,11 +45,9 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
 }, ref) {
   const { user } = useAuth();
   const [message, setMessage] = useState('');
-  const [showMediaUpload, setShowMediaUpload] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [showMentions, setShowMentions] = useState(false);
   const [allUsers, setAllUsers] = useState<{ uid: string; fullName: string }[]>([]);
-  const [mentionIndex, setMentionIndex] = useState(-1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useImperativeHandle(ref, () => ({
@@ -62,21 +57,13 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
   }));
 
   useEffect(() => {
-    if (user?.organizationId) {
-      fetchUsers();
-    }
-  }, [user?.organizationId]);
+    if (!user?.uid) return;
+    fetchUsers();
+  }, [user?.uid]);
 
   const fetchUsers = async () => {
     try {
-      const q = query(collection(({} as any), "users"), where("organizationId", "==", user?.organizationId));
-      const snap = await getDocs(q);
-      const users = snap.docs
-        .map(doc => ({ 
-          uid: doc.id, 
-          fullName: doc.data().fullName || doc.data().name || doc.data().email || 'Unknown User'
-        }))
-        .filter(u => u.uid !== user?.uid); // Exclude current user
+      const users = (await fetchChatUsers()).filter((u) => u.uid !== user?.uid);
       console.log('Fetched users for mentions:', users.length);
       setAllUsers(users);
     } catch (error) {
@@ -203,10 +190,14 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
                   onChange={async (e) => {
                     const file = e.target.files?.[0];
                     if (file) {
-                      // Check file size (10MB limit)
-                      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
-                      if (file.size > maxSize) {
-                        toast.error('File size must be less than 10MB');
+                      if (!user?.uid) {
+                        toast.error('You must be signed in to upload files');
+                        e.target.value = '';
+                        return;
+                      }
+
+                      if (!validateFileSize(file)) {
+                        toast.error('File exceeds the allowed size limit');
                         e.target.value = ''; // Reset input
                         return;
                       }
@@ -214,12 +205,8 @@ export const ChatInput = forwardRef<ChatInputRef, ChatInputProps>(function ChatI
                       // Upload file
                       const loadingToast = toast.loading('Uploading file...');
                       try {
-                        const fileUrl = await uploadToCloudinary(file);
-                        
-                        // Determine file type
-                        let fileType: "image" | "video" | "file" = "file";
-                        if (file.type.startsWith('image/')) fileType = 'image';
-                        else if (file.type.startsWith('video/')) fileType = 'video';
+                        const fileUrl = await uploadMedia(file, user.uid);
+                        const fileType = getFileType(file.type);
 
                         // Send media message
                         await sendMediaMessage(roomId, fileUrl, fileType, {
