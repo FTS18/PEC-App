@@ -1,4 +1,4 @@
-'use client';
+﻿"use client";
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
@@ -36,12 +36,11 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-;
 import { usePermissions } from '@/hooks/usePermissions';
 import { useDepartmentFilter } from '@/hooks/useDepartmentFilter';
 import BulkUpload from '@/components/BulkUpload';
 import * as XLSX from 'xlsx';
-
+import { exportAttendanceReport } from '@/lib/pdfExport';
 import PDFExportButton from '@/components/common/PDFExportButton';
 import { EmptyState, LoadingGrid } from '@/components/common/AsyncState';
 import api from '@/lib/api';
@@ -94,7 +93,7 @@ export default function Attendance() {
       return;
     }
     setLoading(false);
-  }, [user, router]);
+  }, [authLoading, user, router]);
 
   if (loading) {
     return (
@@ -106,13 +105,27 @@ export default function Attendance() {
   }
 
   if (isAdmin || isFaculty) {
-    return <AttendanceManager userId={user.uid} userRole={user.role} />;
+    return (
+      <AttendanceManager
+        userId={user.uid}
+        userRole={user.role}
+        userName={user.fullName || user.name || ''}
+      />
+    );
   }
 
   return <StudentAttendanceView userId={user.uid} />;
 }
 
-function AttendanceManager({ userId, userRole }: { userId: string; userRole: string }) {
+function AttendanceManager({
+  userId,
+  userRole,
+  userName,
+}: {
+  userId: string;
+  userRole: string;
+  userName: string;
+}) {
   const [courses, setCourses] = useState<any[]>([]);
   const [selectedCourse, setSelectedCourse] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -120,11 +133,11 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
   const [loading, setLoading] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-  const isAdmin = userRole === 'college_admin';
+  const isAdmin = userRole === 'admin';
 
   useEffect(() => {
     fetchCourses();
-  }, [userId, userRole]);
+  }, [userId, userRole, userName]);
 
   useEffect(() => {
     if (selectedCourse && selectedDate) {
@@ -142,7 +155,17 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
       let data = extractData<any[]>(response) || [];
       
       if (!isAdmin && userId) {
-        data = data.filter((course: any) => course.instructor === userId || course.facultyId === userId);
+        const normalizedUserName = (userName || '').trim().toLowerCase();
+        data = data.filter((course: any) => {
+          const instructorValue = String(course?.instructor || '')
+            .trim()
+            .toLowerCase();
+          return (
+            course?.facultyId === userId ||
+            course?.instructor === userId ||
+            (normalizedUserName.length > 0 && instructorValue === normalizedUserName)
+          );
+        });
       }
       
       setCourses(data);
@@ -155,16 +178,21 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
   const fetchStudentAttendance = async () => {
     setLoading(true);
     try {
+      const selectedCourseData = courses.find((course: any) => course.id === selectedCourse);
+      const selectedCourseSubject = selectedCourseData?.code || selectedCourse;
+
       const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
-        params: { courseId: selectedCourse, status: 'active', limit: 100, offset: 0 },
+        params: { courseId: selectedCourse, status: 'active', limit: 200, offset: 0 },
       });
       const enrolledStudents = (extractData<any[]>(enrollmentsResponse) || []).map((item) => ({
         studentId: item.studentId,
         enrollmentId: item.id,
+        studentName: item.student?.name || '',
+        studentEmail: item.student?.email || '',
       }));
 
       const usersResponse = await api.get<ApiResponse<any[]>>('/users', {
-        params: { role: 'student', limit: 100, offset: 0 },
+        params: { role: 'student', limit: 200, offset: 0 },
       });
       const users = extractData<any[]>(usersResponse) || [];
       const usersById = new Map(users.map((u: any) => [u.id, u]));
@@ -174,15 +202,19 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
           const userDoc = usersById.get(en.studentId);
           return {
             id: en.studentId,
-            name: userDoc?.fullName || 'Unknown',
-            email: userDoc?.email || '',
+            name:
+              en.studentName ||
+              userDoc?.fullName ||
+              userDoc?.name ||
+              `Student ${String(en.studentId).slice(-6)}`,
+            email: en.studentEmail || userDoc?.email || '',
             enrollmentId: en.enrollmentId
           };
         })
       );
 
       const attendanceResponse = await api.get<ApiResponse<any[]>>('/attendance', {
-        params: { subject: selectedCourse, date: selectedDate, limit: 100, offset: 0 },
+        params: { subject: selectedCourseSubject, date: selectedDate, limit: 200, offset: 0 },
       });
       const attendanceRows = extractData<any[]>(attendanceResponse) || [];
       const existingRecords = attendanceRows.reduce((acc: any, record: any) => {
@@ -200,8 +232,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
     } catch (error) {
       console.error('Error fetching students:', error);
       toast.error('Failed to load student list');
-    }
- finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -212,12 +243,15 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
 
   const handleSave = async () => {
     try {
+      const selectedCourseData = courses.find((course: any) => course.id === selectedCourse);
+      const selectedCourseSubject = selectedCourseData?.code || selectedCourse;
+
       const batchPromises = students.map(async (student) => {
         if (!student.status) return; // Skip unmarked
 
         const data = {
           studentId: student.id,
-          subject: selectedCourse,
+          subject: selectedCourseSubject,
           date: selectedDate,
           status: student.status,
         };
@@ -226,7 +260,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
            await api.patch(`/attendance/${student.recordId}`, {
             date: selectedDate,
             status: student.status,
-            subject: selectedCourse,
+            subject: selectedCourseSubject,
            });
         } else {
            await api.post('/attendance', data);
@@ -248,7 +282,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
     const errors: string[] = [];
 
      const usersResponse = await api.get<ApiResponse<any[]>>('/users', {
-      params: { role: 'student', limit: 100, offset: 0 },
+      params: { role: 'student', limit: 200, offset: 0 },
      });
      const users = extractData<any[]>(usersResponse) || [];
 
@@ -272,7 +306,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
         const attResponse = await api.get<ApiResponse<any[]>>('/attendance', {
          params: {
           studentId,
-          subject: course.id,
+          subject: course.code,
           date: normalizedDate,
           limit: 1,
           offset: 0,
@@ -282,7 +316,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
 
         const recordData = {
            studentId,
-          subject: course.id,
+          subject: course.code,
           date: normalizedDate,
            status,
         };
@@ -290,7 +324,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
         if (existingAttendance.length > 0) {
           await api.patch(`/attendance/${existingAttendance[0].id}`, {
           status,
-          subject: course.id,
+          subject: course.code,
           date: normalizedDate,
           });
         } else {
@@ -324,7 +358,6 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
                  toast.error('Please select a course first');
                  return;
                }
-               const { exportAttendanceReport } = await import('@/lib/pdfExport');
                const course = courses.find(c => c.id === selectedCourse);
                const attendanceData = students.map(s => ({
                  studentName: s.name,
@@ -483,15 +516,18 @@ function StudentAttendanceView({ userId }: { userId: string }) {
       setAttendanceRecords(records);
 
       const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
-        params: { studentId: userId, status: 'active', limit: 100, offset: 0 },
+        params: { studentId: userId, status: 'active', limit: 200, offset: 0 },
       });
       const enrollments = extractData<any[]>(enrollmentsResponse) || [];
 
       const coursesResponse = await api.get<ApiResponse<any[]>>('/courses', {
-        params: { limit: 100, offset: 0 },
+        params: { limit: 200, offset: 0 },
       });
       const courses = extractData<any[]>(coursesResponse) || [];
       const coursesById = new Map(courses.map((course: any) => [course.id, course]));
+      const courseCodeById = new Map(
+        courses.map((course: any) => [course.id, course.code]),
+      );
       
       const courseStats: CourseAttendance[] = [];
       let totalPresent = 0;
@@ -499,8 +535,17 @@ function StudentAttendanceView({ userId }: { userId: string }) {
 
       for (const en of enrollments) {
         const courseData = coursesById.get(en.courseId);
+        const enrolledCourseCode = en.courseCode || en.course?.code;
+        const enrolledCourseName = en.courseName || en.course?.name;
+        const courseCode = enrolledCourseCode || courseCodeById.get(en.courseId);
+        const courseName = enrolledCourseName || courseData?.name || 'Unknown';
         
-        const cRecords = records.filter(r => r.subject === en.courseId);
+        const cRecords = records.filter(
+          (r) =>
+            r.subject === en.courseId ||
+            (courseCode && r.subject === courseCode) ||
+            (enrolledCourseCode && r.subject === enrolledCourseCode),
+        );
         const present = cRecords.filter(r => r.status === 'present' || r.status === 'late').length;
         const absent = cRecords.filter(r => r.status === 'absent').length;
         const late = cRecords.filter(r => r.status === 'late').length;
@@ -509,8 +554,8 @@ function StudentAttendanceView({ userId }: { userId: string }) {
 
         courseStats.push({
           courseId: en.courseId,
-          courseName: courseData?.name || 'Unknown',
-          courseCode: courseData?.code || 'N/A',
+          courseName,
+          courseCode: courseCode || 'N/A',
           present, absent, late, total, percentage
         });
         totalPresent += present;
@@ -538,7 +583,13 @@ function StudentAttendanceView({ userId }: { userId: string }) {
   };
 
   const filteredRecords = attendanceRecords.filter(record => {
-    if (selectedCourse !== 'all' && record.subject !== selectedCourse) return false;
+    if (selectedCourse !== 'all') {
+      const selectedCourseData = courseAttendance.find((c) => c.courseId === selectedCourse);
+      const selectedCourseCode = selectedCourseData?.courseCode;
+      if (record.subject !== selectedCourse && record.subject !== selectedCourseCode) {
+        return false;
+      }
+    }
     if (selectedMonth !== 'all') {
       const d = parseDateValue(record.date);
       if (d.getMonth() !== parseInt(selectedMonth)) return false;
@@ -593,9 +644,21 @@ function StudentAttendanceView({ userId }: { userId: string }) {
                <div><p className="font-medium">{c.courseCode}</p><p className="text-xs text-muted-foreground">{c.courseName}</p></div>
                <span className={`font-bold ${getStatusColor(c.percentage)}`}>{c.percentage}%</span>
              </div>
-             <Progress value={c.percentage} className={`h-2 ${getProgressColor(c.percentage)}`} />
+             <div className="h-2 w-full overflow-hidden rounded-full bg-muted flex">
+               <div
+                 className="h-full bg-success"
+                 style={{ width: `${c.total > 0 ? (c.present / c.total) * 100 : 0}%` }}
+               />
+               <div
+                 className="h-full bg-destructive"
+                 style={{ width: `${c.total > 0 ? (c.absent / c.total) * 100 : 0}%` }}
+               />
+             </div>
              <div className="mt-2 text-xs text-muted-foreground flex justify-between">
-                <span>{c.present} present, {c.absent} absent</span>
+                <span>
+                  <span className="text-success">{c.present} present</span>,{' '}
+                  <span className="text-destructive">{c.absent} absent</span>
+                </span>
                 <span>{c.total} classes</span>
              </div>
            </div>
@@ -617,7 +680,11 @@ function StudentAttendanceView({ userId }: { userId: string }) {
                  <div className="flex gap-3 items-center">
                    {r.status==='present'?<CheckCircle className="text-success w-5 h-5"/>:r.status==='late'?<Clock className="text-warning w-5 h-5"/>:<XCircle className="text-destructive w-5 h-5"/>}
                    <div>
-                     <p className="font-medium text-sm">{courseAttendance.find(c=>c.courseId===r.subject)?.courseCode || 'Unknown'}</p>
+                     <p className="font-medium text-sm">
+                       {courseAttendance.find(
+                         (c) => c.courseId === r.subject || c.courseCode === r.subject,
+                       )?.courseCode || 'Unknown'}
+                     </p>
                      <p className="text-xs text-muted-foreground">{parseDateValue(r.date).toLocaleDateString()}</p>
                    </div>
                  </div>

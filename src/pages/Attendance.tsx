@@ -91,7 +91,7 @@ export default function Attendance() {
       return;
     }
     setLoading(false);
-  }, [user, navigate]);
+  }, [authLoading, user, router]);
 
   if (loading) {
     return (
@@ -117,7 +117,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
   const [loading, setLoading] = useState(false);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
-  const isAdmin = userRole === 'college_admin';
+  const isAdmin = userRole === 'admin';
 
   useEffect(() => {
     fetchCourses();
@@ -152,6 +152,9 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
   const fetchStudentAttendance = async () => {
     setLoading(true);
     try {
+      const selectedCourseData = courses.find((course: any) => course.id === selectedCourse);
+      const selectedCourseSubject = selectedCourseData?.code || selectedCourse;
+
       const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
         params: { courseId: selectedCourse, status: 'active', limit: 100, offset: 0 },
       });
@@ -179,7 +182,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
       );
 
       const attendanceResponse = await api.get<ApiResponse<any[]>>('/attendance', {
-        params: { subject: selectedCourse, date: selectedDate, limit: 100, offset: 0 },
+        params: { subject: selectedCourseSubject, date: selectedDate, limit: 100, offset: 0 },
       });
       const attendanceRows = extractData<any[]>(attendanceResponse) || [];
       const existingRecords = attendanceRows.reduce((acc: any, record: any) => {
@@ -197,8 +200,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
     } catch (error) {
       console.error('Error fetching students:', error);
       toast.error('Failed to load student list');
-    }
- finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -209,12 +211,15 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
 
   const handleSave = async () => {
     try {
+      const selectedCourseData = courses.find((course: any) => course.id === selectedCourse);
+      const selectedCourseSubject = selectedCourseData?.code || selectedCourse;
+
       const batchPromises = students.map(async (student) => {
         if (!student.status) return; // Skip unmarked
 
         const data = {
           studentId: student.id,
-          subject: selectedCourse,
+          subject: selectedCourseSubject,
           date: selectedDate,
           status: student.status,
         };
@@ -223,7 +228,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
            await api.patch(`/attendance/${student.recordId}`, {
             date: selectedDate,
             status: student.status,
-            subject: selectedCourse,
+            subject: selectedCourseSubject,
            });
         } else {
            await api.post('/attendance', data);
@@ -269,7 +274,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
         const attResponse = await api.get<ApiResponse<any[]>>('/attendance', {
          params: {
           studentId,
-          subject: course.id,
+          subject: course.code,
           date: normalizedDate,
           limit: 1,
           offset: 0,
@@ -279,7 +284,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
 
         const recordData = {
            studentId,
-          subject: course.id,
+          subject: course.code,
           date: normalizedDate,
            status,
         };
@@ -287,7 +292,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
         if (existingAttendance.length > 0) {
           await api.patch(`/attendance/${existingAttendance[0].id}`, {
           status,
-          subject: course.id,
+          subject: course.code,
           date: normalizedDate,
           });
         } else {
@@ -488,6 +493,9 @@ function StudentAttendanceView({ userId }: { userId: string }) {
       });
       const courses = extractData<any[]>(coursesResponse) || [];
       const coursesById = new Map(courses.map((course: any) => [course.id, course]));
+      const courseCodeById = new Map(
+        courses.map((course: any) => [course.id, course.code]),
+      );
       
       const courseStats: CourseAttendance[] = [];
       let totalPresent = 0;
@@ -495,8 +503,11 @@ function StudentAttendanceView({ userId }: { userId: string }) {
 
       for (const en of enrollments) {
         const courseData = coursesById.get(en.courseId);
+        const courseCode = courseCodeById.get(en.courseId);
         
-        const cRecords = records.filter(r => r.subject === en.courseId);
+        const cRecords = records.filter(
+          (r) => r.subject === en.courseId || (courseCode && r.subject === courseCode),
+        );
         const present = cRecords.filter(r => r.status === 'present' || r.status === 'late').length;
         const absent = cRecords.filter(r => r.status === 'absent').length;
         const late = cRecords.filter(r => r.status === 'late').length;
@@ -534,7 +545,13 @@ function StudentAttendanceView({ userId }: { userId: string }) {
   };
 
   const filteredRecords = attendanceRecords.filter(record => {
-    if (selectedCourse !== 'all' && record.subject !== selectedCourse) return false;
+    if (selectedCourse !== 'all') {
+      const selectedCourseData = courseAttendance.find((c) => c.courseId === selectedCourse);
+      const selectedCourseCode = selectedCourseData?.courseCode;
+      if (record.subject !== selectedCourse && record.subject !== selectedCourseCode) {
+        return false;
+      }
+    }
     if (selectedMonth !== 'all') {
       const d = parseDateValue(record.date);
       if (d.getMonth() !== parseInt(selectedMonth)) return false;
@@ -613,7 +630,11 @@ function StudentAttendanceView({ userId }: { userId: string }) {
                  <div className="flex gap-3 items-center">
                    {r.status==='present'?<CheckCircle className="text-success w-5 h-5"/>:r.status==='late'?<Clock className="text-warning w-5 h-5"/>:<XCircle className="text-destructive w-5 h-5"/>}
                    <div>
-                     <p className="font-medium text-sm">{courseAttendance.find(c=>c.courseId===r.subject)?.courseCode || 'Unknown'}</p>
+                     <p className="font-medium text-sm">
+                       {courseAttendance.find(
+                         (c) => c.courseId === r.subject || c.courseCode === r.subject,
+                       )?.courseCode || 'Unknown'}
+                     </p>
                      <p className="text-xs text-muted-foreground">{parseDateValue(r.date).toLocaleDateString()}</p>
                    </div>
                  </div>
