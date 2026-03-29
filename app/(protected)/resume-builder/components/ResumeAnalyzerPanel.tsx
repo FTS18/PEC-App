@@ -69,7 +69,7 @@ export function ResumeAnalyzerPanel({
           <div>
             <h3 className="font-bold text-sm">Analysis Source</h3>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-              Evaluate Builder Data or an External PDF
+              Evaluate Builder Data or an External PDF/Image
             </p>
           </div>
         </div>
@@ -95,7 +95,7 @@ export function ResumeAnalyzerPanel({
             <div className="relative flex-1 md:flex-none">
               <input
                 type="file"
-                accept=".pdf"
+                accept=".pdf,.png,.jpg,.jpeg,.webp,image/*"
                 className="hidden"
                 id="resume-upload-field"
                 onChange={(e) => {
@@ -117,7 +117,7 @@ export function ResumeAnalyzerPanel({
                 )}
               >
                 <Upload className="w-3.5 h-3.5" />
-                {uploadedFile ? uploadedFile.name.substring(0, 10) + '...' : 'Upload PDF'}
+                {uploadedFile ? uploadedFile.name.substring(0, 10) + '...' : 'Upload File'}
               </button>
             </div>
           </div>

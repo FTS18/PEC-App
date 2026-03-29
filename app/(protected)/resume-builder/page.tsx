@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import {
@@ -40,7 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { EmptyState, LoadingGrid, StatePanel } from "@/components/common/AsyncState";
-import { doc, getDoc } from "@/lib/postgres-bridge";
+import { doc, getDoc, updateDoc } from "@/lib/postgres-bridge";
 
 // Interfaces (Strictly conserved)
 interface PersonalInfo {
@@ -97,6 +97,473 @@ interface AnalysisResult {
   keywordMatch: { keyword: string; found: boolean }[];
 }
 
+const RESUME_DRAFT_STORAGE_KEY_PREFIX = "resume-builder-draft:";
+
+const PROGRAMMING_LANGUAGE_KEYWORDS = [
+  "c",
+  "c++",
+  "c#",
+  "java",
+  "python",
+  "javascript",
+  "typescript",
+  "go",
+  "rust",
+  "kotlin",
+  "swift",
+  "scala",
+  "ruby",
+  "php",
+];
+
+const LANGUAGE_PATTERNS: Record<string, RegExp> = {
+  "c": /\bc\s+language\b|(?:^|[\s,;|/()\[\]-])c(?=$|[\s,;|/()\[\]-])/i,
+  "c++": /\bc\+\+\b/i,
+  "c#": /\bc#\b|\bcsharp\b/i,
+  "java": /\bjava\b/i,
+  "python": /\bpython\b/i,
+  "javascript": /\bjavascript\b/i,
+  "typescript": /\btypescript\b/i,
+  "go": /\bgolang\b|(?:^|[\s,;|/()\[\]-])go(?=$|[\s,;|/()\[\]-])/i,
+  "rust": /\brust\b/i,
+  "kotlin": /\bkotlin\b/i,
+  "swift": /\bswift\b/i,
+  "scala": /\bscala\b/i,
+  "ruby": /\bruby\b/i,
+  "php": /\bphp\b/i,
+};
+
+const SDE_CORE_KEYWORDS = [
+  "data structures",
+  "algorithms",
+  "system design",
+  "object-oriented",
+  "oop",
+  "problem solving",
+  "leetcode",
+];
+
+const CODING_BASELINE_KEYWORDS = [
+  "data structures",
+  "algorithms",
+  "system design",
+  "problem solving",
+  "sql",
+  "rest api",
+  "distributed systems",
+  "testing",
+];
+
+const SDE_ROLE_SIGNAL_KEYWORDS = [
+  "data structures",
+  "algorithms",
+  "system design",
+  "distributed systems",
+  "rest api",
+  "microservices",
+  "sql",
+  "testing",
+  "ci/cd",
+  "docker",
+  "kubernetes",
+  "cloud",
+  "node.js",
+  "java",
+  "python",
+  "javascript",
+  "typescript",
+  "react",
+];
+
+const KEYWORD_PATTERNS: Record<string, RegExp> = {
+  "rest api": /rest(?:ful)?\s+api(?:s)?/i,
+  "system design": /system\s+design/i,
+  "distributed systems": /distributed\s+systems?/i,
+  "data structures": /data\s+structures?/i,
+  "algorithms": /algorithms?/i,
+  "problem solving": /problem[-\s]?solving/i,
+  "object-oriented": /object[-\s]?oriented|\boop\b/i,
+  "sql": /\bsql\b|postgresql|mysql|sqlite|mssql/i,
+  "testing": /\btesting\b|unit\s+test|integration\s+test/i,
+  "ci/cd": /ci\s*\/\s*cd|continuous\s+integration|continuous\s+delivery/i,
+  "cloud": /\bcloud\b|aws|gcp|azure/i,
+  "node.js": /node\.?js/i,
+};
+
+const STRONG_SDE_SIGNAL_PATTERNS = [
+  /leetcode|codeforces|codechef|hackerrank|icpc/i,
+  /system\s+design|distributed\s+systems|scalability|high\s+throughput|low\s+latency/i,
+  /aws|gcp|azure|kubernetes|docker|microservices/i,
+  /\b(50k|100k|1m|million|latency|throughput|p95|p99|sla)\b/i,
+];
+
+const clampScore = (value: number) => Math.max(0, Math.min(100, Math.round(value)));
+
+const dedupeTextList = (items: string[]) => {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const normalized = item.trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+};
+
+const normalizeTechText = (text: string) =>
+  text
+    .toLowerCase()
+    .replace(/node\.?js/g, "nodejs")
+    .replace(/ci\s*\/\s*cd/g, "cicd")
+    .replace(/[^a-z0-9+#\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const hasLanguageMention = (text: string, language: string) => {
+  const pattern = LANGUAGE_PATTERNS[language];
+  return pattern ? pattern.test(text) : false;
+};
+
+const hasKeywordMention = (text: string, keyword: string) => {
+  if (PROGRAMMING_LANGUAGE_KEYWORDS.includes(keyword)) {
+    return hasLanguageMention(text, keyword);
+  }
+
+  const pattern = KEYWORD_PATTERNS[keyword];
+  if (pattern) {
+    return pattern.test(text);
+  }
+
+  const normalizedText = normalizeTechText(text);
+  const normalizedKeyword = normalizeTechText(keyword);
+  return normalizedText.includes(normalizedKeyword);
+};
+
+const toStringArray = (value: unknown) =>
+  Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
+
+const toKeywordMatchArray = (value: unknown) => {
+  if (!Array.isArray(value)) return [] as { keyword: string; found: boolean }[];
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      const keyword = typeof record.keyword === "string" ? record.keyword.trim() : "";
+      if (!keyword) return null;
+      return {
+        keyword,
+        found: Boolean(record.found),
+      };
+    })
+    .filter((item): item is { keyword: string; found: boolean } => Boolean(item));
+};
+
+const extractJsonObjectFromText = (raw: string) => {
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    return trimmed;
+  }
+
+  const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fencedMatch?.[1]) {
+    return fencedMatch[1].trim();
+  }
+
+  const firstBrace = trimmed.indexOf("{");
+  const lastBrace = trimmed.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+
+  return trimmed;
+};
+
+const normalizeAnalysisResult = (raw: unknown): AnalysisResult => {
+  const record = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const keywordMatch = toKeywordMatchArray(record.keywordMatch);
+  const numericScore = Number(record.matchScore);
+  const derivedScore =
+    keywordMatch.length > 0
+      ? Math.round((keywordMatch.filter((entry) => entry.found).length / keywordMatch.length) * 100)
+      : 0;
+
+  const strengths = toStringArray(record.strengths);
+  const gaps = toStringArray(record.gaps);
+  const suggestions = toStringArray(record.suggestions);
+
+  return {
+    matchScore: clampScore(Number.isFinite(numericScore) ? numericScore : derivedScore),
+    strengths: strengths.length > 0 ? strengths : ["No clear strengths were extracted from the AI response."],
+    gaps: gaps.length > 0 ? gaps : ["Unable to extract complete analysis details from the AI response."],
+    suggestions:
+      suggestions.length > 0
+        ? suggestions
+        : ["Try running the audit again with a full job description for a more reliable score."],
+    keywordMatch,
+  };
+};
+
+const isImageResumePlaceholder = (resumeContext: string) =>
+  resumeContext.toLowerCase().includes("[image_resume_upload:");
+
+const buildDeterministicFallbackAnalysis = (
+  resumeContext: string,
+  jobDescription: string,
+): AnalysisResult => {
+  const resumeText = resumeContext.toLowerCase();
+  const jdText = jobDescription.toLowerCase();
+  const imageSource = isImageResumePlaceholder(resumeContext);
+
+  if (imageSource) {
+    return {
+      matchScore: clampScore(64),
+      strengths: ["Resume image was received and prepared for AI vision analysis."],
+      gaps: ["AI vision response was unavailable, so this fallback score is conservative."],
+      suggestions: [
+        "Retry once with the same image after a few seconds.",
+        "For highest reliability, upload a text-based PDF resume.",
+        "Use a clear, high-contrast screenshot with all resume sections visible.",
+      ],
+      keywordMatch: CODING_BASELINE_KEYWORDS.map((keyword) => ({ keyword, found: false })),
+    };
+  }
+
+  const targetedKeywords = Array.from(
+    new Set(
+      [
+        ...PROGRAMMING_LANGUAGE_KEYWORDS,
+        ...SDE_ROLE_SIGNAL_KEYWORDS,
+        ...CODING_BASELINE_KEYWORDS,
+      ].filter((keyword) => hasKeywordMention(jdText, keyword)),
+    ),
+  );
+
+  const keywordUniverse =
+    targetedKeywords.length > 0
+      ? targetedKeywords.slice(0, 14)
+      : CODING_BASELINE_KEYWORDS.slice(0, 8);
+
+  const keywordMatch = keywordUniverse.map((keyword) => ({
+    keyword,
+    found: hasKeywordMention(resumeText, keyword),
+  }));
+
+  const matchedCount = keywordMatch.filter((item) => item.found).length;
+  const coverage = keywordMatch.length > 0 ? matchedCount / keywordMatch.length : 0;
+  const knownLanguages = PROGRAMMING_LANGUAGE_KEYWORDS.filter((lang) =>
+    hasLanguageMention(resumeText, lang),
+  );
+  const isVagueJd = jobDescription.trim().split(/\s+/).filter(Boolean).length < 6;
+
+  let score = 20 + coverage * 60 + Math.min(knownLanguages.length, 4) * 4;
+  if (isVagueJd) score = Math.min(score, 68);
+
+  const strengths = keywordMatch
+    .filter((item) => item.found)
+    .slice(0, 4)
+    .map((item) => `Resume includes ${item.keyword} relevant to the target role.`);
+
+  const gaps = keywordMatch
+    .filter((item) => !item.found)
+    .slice(0, 4)
+    .map((item) => `Missing or weak evidence for ${item.keyword}.`);
+
+  return {
+    matchScore: clampScore(score),
+    strengths:
+      strengths.length > 0
+        ? strengths
+        : ["Limited direct match signals were detected in the uploaded resume."],
+    gaps:
+      gaps.length > 0
+        ? gaps
+        : ["Add more role-specific depth and measurable impact for stronger matching."],
+    suggestions: [
+      "Add quantified impact bullets with scale, latency, or throughput metrics.",
+      "Mirror the job description keywords in projects and experience sections.",
+      "Include explicit language/tool evidence for each core requirement.",
+    ],
+    keywordMatch,
+  };
+};
+
+const applyDeterministicScoreGuard = (
+  analysis: AnalysisResult,
+  resumeContext: string,
+  jobDescription: string,
+): AnalysisResult => {
+  if (isImageResumePlaceholder(resumeContext)) {
+    const normalizedGaps = dedupeTextList(analysis.gaps);
+    if (normalizedGaps.length === 0) {
+      normalizedGaps.push("Image-based analysis has lower confidence than text extraction.");
+    }
+    return {
+      ...analysis,
+      matchScore: clampScore(analysis.matchScore),
+      gaps: normalizedGaps,
+      suggestions: dedupeTextList(analysis.suggestions),
+    };
+  }
+
+  const resumeText = resumeContext.toLowerCase();
+  const jdText = jobDescription.toLowerCase();
+  const jdWordCount = jobDescription.trim().split(/\s+/).filter(Boolean).length;
+  const isCodingRole =
+    /(\bsde\b|software\s+engineer|software\s+developer|backend|frontend|full\s*stack)/i.test(
+      jobDescription,
+    );
+  const demandsHighScale =
+    /(scalability|high\s+throughput|low\s+latency|distributed\s+systems?|system\s+design)/i.test(
+      jdText,
+    );
+  const isVagueJd = jdWordCount < 6 || jobDescription.trim().length < 30;
+
+  if (!isCodingRole) {
+    return analysis;
+  }
+
+  const jdLanguages = PROGRAMMING_LANGUAGE_KEYWORDS.filter((lang) =>
+    hasLanguageMention(jdText, lang),
+  );
+  const jdRoleSignals = SDE_ROLE_SIGNAL_KEYWORDS.filter((keyword) =>
+    hasKeywordMention(jdText, keyword),
+  );
+  const knownLanguages = PROGRAMMING_LANGUAGE_KEYWORDS.filter((lang) =>
+    hasLanguageMention(resumeText, lang),
+  );
+  const matchedRoleSignals = jdRoleSignals.filter((keyword) =>
+    hasKeywordMention(resumeText, keyword),
+  );
+  const roleSignalCoverage =
+    jdRoleSignals.length > 0
+      ? matchedRoleSignals.length / jdRoleSignals.length
+      : 0;
+  const hasCoreSdeSignal = SDE_CORE_KEYWORDS.some((kw) => resumeText.includes(kw));
+
+  let penalty = 0;
+  const gaps = [...analysis.gaps];
+  const suggestions = [...analysis.suggestions];
+
+  if (isVagueJd) {
+    penalty += 14;
+    gaps.push("Job description is too short for reliable evaluation.");
+    suggestions.push("Paste the full SDE job description (responsibilities, required skills, and qualifications) for a rigorous score.");
+  }
+
+  if (knownLanguages.length === 0) {
+    penalty += 18;
+    gaps.push("No programming language evidence found for a software engineering role.");
+    suggestions.push("Add a Programming Languages section with your strongest coding languages and projects using them.");
+  }
+
+  if (jdLanguages.length > 0) {
+    const matchedRequiredLanguages = jdLanguages.filter((lang) =>
+      hasLanguageMention(resumeText, lang),
+    );
+    if (matchedRequiredLanguages.length === 0) {
+      penalty += 12;
+      gaps.push(
+        `Job description requires specific languages (${jdLanguages.join(", ")}), but none were found in the resume.`,
+      );
+    } else if (matchedRequiredLanguages.length < Math.ceil(jdLanguages.length / 2)) {
+      penalty += 5;
+      gaps.push("Only a small subset of required programming languages appears in the resume.");
+    }
+  }
+
+  if (!hasCoreSdeSignal) {
+    penalty += 7;
+    suggestions.push("Highlight Data Structures, Algorithms, and problem-solving experience for SDE screening.");
+  }
+
+  if (jdRoleSignals.length >= 3 && roleSignalCoverage < 0.35) {
+    penalty += 8;
+    gaps.push("Resume has low coverage of role-specific SDE signals required in the job description.");
+  }
+
+  if (demandsHighScale) {
+    const strongSignalCount = STRONG_SDE_SIGNAL_PATTERNS.filter((pattern) =>
+      pattern.test(resumeContext),
+    ).length;
+    if (strongSignalCount === 0) {
+      penalty += 12;
+      gaps.push("No strong evidence for high-scale engineering requirements in the job description (scalable systems or quantified impact).");
+      suggestions.push("Add quantified impact, DSA/problem-solving achievements, and scalable backend/project evidence aligned to this role.");
+    } else if (strongSignalCount === 1) {
+      penalty += 4;
+      gaps.push("This role asks for high-scale engineering depth; only one strong signal is visible.");
+    }
+  }
+
+  const guardedScore = clampScore(analysis.matchScore - penalty);
+  const keywordMap = new Map<string, { keyword: string; found: boolean }>();
+
+  analysis.keywordMatch.forEach((item) => {
+    const keyword = item.keyword.trim();
+    if (!keyword) return;
+    const key = keyword.toLowerCase();
+    keywordMap.set(key, {
+      keyword,
+      found: hasKeywordMention(resumeText, key),
+    });
+  });
+
+  jdLanguages.forEach((lang) => {
+    const key = lang.toLowerCase();
+    if (!keywordMap.has(key)) {
+      keywordMap.set(key, { keyword: lang, found: hasLanguageMention(resumeText, lang) });
+    }
+  });
+
+  CODING_BASELINE_KEYWORDS.forEach((keyword) => {
+    const key = keyword.toLowerCase();
+    if (!keywordMap.has(key)) {
+      keywordMap.set(key, { keyword, found: hasKeywordMention(resumeText, key) });
+    }
+  });
+
+  let adjustedScore = guardedScore;
+  if (isVagueJd) {
+    adjustedScore = Math.min(adjustedScore, 72);
+  }
+  if (jdLanguages.length > 0) {
+    const matchedRequiredLanguages = jdLanguages.filter((lang) =>
+      hasLanguageMention(resumeText, lang),
+    );
+    if (matchedRequiredLanguages.length === 0) {
+      adjustedScore = Math.min(adjustedScore, 58);
+    }
+  }
+  if (jdRoleSignals.length >= 3) {
+    if (roleSignalCoverage < 0.2) {
+      adjustedScore = Math.min(adjustedScore, 58);
+    } else if (roleSignalCoverage < 0.35) {
+      adjustedScore = Math.min(adjustedScore, 72);
+    }
+  }
+  if (demandsHighScale && knownLanguages.length < 2) {
+    adjustedScore = Math.min(adjustedScore, 64);
+  }
+
+  const normalizedGaps = dedupeTextList(gaps);
+  if (normalizedGaps.length === 0) {
+    normalizedGaps.push("Resume lacks role-specific depth expected for this target SDE role.");
+  }
+
+  return {
+    ...analysis,
+    matchScore: adjustedScore,
+    gaps: normalizedGaps,
+    suggestions: dedupeTextList(suggestions),
+    keywordMatch: Array.from(keywordMap.values()),
+  };
+};
+
 const ResumeAnalyzerPanel = dynamic(
   () => import("./components/ResumeAnalyzerPanel").then((mod) => mod.ResumeAnalyzerPanel),
   {
@@ -117,11 +584,17 @@ const callOpenAI = async (payload: unknown) => {
     body: JSON.stringify(payload),
   });
 
+  const data = await response.json().catch(() => ({}));
+
   if (!response.ok) {
-    throw new Error('AI proxy request failed');
+    const message =
+      (typeof data?.error === 'string' && data.error) ||
+      (typeof data?.message === 'string' && data.message) ||
+      `AI proxy request failed (${response.status})`;
+    throw new Error(message);
   }
 
-  return response.json();
+  return data;
 };
 
 const getPdfJs = async () => {
@@ -138,6 +611,7 @@ const getPdfJs = async () => {
 export default function ResumeBuilderIvyLeague() {
   const { user } = useAuth();
   const { settings } = useCollegeSettings();
+  const hydratedProfileUidRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   // Add this with your other state declarations
   const [selectedResume, setSelectedResume] = useState<"current" | "upload">(
@@ -151,6 +625,10 @@ export default function ResumeBuilderIvyLeague() {
 
   // Builder State
   const [preview, setPreview] = useState(false);
+  const [isSavingResume, setIsSavingResume] = useState(false);
+  const [hasUnsavedResumeChanges, setHasUnsavedResumeChanges] = useState(false);
+  const lastSavedResumeSnapshotRef = useRef<string>("");
+  const hasInitializedSaveStateRef = useRef(false);
   const [resumeData, setResumeData] = useState<ResumeData>({
     personalInfo: {
       name: "ARJUN PATEL",
@@ -211,68 +689,149 @@ export default function ResumeBuilderIvyLeague() {
     null,
   );
 
+  const getDraftStorageKey = (uid?: string | null) =>
+    `${RESUME_DRAFT_STORAGE_KEY_PREFIX}${uid || "guest"}`;
+
+  const readLocalResumeDraft = (uid?: string | null): ResumeData | null => {
+    try {
+      const raw = localStorage.getItem(getDraftStorageKey(uid));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as ResumeData;
+      if (!parsed || typeof parsed !== "object") return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  };
+
+  const writeLocalResumeDraft = (payload: ResumeData, uid?: string | null) => {
+    localStorage.setItem(getDraftStorageKey(uid), JSON.stringify(payload));
+  };
+
   useEffect(() => {
+    hasInitializedSaveStateRef.current = false;
+    lastSavedResumeSnapshotRef.current = "";
+    setHasUnsavedResumeChanges(false);
+
+    if (!user) {
+      hydratedProfileUidRef.current = null;
+      const guestDraft = readLocalResumeDraft(null);
+      if (guestDraft) {
+        setResumeData(guestDraft);
+      }
+      setLoading(false);
+      return;
+    }
+
+    if (hydratedProfileUidRef.current === user.uid) {
+      setLoading(false);
+      return;
+    }
+
     const fetchProfile = async () => {
       // Logic: Only overwrite fields if they are defaults, or if user data exists.
       // Current dummy data is useful placeholders. We will overwrite personal info with real user info if available.
       if (!user) return;
 
       try {
+        const localDraft = readLocalResumeDraft(user.uid);
         const profileDoc = await getDoc(doc(({} as any), "studentProfiles", user.uid));
         if (profileDoc.exists()) {
           const profile = profileDoc.data();
 
-          setResumeData((prev) => ({
-            ...prev,
-            personalInfo: {
-              name: user.fullName || prev.personalInfo.name,
-              email: user.email || prev.personalInfo.email,
-              phone: profile.phone || prev.personalInfo.phone,
-              location:
-                [profile.city, profile.state].filter(Boolean).join(", ") ||
-                prev.personalInfo.location,
-              linkedin: profile.linkedinUsername
-                ? `linkedin.com/in/${profile.linkedinUsername}`
-                : prev.personalInfo.linkedin,
-              github: profile.githubUsername
-                ? `github.com/${profile.githubUsername}`
-                : prev.personalInfo.github,
-            },
-            education: [
-              {
-                institution:
-                  settings?.collegeName || prev.education[0].institution,
-                degree: profile.degree || prev.education[0].degree,
-                major: profile.department || prev.education[0].major,
-                year: profile.batch
-                  ? `Expected ${profile.batch.split("-")[1]}`
-                  : prev.education[0].year,
-                gpa: profile.cgpa
-                  ? `${profile.cgpa}/10.0`
-                  : prev.education[0].gpa,
-                honors: "",
-                coursework: prev.education[0].coursework, // Keep dummy
+          setResumeData((prev) => {
+            const profileSeeded: ResumeData = {
+              ...prev,
+              personalInfo: {
+                name: user.fullName || prev.personalInfo.name,
+                email: user.email || prev.personalInfo.email,
+                phone: profile.phone || prev.personalInfo.phone,
+                location:
+                  [profile.city, profile.state].filter(Boolean).join(", ") ||
+                  prev.personalInfo.location,
+                linkedin: profile.linkedinUsername
+                  ? `linkedin.com/in/${profile.linkedinUsername}`
+                  : prev.personalInfo.linkedin,
+                github: profile.githubUsername
+                  ? `github.com/${profile.githubUsername}`
+                  : prev.personalInfo.github,
               },
-            ],
-          }));
+              education: [
+                {
+                  institution:
+                    settings?.collegeName || prev.education[0].institution,
+                  degree: profile.degree || prev.education[0].degree,
+                  major: profile.department || prev.education[0].major,
+                  year: profile.batch
+                    ? `Expected ${profile.batch.split("-")[1]}`
+                    : prev.education[0].year,
+                  gpa: profile.cgpa
+                    ? `${profile.cgpa}/10.0`
+                    : prev.education[0].gpa,
+                  honors: "",
+                  coursework: prev.education[0].coursework,
+                },
+              ],
+            };
+
+            return localDraft || profileSeeded;
+          });
 
           // Note: We deliberately KEEP the dummy Experience/Projects if the user's profile doesn't have them
           // In a real app we might fetch these from 'experiences' collection if it existed.
           toast.success("Synced with your profile");
+        } else if (localDraft) {
+          setResumeData(localDraft);
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
       } finally {
+        hydratedProfileUidRef.current = user.uid;
         setLoading(false);
       }
     };
 
-    if (user) {
-      fetchProfile();
-    } else {
-      setLoading(false);
+    fetchProfile();
+  }, [user?.uid, settings?.collegeName]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const snapshot = JSON.stringify(resumeData);
+    if (!hasInitializedSaveStateRef.current) {
+      lastSavedResumeSnapshotRef.current = snapshot;
+      hasInitializedSaveStateRef.current = true;
+      setHasUnsavedResumeChanges(false);
+      return;
     }
-  }, [user, settings]);
+
+    setHasUnsavedResumeChanges(snapshot !== lastSavedResumeSnapshotRef.current);
+  }, [resumeData, loading]);
+
+  const handleSaveResume = async () => {
+    if (!hasUnsavedResumeChanges || isSavingResume) return;
+
+    setIsSavingResume(true);
+    try {
+      writeLocalResumeDraft(resumeData, user?.uid || null);
+
+      if (user?.uid) {
+        await updateDoc(doc(({} as any), "studentProfiles", user.uid), {
+          phone: resumeData.personalInfo.phone || null,
+          address: resumeData.personalInfo.location || null,
+        });
+      }
+
+      lastSavedResumeSnapshotRef.current = JSON.stringify(resumeData);
+      setHasUnsavedResumeChanges(false);
+      toast.success("Resume changes saved.");
+    } catch (error) {
+      console.error("Save error:", error);
+      toast.error("Could not save resume changes. Please try again.");
+    } finally {
+      setIsSavingResume(false);
+    }
+  };
 
   // --- Builder Handlers ---
   const handlePersonalInfoChange = (
@@ -314,13 +873,67 @@ const extractTextFromPDF = async (file: File): Promise<string> => {
     throw new Error("Could not read PDF text. Please ensure it's not a scanned image.");
   }
 };
-  const fileToBase64 = (file: Blob): Promise<string> => {
+
+  const estimateDataUrlBytes = (dataUrl: string) => {
+    const base64 = dataUrl.split(",")[1] || "";
+    return Math.floor((base64.length * 3) / 4);
+  };
+
+  const fileToDataUrl = (file: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload = () => resolve((reader.result as string).split(",")[1]);
+      reader.onload = () => resolve(reader.result as string);
       reader.onerror = reject;
       reader.readAsDataURL(file);
     });
+  };
+
+  const loadImageElement = (dataUrl: string): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
+  };
+
+  const optimizeImageForVision = async (file: File): Promise<string> => {
+    const MAX_IMAGE_BYTES = 850_000;
+    const MAX_DIMENSION = 1400;
+
+    const initialDataUrl = await fileToDataUrl(file);
+    const image = await loadImageElement(initialDataUrl);
+    let scale = Math.min(1, MAX_DIMENSION / Math.max(image.naturalWidth, image.naturalHeight));
+    let quality = 0.82;
+    let bestDataUrl = initialDataUrl;
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const width = Math.max(1, Math.round(image.naturalWidth * scale));
+      const height = Math.max(1, Math.round(image.naturalHeight * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("Unable to process image. Please try a different file.");
+      }
+
+      ctx.drawImage(image, 0, 0, width, height);
+      bestDataUrl = canvas.toDataURL("image/jpeg", quality);
+
+      if (estimateDataUrlBytes(bestDataUrl) <= MAX_IMAGE_BYTES) {
+        return bestDataUrl;
+      }
+
+      scale *= 0.82;
+      quality = Math.max(0.58, quality - 0.1);
+    }
+
+    if (estimateDataUrlBytes(bestDataUrl) > MAX_IMAGE_BYTES) {
+      throw new Error("Image is too large for analysis after compression. Crop it to the resume area and retry.");
+    }
+
+    return bestDataUrl;
   };
   const handleEducationChange = (index: number, field: string, value: any) => {
     setResumeData((prev) => {
@@ -541,34 +1154,54 @@ const handleAnalyze = async (customFile?: File) => {
     setIsAnalyzing(true);
     setAnalysisResult(null);
 
+    let resumeContext = "";
+    const deterministicFallback = () =>
+      buildDeterministicFallbackAnalysis(
+        resumeContext || JSON.stringify(resumeData, null, 2),
+        jobDescription,
+      );
+
     try {
-      let resumeContext = "";
       const targetFile = customFile || (selectedResume === "upload" ? uploadedFile : null);
+      const systemPrompt =
+        "You are an expert ATS (Applicant Tracking System). Analyze the resume against the job description and return strictly JSON. Be conservative with scoring. Penalize vague claims, missing quantified impact, weak signal coverage, and weak language/skill match against the provided role requirements.";
+      let userContent: string | Array<Record<string, unknown>> = "";
 
       if (targetFile) {
+        const isPdf =
+          targetFile.type === "application/pdf" ||
+          targetFile.name.toLowerCase().endsWith(".pdf") ||
+          targetFile.type.toLowerCase().includes("pdf");
+
         // CASE 1: External PDF Upload - Extract text locally
-        if (targetFile.type === "application/pdf") {
+        if (isPdf) {
           resumeContext = await extractTextFromPDF(targetFile);
+          if (resumeContext.trim().length < 40) {
+            throw new Error("Could not extract readable text from this PDF. It may be scanned/image-only.");
+          }
         } else {
-          // Fallback for images if you still want to allow them
-          const base64 = await fileToBase64(targetFile);
-          resumeContext = `[IMAGE_CONTENT_BASE64:${base64}]`; 
+          const optimizedImageDataUrl = await optimizeImageForVision(targetFile);
+          resumeContext = `[IMAGE_RESUME_UPLOAD:${targetFile.name}]`;
+          userContent = [
+            {
+              type: "text",
+              text: `Analyze this resume image against the job description below.\n\nJOB DESCRIPTION:\n"${jobDescription}"\n\nThe resume content is provided as the attached image. Return a JSON object exactly in this format:\n{\n  "matchScore": number,\n  "strengths": string[],\n  "gaps": string[],\n  "suggestions": string[],\n  "keywordMatch": [{"keyword": string, "found": boolean}]\n}`,
+            },
+            {
+              type: "image_url",
+              image_url: {
+                url: optimizedImageDataUrl,
+              },
+            },
+          ];
         }
       } else {
         // CASE 2: Builder Data - Use structured JSON
         resumeContext = JSON.stringify(resumeData, null, 2);
       }
 
-      const response = await callOpenAI({
-        model: "gpt-4o-mini", // Optimized for high-speed text analysis
-        messages: [
-          {
-            role: "system",
-            content: "You are an expert ATS (Applicant Tracking System). Analyze the resume text against the Job Description and return strictly JSON."
-          },
-          {
-            role: "user",
-            content: `
+      if (!userContent) {
+        userContent = `
             Analyze this resume against the job description below.
             
             JOB DESCRIPTION:
@@ -584,20 +1217,79 @@ const handleAnalyze = async (customFile?: File) => {
               "gaps": string[],
               "suggestions": string[],
               "keywordMatch": [{"keyword": string, "found": boolean}]
-            }`
+            }`;
+      }
+
+      const response = await callOpenAI({
+        model: "gpt-4o-mini", // Optimized for high-speed text analysis
+        messages: [
+          {
+            role: "system",
+            content: systemPrompt,
+          },
+          {
+            role: "user",
+            content: userContent,
           },
         ],
         response_format: { type: "json_object" },
       });
 
-      const content = response.choices[0].message.content;
-      if (content) {
-        setAnalysisResult(JSON.parse(content) as AnalysisResult);
-        toast.success("AI Analysis Complete!");
+      const content = response?.choices?.[0]?.message?.content;
+      if (!content || typeof content !== "string") {
+        throw new Error("AI returned an empty response");
       }
+
+      let normalized = deterministicFallback();
+      let usedFallback = true;
+
+      try {
+        const jsonPayload = extractJsonObjectFromText(content);
+        const parsed = JSON.parse(jsonPayload);
+        const aiNormalized = normalizeAnalysisResult(parsed);
+        const hasPlaceholderGaps = aiNormalized.gaps.some((gap) =>
+          gap.includes("Unable to extract complete analysis details"),
+        );
+        const hasPlaceholderStrength = aiNormalized.strengths.some((strength) =>
+          strength.includes("No clear strengths were extracted"),
+        );
+        const aiLooksValid =
+          aiNormalized.keywordMatch.length > 0 ||
+          (!hasPlaceholderGaps && !hasPlaceholderStrength);
+
+        if (aiLooksValid) {
+          normalized = aiNormalized;
+          usedFallback = false;
+        }
+      } catch {
+        // Keep deterministic fallback so UI can still render a meaningful score.
+      }
+
+      const guarded = applyDeterministicScoreGuard(
+        normalized,
+        resumeContext,
+        jobDescription,
+      );
+
+      setAnalysisResult(guarded);
+      if (usedFallback) {
+        toast.info("AI response was unstable. Showing deterministic backup analysis.");
+      }
+      toast.success("AI Analysis Complete!");
     } catch (error: any) {
       console.error("Analysis Error:", error);
-      toast.error("Analysis failed. Please check your network or PDF format.");
+      const message =
+        typeof error?.message === "string"
+          ? error.message
+          : "Analysis failed. Please check your network or PDF format.";
+      const guardedFallback = applyDeterministicScoreGuard(
+        deterministicFallback(),
+        resumeContext || JSON.stringify(resumeData, null, 2),
+        jobDescription,
+      );
+      setAnalysisResult(guardedFallback);
+      toast.info("Used deterministic backup analysis because AI request failed.");
+      toast.error(message);
     } finally {
       setIsAnalyzing(false);
     }
@@ -691,6 +1383,25 @@ const handleAnalyze = async (customFile?: File) => {
                   >
                     <Eye className="w-4 h-4 mr-2" />
                     {preview ? "Edit" : "Preview"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9"
+                    disabled={!hasUnsavedResumeChanges || isSavingResume}
+                    onClick={handleSaveResume}
+                  >
+                    {isSavingResume ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        {hasUnsavedResumeChanges ? "Save Changes" : "Saved"}
+                      </>
+                    )}
                   </Button>
                   <Button size="sm" className="h-9" onClick={downloadPDF}>
                     <Download className="w-4 h-4 mr-2" />
