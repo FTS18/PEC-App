@@ -56,6 +56,83 @@ const unwrapSuccess = <T = any>(payload: any): T => {
   return payload as T;
 };
 
+const extractMetaTotal = (payload: any): number | null => {
+  if (
+    payload &&
+    typeof payload === "object" &&
+    payload.meta &&
+    typeof payload.meta.total === "number"
+  ) {
+    return payload.meta.total;
+  }
+  return null;
+};
+
+const fetchAllViaApi = async <T = any>(
+  route: string,
+  params: Record<string, any> = {},
+  pageSize = 200,
+): Promise<T[]> => {
+  if (params.limit !== undefined || params.offset !== undefined) {
+    const res = await API.get(route, { params });
+    const rows = unwrapSuccess<T[]>(res.data);
+    return Array.isArray(rows) ? rows : [];
+  }
+
+  const baseParams = { ...params };
+  delete baseParams.limit;
+  delete baseParams.offset;
+
+  const first = await API.get(route, {
+    params: { ...baseParams, limit: pageSize, offset: 0 },
+  });
+  const firstRows = unwrapSuccess<T[]>(first.data);
+  const firstData = Array.isArray(firstRows) ? firstRows : [];
+  const total = extractMetaTotal(first.data);
+
+  if (typeof total === "number") {
+    if (total <= firstData.length) {
+      return firstData;
+    }
+    const remainingOffsets: number[] = [];
+    for (let offset = firstData.length; offset < total; offset += pageSize) {
+      remainingOffsets.push(offset);
+    }
+    const remaining = await Promise.all(
+      remainingOffsets.map((offset) =>
+        API.get(route, {
+          params: { ...baseParams, limit: pageSize, offset },
+        }),
+      ),
+    );
+    return [
+      ...firstData,
+      ...remaining.flatMap((res) => {
+        const rows = unwrapSuccess<T[]>(res.data);
+        return Array.isArray(rows) ? rows : [];
+      }),
+    ];
+  }
+
+  const all = [...firstData];
+  let offset = firstData.length;
+  let lastCount = firstData.length;
+
+  while (lastCount === pageSize) {
+    const next = await API.get(route, {
+      params: { ...baseParams, limit: pageSize, offset },
+    });
+    const rows = unwrapSuccess<T[]>(next.data);
+    const batch = Array.isArray(rows) ? rows : [];
+    if (batch.length === 0) break;
+    all.push(...batch);
+    offset += batch.length;
+    lastCount = batch.length;
+  }
+
+  return all;
+};
+
 const normalizeCollectionName = (collectionName: string) => {
   if (collectionName === "feeRecords") return "fee-records";
   if (collectionName === "placement_drives") return "jobs";
@@ -202,15 +279,10 @@ export const getDocs = async (q: any) => {
     }
 
     if (col === "grades" && params.studentId) {
-      const { data } = await API.get("/enrollments", {
-        params: {
-          studentId: params.studentId,
-          status: "active",
-          limit: 200,
-          offset: 0,
-        },
+      const enrollments = await fetchAllViaApi<any>("/enrollments", {
+        studentId: params.studentId,
+        status: "active",
       });
-      const enrollments = unwrapSuccess<any[]>(data);
       const gradeRows = (Array.isArray(enrollments) ? enrollments : []).map(
         (enrollment, index) => ({
           id: `grade-${enrollment.id}`,
@@ -254,24 +326,18 @@ export const getDocs = async (q: any) => {
     }
 
     if (col === "submissions" && params.studentId) {
-      const { data } = await API.get("/enrollments", {
-        params: {
-          studentId: params.studentId,
-          status: "active",
-          limit: 200,
-          offset: 0,
-        },
+      const enrollments = await fetchAllViaApi<any>("/enrollments", {
+        studentId: params.studentId,
+        status: "active",
       });
-      const enrollments = unwrapSuccess<any[]>(data);
 
       const submissionRows: any[] = [];
       if (Array.isArray(enrollments)) {
         for (const enrollment of enrollments) {
           try {
-            const assignmentsRes = await API.get("/assignments", {
-              params: { courseId: enrollment.courseId, limit: 200, offset: 0 },
+            const assignments = await fetchAllViaApi<any>("/assignments", {
+              courseId: enrollment.courseId,
             });
-            const assignments = unwrapSuccess<any[]>(assignmentsRes.data);
             if (Array.isArray(assignments) && assignments.length > 0) {
               submissionRows.push({
                 id: `submission-${assignments[0].id}`,
@@ -335,17 +401,13 @@ export const getDocs = async (q: any) => {
     }
 
     if (col === "users") {
-      const { data } = await API.get("/users", {
-        params: {
-          role: params.role,
-          department: params.department,
-          semester: params.semester,
-          limit: params.limit || 200,
-          offset: params.offset || 0,
-        },
+      const users = await fetchAllViaApi<any>("/users", {
+        role: params.role,
+        department: params.department,
+        semester: params.semester,
+        ...(params.limit ? { limit: params.limit } : {}),
+        ...(params.offset ? { offset: params.offset } : {}),
       });
-
-      const users = unwrapSuccess<any[]>(data);
       const normalizedUsers = Array.isArray(users)
         ? users.map((user) => ({
             uid: user.id,
@@ -403,10 +465,7 @@ export const getDocs = async (q: any) => {
       let codeToId = new Map<string, string>();
 
       try {
-        const coursesRes = await API.get("/courses", {
-          params: { limit: 200, offset: 0 },
-        });
-        const courses = unwrapSuccess<any[]>(coursesRes.data);
+        const courses = await fetchAllViaApi<any>("/courses");
         if (Array.isArray(courses)) {
           codeToId = new Map(
             courses

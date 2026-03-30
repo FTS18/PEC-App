@@ -43,6 +43,7 @@ import { exportAttendanceReport } from '@/lib/pdfExport';
 import PDFExportButton from '@/components/common/PDFExportButton';
 import { EmptyState, LoadingGrid } from '@/components/common/AsyncState';
 import api from '@/lib/api';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 
 interface AttendanceRecord {
   id: string;
@@ -147,10 +148,7 @@ function AttendanceManager({
 
   const fetchCourses = async () => {
     try {
-      const response = await api.get<ApiResponse<any[]>>('/courses', {
-        params: { limit: 200, offset: 0 },
-      });
-      let data = extractData<any[]>(response) || [];
+      let data = await fetchAllPages<any>('/courses');
       
       if (!isAdmin && userId) {
         const normalizedUserName = (userName || '').trim().toLowerCase();
@@ -179,20 +177,18 @@ function AttendanceManager({
       const selectedCourseData = courses.find((course: any) => course.id === selectedCourse);
       const selectedCourseSubject = selectedCourseData?.code || selectedCourse;
 
-      const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
-        params: { courseId: selectedCourse, status: 'active', limit: 200, offset: 0 },
+      const enrolledRows = await fetchAllPages<any>('/enrollments', {
+        courseId: selectedCourse,
+        status: 'active',
       });
-      const enrolledStudents = (extractData<any[]>(enrollmentsResponse) || []).map((item) => ({
+      const enrolledStudents = enrolledRows.map((item) => ({
         studentId: item.studentId,
         enrollmentId: item.id,
         studentName: item.student?.name || '',
         studentEmail: item.student?.email || '',
       }));
 
-      const usersResponse = await api.get<ApiResponse<any[]>>('/users', {
-        params: { role: 'student', limit: 200, offset: 0 },
-      });
-      const users = extractData<any[]>(usersResponse) || [];
+      const users = await fetchAllPages<any>('/users', { role: 'student' });
       const usersById = new Map(users.map((u: any) => [u.id, u]));
 
       const studentData = await Promise.all(
@@ -211,10 +207,10 @@ function AttendanceManager({
         })
       );
 
-      const attendanceResponse = await api.get<ApiResponse<any[]>>('/attendance', {
-        params: { subject: selectedCourseSubject, date: selectedDate, limit: 200, offset: 0 },
+      const attendanceRows = await fetchAllPages<any>('/attendance', {
+        subject: selectedCourseSubject,
+        date: selectedDate,
       });
-      const attendanceRows = extractData<any[]>(attendanceResponse) || [];
       const existingRecords = attendanceRows.reduce((acc: any, record: any) => {
         acc[record.studentId] = record;
         return acc;
@@ -279,10 +275,7 @@ function AttendanceManager({
     let failed = 0;
     const errors: string[] = [];
 
-     const usersResponse = await api.get<ApiResponse<any[]>>('/users', {
-      params: { role: 'student', limit: 200, offset: 0 },
-     });
-     const users = extractData<any[]>(usersResponse) || [];
+     const users = await fetchAllPages<any>('/users', { role: 'student' });
 
     for (const row of data) {
       try {
@@ -507,21 +500,15 @@ function StudentAttendanceView({ userId }: { userId: string }) {
 
   const fetchData = async () => {
     try {
-      const recordsResponse = await api.get<ApiResponse<any[]>>('/attendance', {
-        params: { studentId: userId, limit: 200, offset: 0 },
-      });
-      const records = extractData<any[]>(recordsResponse) || [];
+      const records = await fetchAllPages<any>('/attendance', { studentId: userId });
       setAttendanceRecords(records);
 
-      const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
-        params: { studentId: userId, status: 'active', limit: 200, offset: 0 },
+      const enrollments = await fetchAllPages<any>('/enrollments', {
+        studentId: userId,
+        status: 'active',
       });
-      const enrollments = extractData<any[]>(enrollmentsResponse) || [];
 
-      const coursesResponse = await api.get<ApiResponse<any[]>>('/courses', {
-        params: { limit: 200, offset: 0 },
-      });
-      const courses = extractData<any[]>(coursesResponse) || [];
+      const courses = await fetchAllPages<any>('/courses');
       const coursesById = new Map(courses.map((course: any) => [course.id, course]));
       const courseCodeById = new Map(
         courses.map((course: any) => [course.id, course.code]),

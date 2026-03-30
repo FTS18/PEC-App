@@ -101,22 +101,26 @@ export function ChatSidebar({
                 className="pl-10"
               />
             </div>
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={() => setIsCreateGroupOpen(true)}
-              title="Create new group"
-            >
-              <Users className="w-4 h-4" />
-            </Button>
-            <Button
-              size="icon"
-              variant="default"
-              onClick={() => setIsNewChatOpen(true)}
-              title="Start new DM"
-            >
-              <Plus className="w-4 h-4" />
-            </Button>
+            {!isChatAdmin && (
+              <>
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={() => setIsCreateGroupOpen(true)}
+                  title="Create new group"
+                >
+                  <Users className="w-4 h-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="default"
+                  onClick={() => setIsNewChatOpen(true)}
+                  title="Start new DM"
+                >
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </>
+            )}
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import api from '@/lib/api';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 import { toast } from 'sonner';
 
 export function useAdminDashboard() {
@@ -48,17 +49,11 @@ export function useAdminDashboard() {
 
   const fetchAdminData = useCallback(async () => {
     try {
-      type ApiResponse<T> = { success: boolean; data: T; meta?: { total?: number } };
-
-      const [coursesRes, usersRes] = await Promise.all([
-        api.get<ApiResponse<any[]>>('/courses', { params: { limit: 200, offset: 0 } }),
-        api.get<ApiResponse<any[]>>('/users', { params: { limit: 200, offset: 0 } }),
+      const [coursesData, usersData] = await Promise.all([
+        fetchAllPages<any>('/courses'),
+        fetchAllPages<any>('/users'),
       ]);
-
-      const coursesData = coursesRes.data.data || [];
       setCourses(coursesData);
-
-      const usersData = usersRes.data.data || [];
       setUsers(usersData);
 
       // Calculate stats

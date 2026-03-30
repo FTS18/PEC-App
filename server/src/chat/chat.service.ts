@@ -11,7 +11,13 @@ import { SendMessageDto } from './dto/send-message.dto';
 export class ChatService {
   constructor(private prisma: PrismaService) {}
 
-  async findAllRooms(userId: string) {
+  async findAllRooms(userId: string, userRoles: string[] = []) {
+    const isCollegeAdmin = userRoles.includes('college_admin');
+
+    if (isCollegeAdmin) {
+      return this.findDefaultRoomsForCollegeAdmin(userId);
+    }
+
     const userChatRooms = await this.prisma.userChatRoom.findMany({
       where: { userId },
       include: {
@@ -34,6 +40,73 @@ export class ChatService {
     });
 
     return userChatRooms.map((ucr) => ucr.chatRoom);
+  }
+
+  private async findDefaultRoomsForCollegeAdmin(userId: string) {
+    const departments = await this.prisma.department.findMany({
+      select: {
+        name: true,
+        timetableLabel: true,
+      },
+    });
+
+    const defaultRoomNames = new Set<string>(['PEC Global Announcements']);
+    departments.forEach((department) => {
+      if (department.timetableLabel) {
+        defaultRoomNames.add(department.timetableLabel);
+      } else if (department.name) {
+        defaultRoomNames.add(department.name);
+      }
+    });
+
+    const rooms = await this.prisma.chatRoom.findMany({
+      where: {
+        isGroup: true,
+        name: {
+          in: Array.from(defaultRoomNames),
+        },
+      },
+      include: {
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    const roomIds = rooms.map((room) => room.id);
+    if (roomIds.length > 0) {
+      const existingMemberships = await this.prisma.userChatRoom.findMany({
+        where: {
+          userId,
+          chatRoomId: { in: roomIds },
+        },
+        select: {
+          chatRoomId: true,
+        },
+      });
+
+      const existingIds = new Set(
+        existingMemberships.map((membership) => membership.chatRoomId),
+      );
+      const missingIds = roomIds.filter((id) => !existingIds.has(id));
+
+      if (missingIds.length > 0) {
+        await this.prisma.userChatRoom.createMany({
+          data: missingIds.map((chatRoomId) => ({ userId, chatRoomId })),
+          skipDuplicates: true,
+        });
+      }
+    }
+
+    return rooms;
   }
 
   async findMessages(roomId: string, userId: string, limit: number = 50) {

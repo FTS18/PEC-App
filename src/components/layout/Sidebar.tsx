@@ -100,6 +100,12 @@ const navItems: NavItem[] = [
     roles: ["student", "faculty", "college_admin", "admin"],
   },
   {
+    icon: IconChartBar,
+    label: "Examinations",
+    path: "/examinations",
+    roles: ["student", "faculty", "college_admin", "admin"],
+  },
+  {
     icon: IconClipboardCheck,
     label: "Attendance",
     path: "/attendance",
@@ -180,7 +186,7 @@ export function Sidebar({
     },
     {
       title: 'Academics',
-      paths: ['/courses', '/timetable', '/attendance', '/course-materials', '/resume-builder'],
+      paths: ['/courses', '/timetable', '/examinations', '/attendance', '/course-materials', '/resume-builder'],
     },
     {
       title: 'Campus',

@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/common/AsyncState';
 import { usePermissions } from '@/hooks/usePermissions';
 import api from '@/lib/api';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 import { toast } from 'sonner';
 
 interface ApiResponse<T> {
@@ -66,9 +67,7 @@ export default function CourseDetailPage() {
 
     const [courseResult, scheduleResult, enrollmentResult] = await Promise.allSettled([
       api.get<ApiResponse<CourseDetail>>(`/courses/${id}`),
-      api.get<ApiResponse<TimetableItem[]>>('/timetable', {
-        params: { limit: 200, offset: 0, courseId: id },
-      }),
+      fetchAllPages<TimetableItem>('/timetable', { courseId: id }),
       isStudent && user?.uid
         ? api.get<ApiResponse<EnrollmentItem[]>>('/enrollments', {
             params: { limit: 1, offset: 0, courseId: id, status: 'active' },
@@ -84,7 +83,7 @@ export default function CourseDetailPage() {
     setCourse(courseData);
 
     if (scheduleResult.status === 'fulfilled') {
-      const normalized = (scheduleResult.value.data.data || [])
+      const normalized = (scheduleResult.value || [])
         .map((slot) => ({
           ...slot,
           room: slot.room || 'TBD',

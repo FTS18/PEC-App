@@ -44,6 +44,7 @@ import dynamic from 'next/dynamic';
 import PDFExportButton from '@/components/common/PDFExportButton';
 import { EmptyState, LoadingGrid } from '@/components/common/AsyncState';
 import api from '@/lib/api';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 
 const BulkUpload = dynamic(() => import('@/components/BulkUpload'), {
   ssr: false,
@@ -73,7 +74,11 @@ interface Course {
 interface ApiResponse<T> {
   success: boolean;
   data: T;
-  meta?: any;
+  meta?: {
+    total?: number;
+    limit?: number;
+    offset?: number;
+  };
 }
 
 export default function Courses() {
@@ -193,6 +198,7 @@ export default function Courses() {
   const [enrolling, setEnrolling] = useState(false);
   const [courseSchedule, setCourseSchedule] = useState<{day: string; timeSlot: string; room: string}[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const MAX_PAGE_SIZE = 200;
 
   // Deterministic Keyword Mapping for Images
   const getCourseImage = (dept: string, name: string) => {
@@ -223,11 +229,8 @@ export default function Courses() {
     setLoadingSchedule(true);
     setCourseSchedule([]);
     try {
-      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
-      const response = await api.get<ApiResponse<any[]>>('/timetable', {
-        params: { limit: 200, offset: 0, courseId },
-      });
-      const schedule = (response.data.data || []).map((data: any) => {
+      const timetableRows = await fetchAllPages<any>('/timetable', { courseId });
+      const schedule = timetableRows.map((data: any) => {
         return {
           day: data.day,
           timeSlot: data.timeSlot || `${data.startTime}-${data.endTime}`,
@@ -251,11 +254,39 @@ export default function Courses() {
 
   const fetchCourses = useCallback(async () => {
     try {
-      const response = await api.get<ApiResponse<any[]>>('/courses', {
-        params: { limit: 200, offset: 0 },
+      const firstPage = await api.get<ApiResponse<any[]>>('/courses', {
+        params: { limit: MAX_PAGE_SIZE, offset: 0 },
       });
 
-      let coursesData = (response.data.data || []).map((course: any) => ({
+      const initialCourses = firstPage.data.data || [];
+      const total = Number(firstPage.data.meta?.total || initialCourses.length);
+
+      let allRawCourses = [...initialCourses];
+      if (total > initialCourses.length) {
+        const remainingOffsets: number[] = [];
+        for (
+          let offset = initialCourses.length;
+          offset < total;
+          offset += MAX_PAGE_SIZE
+        ) {
+          remainingOffsets.push(offset);
+        }
+
+        const remainingPages = await Promise.all(
+          remainingOffsets.map((offset) =>
+            api.get<ApiResponse<any[]>>('/courses', {
+              params: { limit: MAX_PAGE_SIZE, offset },
+            }),
+          ),
+        );
+
+        const remainingCourses = remainingPages.flatMap(
+          (page) => page.data.data || [],
+        );
+        allRawCourses = [...allRawCourses, ...remainingCourses];
+      }
+
+      let coursesData = allRawCourses.map((course: any) => ({
         ...course,
         facultyName: course.facultyName || course.instructor || 'TBA',
         maxStudents: Number(course.maxStudents || 60),
@@ -280,7 +311,42 @@ export default function Courses() {
       console.error('Error fetching courses:', error);
       toast.error('Failed to load courses');
     }
-  }, [isFaculty, user?.uid, user?.fullName]);
+  }, [MAX_PAGE_SIZE, isFaculty, user?.uid, user?.fullName]);
+
+  const fetchAllStudentEnrollments = useCallback(async (studentId: string) => {
+    const firstPage = await api.get<ApiResponse<any[]>>('/enrollments', {
+      params: { limit: MAX_PAGE_SIZE, offset: 0, studentId, status: 'active' },
+    });
+
+    const initialEnrollments = firstPage.data.data || [];
+    const total = Number(firstPage.data.meta?.total || initialEnrollments.length);
+
+    if (total <= initialEnrollments.length) {
+      return initialEnrollments;
+    }
+
+    const remainingOffsets: number[] = [];
+    for (
+      let offset = initialEnrollments.length;
+      offset < total;
+      offset += MAX_PAGE_SIZE
+    ) {
+      remainingOffsets.push(offset);
+    }
+
+    const remainingPages = await Promise.all(
+      remainingOffsets.map((offset) =>
+        api.get<ApiResponse<any[]>>('/enrollments', {
+          params: { limit: MAX_PAGE_SIZE, offset, studentId, status: 'active' },
+        }),
+      ),
+    );
+
+    const remainingEnrollments = remainingPages.flatMap(
+      (page) => page.data.data || [],
+    );
+    return [...initialEnrollments, ...remainingEnrollments];
+  }, [MAX_PAGE_SIZE]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -296,10 +362,8 @@ export default function Courses() {
 
         // Fetch enrollments for students
         if (isStudent && user.uid) {
-          const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
-            params: { limit: 100, offset: 0, studentId: user.uid, status: 'active' },
-          });
-          const enrolledIds = (enrollmentsResponse.data.data || []).map((item: any) => item.courseId);
+          const allEnrollments = await fetchAllStudentEnrollments(user.uid);
+          const enrolledIds = allEnrollments.map((item: any) => item.courseId);
           setEnrolledCourseIds(enrolledIds);
         }
       } catch (error) {
@@ -311,7 +375,7 @@ export default function Courses() {
     };
 
     loadData();
-  }, [authLoading, user, isStudent, router, fetchCourses]);
+  }, [authLoading, user, isStudent, router, fetchAllStudentEnrollments, fetchCourses]);
 
   const handleEditCourse = (course: Course) => {
     // Faculty can only edit courses in their department
@@ -459,11 +523,11 @@ export default function Courses() {
     if (!user?.uid || !isStudent) return;
 
     try {
-      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
-      const enrollmentResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
-        params: { limit: 200, offset: 0, studentId: user.uid, courseId, status: 'active' },
+      const enrollmentData = await fetchAllPages<any>('/enrollments', {
+        studentId: user.uid,
+        courseId,
+        status: 'active',
       });
-      const enrollmentData = enrollmentResponse.data.data || [];
 
       if (enrollmentData.length === 0) {
         toast.error('Enrollment not found');

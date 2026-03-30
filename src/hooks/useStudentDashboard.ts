@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import api from '@/lib/api';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 import type { 
   StudentProfile,
   Course, 
@@ -78,49 +79,36 @@ export function useStudentDashboard() {
     if (!user) return;
     try {
       setLoadError(null);
-      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
       const department = user.department;
       const semester = user.semester;
 
       const [coursesResult, enrollmentsResult, attendanceResult, timetableResult] =
         await Promise.allSettled([
-          api.get<ApiResponse<Course[]>>('/courses', {
-            params: {
-              limit: 200,
-              offset: 0,
-              ...(department ? { department } : {}),
-              ...(semester ? { semester } : {}),
-            },
+          fetchAllPages<Course>('/courses', {
+            ...(department ? { department } : {}),
+            ...(semester ? { semester } : {}),
           }),
-          api.get<ApiResponse<EnrollmentRecord[]>>('/enrollments', {
-            params: { limit: 200, offset: 0, status: 'active' },
-          }),
-          api.get<ApiResponse<AttendanceRecord[]>>('/attendance', {
-            params: { limit: 200, offset: 0 },
-          }),
-          api.get<ApiResponse<TimetableRecord[]>>('/timetable', {
-            params: {
-              limit: 200,
-              offset: 0,
-              ...(department ? { department } : {}),
-              ...(semester ? { semester } : {}),
-            },
+          fetchAllPages<EnrollmentRecord>('/enrollments', { status: 'active' }),
+          fetchAllPages<AttendanceRecord>('/attendance'),
+          fetchAllPages<TimetableRecord>('/timetable', {
+            ...(department ? { department } : {}),
+            ...(semester ? { semester } : {}),
           }),
         ]);
 
       const allCourses =
-        coursesResult.status === 'fulfilled' ? coursesResult.value.data.data || [] : [];
+        coursesResult.status === 'fulfilled' ? coursesResult.value || [] : [];
       const enrollments =
         enrollmentsResult.status === 'fulfilled'
-          ? enrollmentsResult.value.data.data || []
+          ? enrollmentsResult.value || []
           : [];
       const attendanceRecords =
         attendanceResult.status === 'fulfilled'
-          ? attendanceResult.value.data.data || []
+          ? attendanceResult.value || []
           : [];
       const timetableData =
         timetableResult.status === 'fulfilled'
-          ? timetableResult.value.data.data || []
+          ? timetableResult.value || []
           : [];
       if (attendanceResult.status === 'rejected' && isNotFoundError(attendanceResult.reason)) {
         // Handle attendance error

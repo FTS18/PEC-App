@@ -24,7 +24,12 @@ export class ChatController {
 
   @Get('rooms')
   async findAll(@Request() req: any) {
-    const data = await this.chatService.findAllRooms(req.user.sub);
+    const userRoles = Array.isArray(req.user?.roles)
+      ? req.user.roles
+      : req.user?.role
+        ? [req.user.role]
+        : [];
+    const data = await this.chatService.findAllRooms(req.user.sub, userRoles);
     return { success: true, data };
   }
 
