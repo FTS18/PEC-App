@@ -23,10 +23,10 @@ export async function seedStudents(passwordHash: string): Promise<StudentSeed[]>
       const fullName = `${firstName} ${lastName}`;
       
       const email = isSpecUser 
-        ? 'student@pec.edu' 
+        ? 'arjun@pec.edu' 
         : faker.internet.email({ firstName, lastName, provider: 'pec.edu' }).toLowerCase();
 
-      const batch = batchForSemester(semester);
+      const batch = isSpecUser ? '2026' : batchForSemester(semester);
       
       const user = await createUserWithRole({
         email,
@@ -45,9 +45,9 @@ export async function seedStudents(passwordHash: string): Promise<StudentSeed[]>
       await prisma.studentProfile.upsert({
         where: { userId: actualUserId },
         update: {
-          enrollmentNumber: `PEC${(batch || '2024').slice(0, 4)}${department.code}${String(studentIndex + 1).padStart(3, '0')}`,
+          enrollmentNumber: isSpecUser ? 'PEC2026CSE001' : `PEC${(batch || '2024').slice(0, 4)}${department.code}${String(studentIndex + 1).padStart(3, '0')}`,
           department: department.name,
-          semester,
+          semester: isSpecUser ? 1 : semester,
           phone: encryptField(faker.phone.number({ style: 'international' })),
           dob: faker.date.birthdate({ min: 18, max: 22, mode: 'age' }),
           address: encryptField(faker.location.streetAddress(true)),
@@ -55,9 +55,9 @@ export async function seedStudents(passwordHash: string): Promise<StudentSeed[]>
         },
         create: {
           userId: actualUserId,
-          enrollmentNumber: `PEC${(batch || '2024').slice(0, 4)}${department.code}${String(studentIndex + 1).padStart(3, '0')}`,
+          enrollmentNumber: isSpecUser ? 'PEC2026CSE001' : `PEC${(batch || '2024').slice(0, 4)}${department.code}${String(studentIndex + 1).padStart(3, '0')}`,
           department: department.name,
-          semester,
+          semester: isSpecUser ? 1 : semester,
           phone: encryptField(faker.phone.number({ style: 'international' })),
           dob: faker.date.birthdate({ min: 18, max: 22, mode: 'age' }),
           address: encryptField(faker.location.streetAddress(true)),
@@ -70,7 +70,7 @@ export async function seedStudents(passwordHash: string): Promise<StudentSeed[]>
         name: fullName,
         departmentCode: department.code,
         departmentName: department.name,
-        semester,
+        semester: isSpecUser ? 1 : semester,
         batch,
       });
     }

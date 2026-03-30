@@ -89,18 +89,25 @@ export function useStudentDashboard() {
 
       const summary = extractData<any>(summaryRes);
       const allCourses = extractData<Course[]>(coursesRes) || [];
-      const timetableData = extractData<any[]>(timetableRes) || [];
+      const rawTimetable = extractData<any>(timetableRes);
+      const timetableData = Array.isArray(rawTimetable) ? rawTimetable : [];
 
-      if (summary) {
-        setEnrolledCoursesList(summary.courses);
+      if (summary && typeof summary === 'object') {
+        const statsObj = summary.totalSummary || {};
+        const coursesArr = Array.isArray(summary.courses) ? summary.courses : [];
+        
+        setEnrolledCoursesList(coursesArr);
         setStats({
-          attendancePercentage: summary.totalSummary.percentage,
-          enrolledCourses: summary.courses.length,
+          attendancePercentage: typeof statsObj.percentage === 'number' ? statsObj.percentage : 0,
+          enrolledCourses: coursesArr.length,
         });
       }
 
       // --- Process Timetable ---
-      const enrolledCourseIds = new Set(summary?.courses.map((c: any) => c.courseId) || []);
+      const enrollList = (summary && typeof summary === 'object' && Array.isArray(summary.courses)) 
+                        ? summary.courses 
+                        : [];
+      const enrolledCourseIds = new Set(enrollList.map((c: any) => c.courseId));
       const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       

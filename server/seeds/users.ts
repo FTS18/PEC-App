@@ -83,11 +83,14 @@ export async function seedCoreUsers(passwordHash: string) {
   // Ensure mock-user-id exists for stable dev testing
   const mockUser = await prisma.user.upsert({
     where: { id: 'mock-user-id' },
-    update: {},
+    update: {
+       name: 'Arjun',
+       email: 'arjun@pec.edu',
+    },
     create: {
        id: 'mock-user-id',
-       email: 'student@pec.edu',
-       name: 'John Student',
+       email: 'arjun@pec.edu',
+       name: 'Arjun',
        password: passwordHash,
        role: 'student',
        profileComplete: true,
@@ -98,15 +101,16 @@ export async function seedCoreUsers(passwordHash: string) {
   // Also seed a profile for this mock user to unify it with the system
   await prisma.studentProfile.upsert({
     where: { userId: mockUser.id },
-    update: {},
+    update: {
+       enrollmentNumber: 'PEC2026CSE001',
+       department: 'Computer Science & Engineering',
+       semester: 1,
+    },
     create: {
-      userId: mockUser.id,
-      enrollmentNumber: 'PEC2024CSE001',
-      department: 'Computer Science & Engineering',
-      semester: 1,
-      dob: new Date('2004-05-15'),
-      phone: 'encrypted_phone_mock',
-      address: 'encrypted_address_mock',
+       userId: mockUser.id,
+       enrollmentNumber: 'PEC2026CSE001',
+       department: 'Computer Science & Engineering',
+       semester: 1,
     }
   });
 
