@@ -1,7 +1,7 @@
 import { serverFetch } from '@/lib/server-data';
 import { getServerSession } from '@/lib/server-auth';
 import { redirect } from 'next/navigation';
-import { DepartmentsView } from './DepartmentsView';
+import { DepartmentsView } from '@/modules/departments/views/DepartmentsView';
 
 export const metadata = {
   title: 'Departments | OmniFlow ERP',
