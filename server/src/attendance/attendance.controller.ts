@@ -19,13 +19,40 @@ import { ok } from '../common/utils/api-response';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { BadRequestException } from '@nestjs/common';
 
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('attendance')
 export class AttendanceController {
+  @Roles('faculty', 'college_admin')
+  @Get('faculty-stats')
+  async getFacultyStats(@Request() req: any) {
+    const data = await this.attendanceService.getFacultyStats(req.user.sub);
+    return ok(data);
+  }
+
   constructor(private readonly attendanceService: AttendanceService) {}
 
-  @Roles('faculty', 'admin')
+  @Roles('student', 'faculty', 'college_admin', 'admin')
+  @Get('summary')
+  async getSummary(@Request() req: any, @Query('studentId') studentId?: string) {
+    const targetId = req.user?.role === 'student' ? req.user.sub : studentId;
+    if (!targetId) throw new BadRequestException('Student ID is required');
+    const data = await this.attendanceService.getStudentSummary(targetId);
+    return ok(data);
+  }
+
+  @Roles('student', 'faculty', 'college_admin', 'admin')
+  @Get('predict')
+  async getPrediction(@Request() req: any, @Query('studentId') studentId?: string, @Query('target') target?: string) {
+    const targetId = req.user?.role === 'student' ? req.user.sub : studentId;
+    if (!targetId) throw new BadRequestException('Student ID is required');
+    const targetPercentage = target ? parseInt(target) : 75;
+    const data = await this.attendanceService.getPrediction(targetId, targetPercentage);
+    return ok(data);
+  }
+
+  @Roles('faculty', 'college_admin', 'admin')
   @Post()
   async create(@Body() createAttendanceDto: CreateAttendanceDto) {
     const data = await this.attendanceService.create(createAttendanceDto);

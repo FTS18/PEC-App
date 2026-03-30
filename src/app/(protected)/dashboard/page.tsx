@@ -1,75 +1,65 @@
-'use client';
+import { Suspense } from 'react';
+import { getServerSession } from '@/lib/server-auth';
+import { redirect } from 'next/navigation';
+import { StudentDataSlot } from './slots/StudentDataSlot';
+import { FacultyDataSlot } from './slots/FacultyDataSlot';
+import { AdminDataSlot } from './slots/AdminDataSlot';
 
-import { useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';
-import { useAuth } from '@/features/auth/hooks/useAuth';
-import { Loader2 } from 'lucide-react';
+// Opt this page into Partial Prerendering (Next.js 16)
+// The static shell renders instantly; user-data slots stream in.
+export const experimental_ppr = true;
 
-const dashboardLoader = () => (
-  <div className="min-h-screen bg-background flex items-center justify-center">
-    <Loader2 className="w-8 h-8 animate-spin text-primary" />
-  </div>
-);
-
-const createRoleDashboard = (role: string) => {
-  if (role === 'student') {
-    return dynamic(
-      () => import('./dashboards/StudentDashboard').then((mod) => mod.StudentDashboard),
-      { ssr: false, loading: dashboardLoader }
-    );
-  }
-
-  if (role === 'faculty') {
-    return dynamic(
-      () => import('./dashboards/FacultyDashboard').then((mod) => mod.FacultyDashboard),
-      { ssr: false, loading: dashboardLoader }
-    );
-  }
-
-  return dynamic(
-    () => import('./dashboards/AdminDashboard').then((mod) => mod.AdminDashboard),
-    { ssr: false, loading: dashboardLoader }
-  );
+export const metadata = {
+  title: 'Dashboard | OmniFlow ERP',
+  description: 'Your personalized campus command center.',
 };
 
-export default function Dashboard() {
-  const router = useRouter();
-  const { user, loading, isAuthenticated } = useAuth();
-
-  const role = useMemo(() => user?.role ?? null, [user?.role]);
-  const resolvedRole = role ?? 'student';
-  const ResolvedDashboard = useMemo(() => createRoleDashboard(resolvedRole), [resolvedRole]);
-
-  useEffect(() => {
-    if (loading) return;
-
-    // If not authenticated, redirect to auth
-    if (!isAuthenticated || !user) {
-      router.replace('/auth');
-      return;
-    }
-
-    if (!user.role) {
-      router.replace('/role-selection');
-      return;
-    }
-  }, [loading, isAuthenticated, user, router]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading dashboard...</p>
-        </div>
+// ─── Skeleton Fallbacks ────────────────────────────────────────────────────────
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="h-24 bg-muted rounded-xl" />
+      <div className="grid gap-4 md:grid-cols-3">
+        {[1, 2, 3].map(i => <div key={i} className="h-24 bg-muted rounded-xl" />)}
       </div>
+      <div className="grid gap-5 xl:grid-cols-3">
+        <div className="lg:col-span-2 h-64 bg-muted rounded-xl" />
+        <div className="h-64 bg-muted rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+export default async function DashboardPage() {
+  const session = await getServerSession();
+
+  if (!session) redirect('/auth');
+  if (!session.role) redirect('/role-selection');
+
+  // Each Role-Slot is wrapped in <Suspense> so Next.js can:
+  // 1. Send the static shell immediately (PPR)
+  // 2. Stream each slot's HTML chunk as its async server component resolves
+  if (session.role === 'student') {
+    return (
+      <Suspense fallback={<DashboardSkeleton />}>
+        <StudentDataSlot session={session} />
+      </Suspense>
     );
   }
 
-  if (!user || !role) {
-    return null;
+  if (session.role === 'faculty') {
+    return (
+      <Suspense fallback={<DashboardSkeleton />}>
+        <FacultyDataSlot session={session} />
+      </Suspense>
+    );
   }
 
-  return <ResolvedDashboard />;
+  // Admin (college_admin / super_admin)
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <AdminDataSlot />
+    </Suspense>
+  );
 }

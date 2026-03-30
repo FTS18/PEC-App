@@ -8,6 +8,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Delete,
   Query,
   Request,
   UseGuards,
@@ -24,6 +25,7 @@ import { Roles } from '../auth/roles.decorator';
 interface AuthenticatedRequest {
   user?: {
     sub: string;
+    uid?: string;
     role?: string;
   };
 }
@@ -38,7 +40,7 @@ export class EnrollmentsController {
   async findAll(@Request() req: AuthenticatedRequest, @Query() query: EnrollmentQueryDto) {
     const effectiveQuery = { ...query };
     if (req.user?.role === 'student') {
-      effectiveQuery.studentId = req.user.sub;
+      effectiveQuery.studentId = req.user.sub || req.user.uid;
     }
 
     const result = await this.enrollmentsService.findAll(effectiveQuery);
@@ -82,5 +84,17 @@ export class EnrollmentsController {
 
     const data = await this.enrollmentsService.update(id, body);
     return ok(data);
+  }
+
+  @Roles('student', 'faculty', 'college_admin')
+  @Delete()
+  async remove(
+    @Request() req: any, 
+    @Query('courseId', new ParseUUIDPipe({ version: '4' })) courseId: string,
+    @Query('studentId') studentIdQuery?: string,
+  ) {
+    const studentId = req.user.role === 'student' ? (req.user.sub || req.user.uid) : studentIdQuery;
+    const result = await this.enrollmentsService.remove(studentId, courseId);
+    return ok(result);
   }
 }

@@ -92,15 +92,19 @@ interface StudentContext {
 const FloatingAIChat = () => {
   const [isOpen, setIsOpen] = useState(false);
   const user = useAuth();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      role: "assistant",
-      content:
-        "Hello! I'm your **PEC AI Assistant**. How can I help you today?",
-      timestamp: new Date(),
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+
+  useEffect(() => {
+    // Initialize welcome message on mount only to avoid SSR mismatch
+    setMessages([
+      {
+        id: "1",
+        role: "assistant",
+        content: "Hello! I'm your **PEC AI Assistant**. How can I help you today?",
+        timestamp: new Date(),
+      },
+    ]);
+  }, []);
   const [inputValue, setInputValue] = useState("");
   const [context, setcontext] = useState<any | undefined>();
   const [isTyping, setIsTyping] = useState(false);
@@ -143,7 +147,7 @@ const FloatingAIChat = () => {
             getDocs(
               query(
                 collection(({} as any), "timetable"),
-                where("semester", "==", studentData.semester),
+                where("semester", "==", studentData.semester as string),
               ),
             ),
             getDocs(

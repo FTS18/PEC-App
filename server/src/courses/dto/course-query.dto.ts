@@ -8,6 +8,10 @@ export class CourseQueryDto extends PaginationQueryDto {
   department?: string;
 
   @IsOptional()
+  @IsString()
+  facultyId?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

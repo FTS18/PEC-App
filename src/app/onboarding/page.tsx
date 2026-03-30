@@ -1,11 +1,7 @@
-'use client';
-
-import { useEffect, useState } from 'react';
+import { useEffect, useActionState, useOptimistic } from 'react';
 import type { ElementType } from 'react';
 import { useRouter } from 'next/navigation';
-;
 import { motion } from 'framer-motion';
-import axios from 'axios';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,88 +15,46 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Users, Building2, Loader2, CheckCircle2 } from 'lucide-react';
+import { GraduationCap, Users, Building2, Loader2, CheckCircle2, Shield, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import type { UserRole } from '@/types';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-
-type StudentFormData = {
-  enrollmentNumber: string;
-  department: string;
-  semester: string;
-  phone: string;
-  dob: string;
-  address: string;
-  bio: string;
-};
-
-type FacultyFormData = {
-  employeeId: string;
-  department: string;
-  designation: string;
-  phone: string;
-  specialization: string;
-  qualifications: string;
-  bio: string;
-};
-
-type AdminFormData = {
-  employeeId: string;
-  department: string;
-  designation: string;
-  phone: string;
-  responsibilities: string;
-  bio: string;
-};
+import { completeProfileStatefulAction } from './actions';
 
 const roleIcons: Record<UserRole, ElementType> = {
   student: GraduationCap,
   faculty: Users,
   college_admin: Building2,
+  admin: Shield,
+  user: Users,
+  moderator: ShieldAlert,
+  placement_officer: Building2,
+  recruiter: Users,
+  super_admin: Shield,
 };
 
 const roleLabels: Record<UserRole, string> = {
   student: 'Student',
   faculty: 'Faculty',
   college_admin: 'College Admin',
+  admin: 'System Admin',
+  user: 'Regular User',
+  moderator: 'Moderator',
+  placement_officer: 'Placement Officer',
+  recruiter: 'Recruiter',
+  super_admin: 'Super Admin',
+};
+
+const initialState = {
+  success: false,
+  error: null as string | null,
 };
 
 export default function Onboarding() {
   const router = useRouter();
   const { user, token, loading: authLoading } = useAuth();
-
-  const [checking, setChecking] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-
-  const [studentForm, setStudentForm] = useState<StudentFormData>({
-    enrollmentNumber: '',
-    department: '',
-    semester: '1',
-    phone: '',
-    dob: '',
-    address: '',
-    bio: '',
-  });
-
-  const [facultyForm, setFacultyForm] = useState<FacultyFormData>({
-    employeeId: '',
-    department: '',
-    designation: '',
-    phone: '',
-    specialization: '',
-    qualifications: '',
-    bio: '',
-  });
-
-  const [adminForm, setAdminForm] = useState<AdminFormData>({
-    employeeId: '',
-    department: '',
-    designation: '',
-    phone: '',
-    responsibilities: '',
-    bio: '',
-  });
+  
+  // React 19 State handling
+  const [state, formAction, isPending] = useActionState(completeProfileStatefulAction, initialState);
 
   useEffect(() => {
     if (authLoading) return;
@@ -115,64 +69,27 @@ export default function Onboarding() {
       return;
     }
 
-    if (user.profileComplete) {
+    if (user.profileComplete || state.success) {
       router.replace('/dashboard');
       return;
     }
+  }, [authLoading, user, token, router, state.success]);
 
-    setChecking(false);
-  }, [authLoading, user, token, router]);
-
-  const completeProfile = async (profileData: Record<string, any>) => {
-    if (!token || !user) return;
-
-    await axios.post(
-      `${API_BASE_URL}/auth/complete-profile`,
-      {
-        role: user.role,
-        userId: user.id,
-        email: user.email,
-        fullName: user.fullName || user.name,
-        ...profileData,
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-
-    window.dispatchEvent(new Event('auth-change'));
-    toast.success('Profile completed successfully');
-    router.replace('/dashboard');
-  };
-
-  const onSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!user?.role) return;
-
-    setSubmitting(true);
-    try {
-      if (user.role === 'student') {
-        await completeProfile(studentForm);
-      } else if (user.role === 'faculty') {
-        await completeProfile(facultyForm);
-      } else {
-        await completeProfile(adminForm);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to complete profile');
-      setSubmitting(false);
+  useEffect(() => {
+    if (state.error) {
+      toast.error(state.error);
+    } else if (state.success) {
+      toast.success('Onboarding complete!');
+      window.dispatchEvent(new Event('auth-change'));
     }
-  };
+  }, [state]);
 
-  if (checking || !user?.role) {
+  if (authLoading || !user?.role) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-primary" />
-          <p className="text-muted-foreground">Loading your profile...</p>
+          <p className="text-muted-foreground">Preparing your application...</p>
         </div>
       </div>
     );
@@ -181,7 +98,7 @@ export default function Onboarding() {
   const RoleIcon = roleIcons[user.role];
 
   return (
-    <div className="min-h-screen bg-muted/30 py-12 px-4">
+    <div className="min-h-screen bg-muted/30 py-12 px-4 animate-in fade-in duration-500">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -201,24 +118,27 @@ export default function Onboarding() {
             <CardDescription>Fill in required details to continue</CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={onSubmit} className="space-y-4">
+            {/* Native Form with Server Action (Progressive Enhancement) */}
+            <form action={formAction} className="space-y-4">
+              <input type="hidden" name="role" value={user.role} />
+              
               {user.role === 'student' && (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Enrollment Number</Label>
-                      <Input value={studentForm.enrollmentNumber} onChange={(e) => setStudentForm({ ...studentForm, enrollmentNumber: e.target.value })} required />
+                      <Label htmlFor="enrollmentNumber">Enrollment Number</Label>
+                      <Input id="enrollmentNumber" name="enrollmentNumber" placeholder="PEC/2024/0001" required />
                     </div>
                     <div>
-                      <Label>Department</Label>
-                      <Input value={studentForm.department} onChange={(e) => setStudentForm({ ...studentForm, department: e.target.value })} required />
+                      <Label htmlFor="department">Department</Label>
+                      <Input id="department" name="department" placeholder="Computer Science" required />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Semester</Label>
-                      <Select value={studentForm.semester} onValueChange={(value) => setStudentForm({ ...studentForm, semester: value })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      <Label htmlFor="semester">Semester</Label>
+                      <Select name="semester" defaultValue="1">
+                        <SelectTrigger id="semester"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {[1, 2, 3, 4, 5, 6, 7, 8].map((sem) => (
                             <SelectItem key={sem} value={String(sem)}>Semester {sem}</SelectItem>
@@ -227,23 +147,23 @@ export default function Onboarding() {
                       </Select>
                     </div>
                     <div>
-                      <Label>Phone</Label>
-                      <Input value={studentForm.phone} onChange={(e) => setStudentForm({ ...studentForm, phone: e.target.value })} required />
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input id="phone" name="phone" placeholder="+91 XXXX XXXX" required />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Date of Birth</Label>
-                      <Input type="date" value={studentForm.dob} onChange={(e) => setStudentForm({ ...studentForm, dob: e.target.value })} required />
+                      <Label htmlFor="dob">Date of Birth</Label>
+                      <Input id="dob" name="dob" type="date" required />
                     </div>
                     <div>
-                      <Label>Address</Label>
-                      <Input value={studentForm.address} onChange={(e) => setStudentForm({ ...studentForm, address: e.target.value })} required />
+                      <Label htmlFor="address">Address</Label>
+                      <Input id="address" name="address" placeholder="123 Academic Way" required />
                     </div>
                   </div>
                   <div>
-                    <Label>Bio</Label>
-                    <Textarea value={studentForm.bio} onChange={(e) => setStudentForm({ ...studentForm, bio: e.target.value })} rows={3} />
+                    <Label htmlFor="bio">Bio</Label>
+                    <Textarea id="bio" name="bio" rows={3} placeholder="Tell us about yourself..." />
                   </div>
                 </>
               )}
@@ -252,35 +172,35 @@ export default function Onboarding() {
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Employee ID</Label>
-                      <Input value={facultyForm.employeeId} onChange={(e) => setFacultyForm({ ...facultyForm, employeeId: e.target.value })} required />
+                      <Label htmlFor="employeeId">Employee ID</Label>
+                      <Input id="employeeId" name="employeeId" required />
                     </div>
                     <div>
-                      <Label>Department</Label>
-                      <Input value={facultyForm.department} onChange={(e) => setFacultyForm({ ...facultyForm, department: e.target.value })} required />
+                      <Label htmlFor="department">Department</Label>
+                      <Input id="department" name="department" required />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Designation</Label>
-                      <Input value={facultyForm.designation} onChange={(e) => setFacultyForm({ ...facultyForm, designation: e.target.value })} required />
+                      <Label htmlFor="designation">Designation</Label>
+                      <Input id="designation" name="designation" required />
                     </div>
                     <div>
-                      <Label>Phone</Label>
-                      <Input value={facultyForm.phone} onChange={(e) => setFacultyForm({ ...facultyForm, phone: e.target.value })} required />
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input id="phone" name="phone" required />
                     </div>
                   </div>
                   <div>
-                    <Label>Specialization</Label>
-                    <Input value={facultyForm.specialization} onChange={(e) => setFacultyForm({ ...facultyForm, specialization: e.target.value })} required />
+                    <Label htmlFor="specialization">Specialization</Label>
+                    <Input id="specialization" name="specialization" required />
                   </div>
                   <div>
-                    <Label>Qualifications</Label>
-                    <Input value={facultyForm.qualifications} onChange={(e) => setFacultyForm({ ...facultyForm, qualifications: e.target.value })} required />
+                    <Label htmlFor="qualifications">Qualifications</Label>
+                    <Input id="qualifications" name="qualifications" required />
                   </div>
                   <div>
-                    <Label>Bio</Label>
-                    <Textarea value={facultyForm.bio} onChange={(e) => setFacultyForm({ ...facultyForm, bio: e.target.value })} rows={3} />
+                    <Label htmlFor="bio">Bio</Label>
+                    <Textarea id="bio" name="bio" rows={3} />
                   </div>
                 </>
               )}
@@ -289,40 +209,40 @@ export default function Onboarding() {
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Employee ID</Label>
-                      <Input value={adminForm.employeeId} onChange={(e) => setAdminForm({ ...adminForm, employeeId: e.target.value })} required />
+                      <Label htmlFor="employeeId">Employee ID</Label>
+                      <Input id="employeeId" name="employeeId" required />
                     </div>
                     <div>
-                      <Label>Department</Label>
-                      <Input value={adminForm.department} onChange={(e) => setAdminForm({ ...adminForm, department: e.target.value })} required />
+                      <Label htmlFor="department">Department</Label>
+                      <Input id="department" name="department" required />
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Designation</Label>
-                      <Input value={adminForm.designation} onChange={(e) => setAdminForm({ ...adminForm, designation: e.target.value })} required />
+                      <Label htmlFor="designation">Designation</Label>
+                      <Input id="designation" name="designation" required />
                     </div>
                     <div>
-                      <Label>Phone</Label>
-                      <Input value={adminForm.phone} onChange={(e) => setAdminForm({ ...adminForm, phone: e.target.value })} required />
+                      <Label htmlFor="phone">Phone</Label>
+                      <Input id="phone" name="phone" required />
                     </div>
                   </div>
                   <div>
-                    <Label>Responsibilities</Label>
-                    <Textarea value={adminForm.responsibilities} onChange={(e) => setAdminForm({ ...adminForm, responsibilities: e.target.value })} rows={3} required />
+                    <Label htmlFor="responsibilities">Responsibilities</Label>
+                    <Textarea id="responsibilities" name="responsibilities" rows={3} required />
                   </div>
                   <div>
-                    <Label>Bio</Label>
-                    <Textarea value={adminForm.bio} onChange={(e) => setAdminForm({ ...adminForm, bio: e.target.value })} rows={3} />
+                    <Label htmlFor="bio">Bio</Label>
+                    <Textarea id="bio" name="bio" rows={3} />
                   </div>
                 </>
               )}
 
-              <Button type="submit" className="w-full" size="lg" disabled={submitting}>
-                {submitting ? (
+              <Button type="submit" className="w-full" size="lg" disabled={isPending}>
+                {isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Saving...
+                    Finalizing Profile...
                   </>
                 ) : (
                   <>

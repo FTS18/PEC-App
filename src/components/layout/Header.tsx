@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
   Bell,
@@ -96,6 +96,12 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
     college_admin: 'College Admin',
     faculty: 'Faculty',
     student: 'Student',
+    admin: 'System Admin',
+    moderator: 'Moderator',
+    user: 'Regular User',
+    placement_officer: 'Placement Officer',
+    recruiter: 'Recruiter',
+    super_admin: 'Super Admin',
   };
 
   return (
@@ -125,7 +131,15 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
             className="mr-2 h-10 w-10 md:h-11 md:w-11 shrink-0 overflow-hidden bg-background/60 hover:bg-secondary transition-colors"
             aria-label="Go to dashboard"
           >
-            <img src={appLogoSrc} alt="App logo" className="h-full w-full object-contain p-1" />
+            <div className="relative h-full w-full p-1">
+              <Image 
+                src={appLogoSrc} 
+                alt="App logo" 
+                fill 
+                className="object-contain" 
+                priority 
+              />
+            </div>
           </button>
         )}
 
@@ -189,9 +203,14 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="flex items-center gap-3 px-2 py-1.5 border border-transparent hover:border-border hover:bg-secondary transition-colors">
-                <div className="w-8 h-8 border border-border bg-primary flex items-center justify-center">
+                <div className="relative w-8 h-8 border border-border bg-primary flex items-center justify-center overflow-hidden">
                   {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                    <Image 
+                      src={user.avatar} 
+                      alt={user.name} 
+                      fill 
+                      className="object-cover" 
+                    />
                   ) : (
                     <User className="w-4 h-4 text-primary-foreground" />
                   )}

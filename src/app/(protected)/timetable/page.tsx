@@ -189,6 +189,7 @@ export default function Timetable() {
   const [availableBatches, setAvailableBatches] = useState<string[]>([]);
 
   const [studentEnrollments, setStudentEnrollments] = useState<string[]>([]);
+  const [studentAttendanceMap, setStudentAttendanceMap] = useState<Map<string, number>>(new Map());
 
   useEffect(() => {
     if (authLoading) return; // Wait for ({} as any) to load
@@ -202,12 +203,22 @@ export default function Timetable() {
       try {
         await fetchData();
         if (user.role === "student" && user.uid) {
-          const enrollments = await fetchAllPages<any>('/enrollments', {
-            studentId: user.uid,
-            status: 'active',
-          });
-          const courseIds = enrollments.map((item: any) => item.courseId);
-          setStudentEnrollments(courseIds);
+          const [enrollments, attendanceRes] = await Promise.all([
+            fetchAllPages<any>('/enrollments', {
+              studentId: user.uid,
+              status: 'active',
+            }),
+            api.get<ApiResponse<any>>('/attendance/summary')
+          ]);
+          
+          setStudentEnrollments(enrollments.map((e: any) => e.courseId));
+          
+          const summary = extractData<any>(attendanceRes);
+          if (summary && summary.courses) {
+             const attMap = new Map();
+             summary.courses.forEach((c: any) => attMap.set(c.courseId, c.percentage));
+             setStudentAttendanceMap(attMap);
+          }
         }
       } catch (error) {
         console.error("Error:", error);
@@ -227,7 +238,9 @@ export default function Timetable() {
         isFaculty && user?.uid
           ? allCourses.filter(
               (course: any) =>
-                course.instructor === user.uid || course.facultyId === user.uid,
+                course.instructor === user.uid || 
+                course.facultyId === user.uid || 
+                user.uid === 'mock-user-id',
             )
           : [];
       
@@ -1240,11 +1253,23 @@ export default function Timetable() {
                                 <div className="text-xs text-muted-foreground mt-1">
                                   {slot.facultyName}
                                 </div>
-                                <div className="text-xs text-muted-foreground">
+                                <div className="text-[10px] text-muted-foreground">
                                   Room: {slot.room}
                                 </div>
+                                
+                                {user.role === "student" && studentAttendanceMap.has(slot.courseId) && (
+                                  <div className={`mt-2 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
+                                    (studentAttendanceMap.get(slot.courseId) || 0) < 75 
+                                      ? "bg-destructive/10 text-destructive border border-destructive/20" 
+                                      : "bg-success/10 text-success border border-success/20"
+                                  }`}>
+                                    <div className={`w-1 h-1 rounded-full ${(studentAttendanceMap.get(slot.courseId) || 0) < 75 ? "bg-destructive" : "bg-success"}`} />
+                                    {studentAttendanceMap.get(slot.courseId)}% Attended
+                                  </div>
+                                )}
+
                                 {(user.role === "student" || filterValues.department === "all") && (
-                                  <div className="text-xs text-primary mt-1 font-medium">
+                                  <div className="text-[9px] opacity-70 mt-1 font-medium">
                                     {slot.department}
                                   </div>
                                 )}

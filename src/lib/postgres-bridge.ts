@@ -136,6 +136,7 @@ const fetchAllViaApi = async <T = any>(
 const normalizeCollectionName = (collectionName: string) => {
   if (collectionName === "feeRecords") return "fee-records";
   if (collectionName === "placement_drives") return "jobs";
+  if (collectionName === "canteenOrders") return "canteenOrders";
   if (collectionName === "courseMaterials") return "course-materials";
   if (collectionName === "campusMapRegions") return "campusMapRegions";
   if (collectionName === "campusMapRoads") return "campusMapRoads";

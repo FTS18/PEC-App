@@ -8,7 +8,7 @@ import {
 } from 'class-validator';
 
 export class CreateEnrollmentDto {
-  @IsUUID('4')
+  @IsString()
   studentId: string;
 
   @IsUUID('4')

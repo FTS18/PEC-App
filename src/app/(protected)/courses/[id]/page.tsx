@@ -1,268 +1,293 @@
-'use client';
-
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { ArrowLeft, BookOpen, Clock, Loader2, MapPin, User } from 'lucide-react';
+import { Suspense } from 'react';
+import { 
+  BookOpen, 
+  Clock, 
+  Users, 
+  Star, 
+  Calendar, 
+  ArrowLeft, 
+  CheckCircle2, 
+  FileText, 
+  Video, 
+  User, 
+  Award 
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { EmptyState } from '@/components/common/AsyncState';
-import { usePermissions } from '@/hooks/usePermissions';
-import api from '@/lib/api';
-import { fetchAllPages } from '@/lib/fetchAllPages';
-import { toast } from 'sonner';
+import { Progress } from '@/components/ui/progress';
+import { Separator } from '@/components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import Link from 'next/link';
+import { CourseInteractionsClient as CourseInteractions } from './CourseInteractionsClient';
+// Refreshing module resolution
 
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  meta?: {
-    total?: number;
-    limit?: number;
-    offset?: number;
+// This is the new Next.js 15+ Server Component pattern
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps) {
+  const { id } = await params;
+  const course = await getCourse(id);
+  
+  if (!course) return { title: 'Course Not Found' };
+  
+  return {
+     title: `${course.code}: ${course.name} | OmniFlow`,
+     description: course.description,
   };
 }
 
-interface CourseDetail {
-  id: string;
-  code: string;
-  name: string;
-  department: string;
-  credits: number;
-  semester: number;
-  instructor?: string | null;
-  facultyName?: string | null;
-  description?: string | null;
+/**
+ * Mock data fetcher - will be replaced by Prisma/API in production.
+ * In Next.js 16, fetching directly in the component is the standard.
+ */
+async function getCourse(id: string) {
+  // Simulate database latency
+  // In real app: return prisma.course.findUnique({ where: { id } })
+  const mockCourses = [
+    {
+      id: '1',
+      code: 'CS301',
+      name: 'Data Structures & Algorithms',
+      department: 'Computer Science',
+      credits: 4,
+      instructor: 'Dr. Sarah Mitchell',
+      instructorBio: 'PhD from MIT, 15+ years of teaching experience in algorithms and data structures. Published 50+ research papers.',
+      semester: 'Fall 2024',
+      type: 'core',
+      enrolled: 45,
+      capacity: 60,
+      rating: 4.8,
+      schedule: 'Mon, Wed, Fri - 10:00 AM',
+      description: 'Comprehensive study of data structures including arrays, linked lists, trees, graphs, and algorithm analysis. This course provides the foundation for efficient programming and problem-solving.',
+      objectives: [
+        'Understand fundamental data structures and their applications',
+        'Analyze algorithm complexity using Big-O notation',
+        'Implement efficient solutions to computational problems',
+        'Apply appropriate data structures for different scenarios',
+      ],
+      syllabus: [
+        { week: 'Week 1-2', topic: 'Arrays and Linked Lists', subtopics: ['Array operations', 'Singly/Doubly linked lists', 'Circular lists'] },
+        { week: 'Week 3-4', topic: 'Stacks and Queues', subtopics: ['Stack operations', 'Queue implementations', 'Applications'] },
+        { week: 'Week 5-7', topic: 'Trees', subtopics: ['Binary trees', 'BST', 'AVL trees', 'Heap'] },
+        { week: 'Week 8-10', topic: 'Graphs', subtopics: ['Graph representations', 'BFS/DFS', 'Shortest paths', 'MST'] },
+        { week: 'Week 11-12', topic: 'Sorting & Searching', subtopics: ['Quick sort', 'Merge sort', 'Binary search', 'Hashing'] },
+      ],
+      prerequisites: ['CS101 - Programming Fundamentals', 'MA101 - Discrete Mathematics'],
+      assessments: [
+        { name: 'Mid-term Exam', weight: 25 },
+        { name: 'End-term Exam', weight: 35 },
+        { name: 'Assignments', weight: 20 },
+        { name: 'Project', weight: 20 },
+      ],
+    }
+  ];
+
+  return mockCourses.find(c => c.id === id) || null;
 }
 
-interface TimetableItem {
-  id: string;
-  day: string;
-  startTime: string;
-  endTime: string;
-  room?: string | null;
-}
-
-interface EnrollmentItem {
-  id: string;
-  courseId: string;
-}
-
-const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-export default function CourseDetailPage() {
-  const { id } = useParams<{ id: string }>();
-  const router = useRouter();
-  const { user, isStudent, loading: authLoading } = usePermissions();
-
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [course, setCourse] = useState<CourseDetail | null>(null);
-  const [schedule, setSchedule] = useState<TimetableItem[]>([]);
-  const [enrollmentId, setEnrollmentId] = useState<string | null>(null);
-
-  const isEnrolled = useMemo(() => !!enrollmentId, [enrollmentId]);
-
-  const fetchCourse = useCallback(async () => {
-    if (!id) return;
-
-    const [courseResult, scheduleResult, enrollmentResult] = await Promise.allSettled([
-      api.get<ApiResponse<CourseDetail>>(`/courses/${id}`),
-      fetchAllPages<TimetableItem>('/timetable', { courseId: id }),
-      isStudent && user?.uid
-        ? api.get<ApiResponse<EnrollmentItem[]>>('/enrollments', {
-            params: { limit: 1, offset: 0, courseId: id, status: 'active' },
-          })
-        : Promise.resolve({ data: { success: true, data: [] as EnrollmentItem[] } }),
-    ]);
-
-    if (courseResult.status === 'rejected') {
-      throw courseResult.reason;
-    }
-
-    const courseData = courseResult.value.data.data;
-    setCourse(courseData);
-
-    if (scheduleResult.status === 'fulfilled') {
-      const normalized = (scheduleResult.value || [])
-        .map((slot) => ({
-          ...slot,
-          room: slot.room || 'TBD',
-        }))
-        .sort((a, b) => {
-          const dayDiff = DAY_ORDER.indexOf(a.day) - DAY_ORDER.indexOf(b.day);
-          if (dayDiff !== 0) return dayDiff;
-          return a.startTime.localeCompare(b.startTime);
-        });
-      setSchedule(normalized);
-    } else {
-      setSchedule([]);
-    }
-
-    if (enrollmentResult.status === 'fulfilled') {
-      const enrollment = enrollmentResult.value.data.data?.[0];
-      setEnrollmentId(enrollment?.id ?? null);
-    } else {
-      setEnrollmentId(null);
-    }
-  }, [id, isStudent, user?.uid]);
-
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      router.replace('/auth');
-      return;
-    }
-
-    const load = async () => {
-      setLoading(true);
-      try {
-        await fetchCourse();
-      } catch (error) {
-        console.error('Failed to load course details:', error);
-        toast.error('Failed to load course details');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    void load();
-  }, [authLoading, user, router, fetchCourse]);
-
-  const handleEnroll = async () => {
-    if (!course || !isStudent || !user?.uid || submitting) return;
-
-    setSubmitting(true);
-    try {
-      await api.post('/enrollments', {
-        studentId: user.uid,
-        courseId: course.id,
-        courseName: course.name,
-        courseCode: course.code,
-        semester: course.semester,
-        status: 'active',
-      });
-      toast.success(`Enrolled in ${course.code}`);
-      await fetchCourse();
-    } catch (error) {
-      console.error('Failed to enroll:', error);
-      toast.error('Failed to enroll in this course');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleDrop = async () => {
-    if (!enrollmentId || !isStudent || submitting) return;
-
-    setSubmitting(true);
-    try {
-      await api.patch(`/enrollments/${enrollmentId}`, { status: 'dropped' });
-      toast.success('Course dropped');
-      await fetchCourse();
-    } catch (error) {
-      console.error('Failed to drop enrollment:', error);
-      toast.error('Failed to drop this course');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (loading || authLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+export default async function CourseDetailPage({ params }: PageProps) {
+  const { id } = await params;
+  const course = await getCourse(id);
 
   if (!course) {
     return (
-      <div className="space-y-4">
-        <Button variant="ghost" onClick={() => router.push('/courses')} className="gap-2">
-          <ArrowLeft className="h-4 w-4" />
-          Back to Courses
-        </Button>
-        <EmptyState title="Course not found" description="The requested course could not be loaded." />
+      <div className="flex flex-col items-center justify-center py-20">
+        <BookOpen className="w-12 h-12 text-muted-foreground mb-4" />
+        <h2 className="text-xl font-semibold">Course not found</h2>
+        <Link href="/courses">
+          <Button variant="outline" className="mt-4">Back to Courses</Button>
+        </Link>
       </div>
     );
   }
 
-  const instructor = course.facultyName || course.instructor || 'TBA';
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'core': return 'bg-primary/10 text-primary';
+      case 'elective': return 'bg-accent/10 text-accent';
+      case 'lab': return 'bg-warning/10 text-warning';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const enrollmentPercentage = (course.enrolled / course.capacity) * 100;
+  const isFull = course.enrolled >= course.capacity;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 md:space-y-8">
-      <Button variant="ghost" onClick={() => router.push('/courses')} className="gap-2">
-        <ArrowLeft className="h-4 w-4" />
-        Back to Courses
-      </Button>
+    <div className="space-y-6">
+      <Link href="/courses">
+        <Button variant="ghost" className="gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Courses
+        </Button>
+      </Link>
 
-      <div className="card-elevated ui-card-pad space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">{course.code}</Badge>
-              <Badge variant="secondary">Semester {course.semester}</Badge>
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">{course.name}</h1>
-            <p className="text-muted-foreground">{course.department}</p>
+      {/* Header */}
+      <div className="card-elevated p-6">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+          <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+            <BookOpen className="w-10 h-10 text-primary" />
           </div>
-          {isStudent && (
-            <div className="flex gap-2">
-              {isEnrolled ? (
-                <Button variant="destructive" onClick={handleDrop} disabled={submitting}>
-                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Drop Course
-                </Button>
-              ) : (
-                <Button onClick={handleEnroll} disabled={submitting}>
-                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Enroll
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="grid gap-3 text-sm text-muted-foreground md:grid-cols-3">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-4 w-4 text-primary" />
-            {course.credits} credits
-          </div>
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-primary" />
-            {instructor}
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="h-4 w-4 text-primary" />
-            Weekly schedule below
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-foreground">Description</p>
-          <p className="text-sm text-muted-foreground">{course.description || 'No description provided for this course yet.'}</p>
-        </div>
-      </div>
-
-      <div className="card-elevated ui-card-pad space-y-3">
-        <p className="text-base font-semibold text-foreground">Schedule</p>
-        {schedule.length === 0 ? (
-          <EmptyState title="No timetable yet" description="This course does not have schedule entries yet." />
-        ) : (
-          <div className="space-y-2">
-            {schedule.map((slot) => (
-              <div key={slot.id} className="flex items-center gap-3 rounded-md border border-border bg-card/50 p-3 text-sm">
-                <span className="w-24 font-medium text-foreground">{slot.day}</span>
-                <span className="text-muted-foreground">{slot.startTime} - {slot.endTime}</span>
-                <span className="ml-auto flex items-center gap-1 text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {slot.room}
-                </span>
+          
+          <div className="flex-1">
+            <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <span className="text-sm text-muted-foreground">{course.code}</span>
+                  <Badge className={getTypeColor(course.type)}>
+                    {course.type.charAt(0).toUpperCase() + course.type.slice(1)}
+                  </Badge>
+                </div>
+                <h1 className="text-2xl font-bold text-foreground">{course.name}</h1>
+                <p className="text-muted-foreground mt-1">{course.department}</p>
+                
+                <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4" />
+                    {course.credits} Credits
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-4 h-4" />
+                    {course.schedule}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4" />
+                    {course.semester}
+                  </span>
+                </div>
               </div>
-            ))}
+
+              <div className="text-center lg:text-right">
+                <div className="flex items-center gap-1 justify-center lg:justify-end">
+                  <Star className="w-5 h-5 fill-warning text-warning" />
+                  <span className="text-2xl font-bold text-foreground">{course.rating}</span>
+                </div>
+                <p className="text-sm text-muted-foreground">Course Rating</p>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
+
+        <Separator className="my-6" />
+
+        {/* Enrollment Status & Client Interactions */}
+        <div className="space-y-4">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Enrollment Status</span>
+              <span className="text-sm font-medium">{course.enrolled}/{course.capacity} students</span>
+            </div>
+            <Progress value={enrollmentPercentage} className="h-2" />
+          </div>
+          
+          <Suspense fallback={<div className="h-10 bg-secondary animate-pulse rounded-md" />}>
+             <CourseInteractions 
+               isFull={isFull} 
+               courseId={course.id} 
+               courseCode={course.code} 
+               courseName={course.name} 
+             />
+          </Suspense>
+        </div>
       </div>
-    </motion.div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="card-elevated p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Course Description</h2>
+            <p className="text-muted-foreground">{course.description}</p>
+          </div>
+
+          <div className="card-elevated p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Learning Objectives</h2>
+            <ul className="space-y-3">
+              {course.objectives.map((objective, i) => (
+                <li key={i} className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-success mt-0.5 shrink-0" />
+                  <span className="text-muted-foreground">{objective}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="card-elevated p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Course Syllabus</h2>
+            <Accordion type="single" collapsible className="w-full">
+              {course.syllabus.map((week, i) => (
+                <AccordionItem key={i} value={`week-${i}`}>
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="secondary">{week.week}</Badge>
+                      <span className="font-medium">{week.topic}</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <ul className="space-y-2 pl-4">
+                      {week.subtopics.map((subtopic, j) => (
+                        <li key={j} className="flex items-center gap-2 text-muted-foreground">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                          {subtopic}
+                        </li>
+                      ))}
+                    </ul>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="card-elevated p-6">
+            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+              <User className="w-5 h-5 text-primary" />
+              Instructor
+            </h3>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold">
+                {course.instructor.split(' ').map(n => n[0]).join('')}
+              </div>
+              <div>
+                <p className="font-medium text-foreground">{course.instructor}</p>
+                <p className="text-sm text-muted-foreground">{course.department}</p>
+              </div>
+            </div>
+            <p className="text-sm text-muted-foreground">{course.instructorBio}</p>
+          </div>
+
+          <div className="card-elevated p-6">
+            <h3 className="font-semibold text-foreground mb-4">Prerequisites</h3>
+            <ul className="space-y-2">
+              {course.prerequisites.map((prereq, i) => (
+                <li key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <BookOpen className="w-4 h-4 text-primary shrink-0" />
+                  {prereq}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="card-elevated p-6">
+            <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Award className="w-5 h-5 text-primary" />
+              Assessment Breakdown
+            </h3>
+            <div className="space-y-3">
+              {course.assessments.map((assessment, i) => (
+                <div key={i}>
+                  <div className="flex items-center justify-between text-sm mb-1">
+                    <span className="text-muted-foreground">{assessment.name}</span>
+                    <span className="font-medium text-foreground">{assessment.weight}%</span>
+                  </div>
+                  <Progress value={assessment.weight} className="h-1.5" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

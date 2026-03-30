@@ -30,11 +30,11 @@ export async function seedAcademicRecords(
         },
       });
 
-      for (let sessionIndex = 0; sessionIndex < 10; sessionIndex += 1) {
+      for (let sessionIndex = 0; sessionIndex < 15; sessionIndex += 1) {
         attendanceData.push({
-          date: daysAgo(sessionIndex + 1),
-          status: sessionIndex % 7 === 0 ? 'late' : sessionIndex % 9 === 0 ? 'absent' : 'present',
-          subject: course.code,
+          date: daysAgo(sessionIndex * 2 + 1), 
+          status: sessionIndex % 8 === 0 ? 'absent' : sessionIndex % 12 === 0 ? 'late' : 'present',
+          subject: course.id,
           studentId: student.id,
         });
       }
@@ -72,7 +72,6 @@ export async function seedAcademicRecords(
         },
       ],
     });
+
   }
-
-
 }

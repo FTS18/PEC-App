@@ -1,7 +1,12 @@
 export type UserRole =
   | "college_admin"
   | "faculty"
-  | "student";
+  | "student"
+  | "moderator"
+  | "user"
+  | "placement_officer"
+  | "recruiter"
+  | "super_admin";
 
 export interface User {
   id: string;

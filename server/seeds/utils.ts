@@ -29,10 +29,22 @@ export function rotate<T>(items: readonly T[], offset: number): T[] {
 }
 
 export function batchForSemester(semester: number) {
+  const currentYear = new Date().getFullYear();
   switch (semester) {
-    case 1: return '2026-2030';
-    case 3: return '2025-2029';
-    case 5: return '2024-2028';
+    case 1:
+    case 2:
+      return `${currentYear}-${currentYear + 4}`;
+    case 3:
+    case 4:
+      return `${currentYear - 1}-${currentYear + 3}`;
+    case 5:
+    case 6:
+      return `${currentYear - 2}-${currentYear + 2}`;
+    case 7:
+    case 8:
+      return `${currentYear - 3}-${currentYear + 1}`;
+    default:
+      return `${currentYear}-${currentYear + 4}`;
   }
 }
 
@@ -41,7 +53,6 @@ export async function clearDatabase() {
   await prisma.auditLog.deleteMany();
   await prismaAny.backgroundJob.deleteMany();
   await prismaAny.featureFlag.deleteMany();
-  await prisma.bookBorrow.deleteMany();
   await prisma.attendance.deleteMany();
   await prisma.message.deleteMany();
   await prismaAny.notice.deleteMany();
@@ -49,12 +60,10 @@ export async function clearDatabase() {
   await prisma.club.deleteMany();
   await prisma.userChatRoom.deleteMany();
   await prisma.chatRoom.deleteMany();
-  await prisma.assignment.deleteMany();
   await prisma.enrollment.deleteMany();
   await prisma.timetable.deleteMany();
   await prisma.course.deleteMany();
   await prisma.job.deleteMany();
-  await prisma.book.deleteMany();
   await prisma.room.deleteMany();
   await prismaAny.department.deleteMany();
   await (prisma as any).feeRecord.deleteMany();
@@ -65,6 +74,10 @@ export async function clearDatabase() {
   await prisma.refreshToken.deleteMany();
   await prisma.userRole.deleteMany();
   await prisma.role.deleteMany();
+  await (prisma as any).hostelIssue.deleteMany();
+  await (prisma as any).canteenOrderItem.deleteMany();
+  await (prisma as any).canteenOrder.deleteMany();
+  await (prisma as any).canteenItem.deleteMany();
   await prisma.user.deleteMany();
 }
 

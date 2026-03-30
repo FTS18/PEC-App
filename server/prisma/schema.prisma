@@ -30,8 +30,6 @@ model User {
   chatRooms       UserChatRoom[]
   attendances     Attendance[]    @relation("StudentAttendance")
   feeRecords      FeeRecord[]
-  grades          Grade[]
-  bookBorrows     BookBorrow[]    @relation("UserBookBorrows")
   canteenOrders   CanteenOrder[]
   enrollments     Enrollment[]    @relation("StudentEnrollments")
   roles           UserRole[]
@@ -48,58 +46,25 @@ model User {
   @@index([lockedUntil])
 }
 
-model CanteenItem {
-  id          String   @id @default(uuid())
-  name        String
-  price       Float
-  category    String
-  description String   @default("")
-  image       String   @default("")
-  isAvailable Boolean  @default(true)
-  stock       Int      @default(100)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([category, isAvailable])
-  @@index([updatedAt])
-}
-
-model CanteenOrder {
-  id          String   @id @default(uuid())
-  studentId   String?
-  student     User?    @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  studentName String
-  hostelRoom  String
-  items       Json
-  totalAmount Float
-  status      String   @default("Pending")
-  timestamp   DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  @@index([studentId, status])
-  @@index([timestamp])
-}
-
 model HostelIssue {
-  id             String   @id @default(uuid())
-  title          String
-  description    String
-  category       String
-  priority       String
-  status         String   @default("open")
-  roomNumber     String
-  studentId      String?
-  studentName    String
-  organizationId String?
-  responses      Json     @default("[]")
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id          String   @id @default(uuid())
+  studentId   String
+  studentName String?
+  hostelName  String
+  roomNumber  String
+  category    String   // "Plumbing", "Electrical", "Internet", "Furniture", "Other"
+  description String
+  status      String   @default("Open") // "Open", "InProgress", "Resolved", "Closed"
+  priority    String   @default("Medium") // "Low", "Medium", "High", "Critical"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([studentId, status])
-  @@index([organizationId])
+  @@index([hostelName, status])
+  @@index([category])
   @@index([createdAt])
 }
+
 
 model CampusMapRegion {
   id             String   @id @default(uuid())
@@ -263,9 +228,10 @@ model Course {
   department       String
   semester         Int
   status           String
-  assignments      Assignment[] @relation("CourseAssignments")
+  facultyId        String?
+  capacity         Int          @default(60)
+  prerequisiteIds  String[]     @default([])
   examSchedules    ExamSchedule[]
-  grades           Grade[]
   enrollments      Enrollment[] @relation("CourseEnrollments")
   timetableEntries Timetable[]  @relation("CourseTimetable")
   deletedAt        DateTime?
@@ -339,24 +305,6 @@ model Timetable {
   @@index([day, startTime])
 }
 
-model Book {
-  id              String       @id @default(uuid())
-  title           String
-  author          String
-  isbn            String       @unique
-  category        String
-  totalCopies     Int
-  availableCopies Int
-  location        String?
-  publisher       String?
-  year            Int?
-  borrows         BookBorrow[] @relation("BookBorrows")
-  deletedAt       DateTime?
-
-  @@index([category])
-  @@index([author])
-  @@index([deletedAt])
-}
 
 model Room {
   id          String   @id @default(uuid())
@@ -481,18 +429,6 @@ model Attendance {
   @@index([status])
 }
 
-model Assignment {
-  id          String   @id @default(uuid())
-  title       String
-  description String?
-  dueDate     DateTime
-  courseId    String
-  course      Course   @relation("CourseAssignments", fields: [courseId], references: [id], onDelete: Cascade)
-  deletedAt   DateTime?
-
-  @@index([courseId, dueDate])
-  @@index([deletedAt])
-}
 
 model ExamSchedule {
   id        String   @id @default(uuid())
@@ -513,25 +449,6 @@ model ExamSchedule {
   @@index([deletedAt])
 }
 
-model Grade {
-  id        String   @id @default(uuid())
-  studentId String
-  student   User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  midterm   Float?
-  final     Float?
-  total     Float?
-  grade     String?
-  credits   Int?
-  remarks   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([studentId, courseId])
-  @@index([courseId])
-  @@index([studentId])
-}
 
 model Job {
   id         String   @id @default(uuid())
@@ -572,22 +489,6 @@ model AuditLog {
   @@index([statusCode, createdAt])
 }
 
-model BookBorrow {
-  id         String    @id @default(uuid())
-  userId     String
-  user       User      @relation("UserBookBorrows", fields: [userId], references: [id], onDelete: Cascade)
-  bookId     String
-  book       Book      @relation("BookBorrows", fields: [bookId], references: [id], onDelete: Cascade)
-  borrowDate DateTime  @default(now())
-  dueDate    DateTime
-  returnDate DateTime?
-  status     String // "borrowed" | "returned" | "overdue"
-  fine       Float?
-
-  @@index([userId, status])
-  @@index([bookId, status])
-  @@index([dueDate])
-}
 
 model FeatureFlag {
   id          String   @id @default(uuid())
@@ -623,4 +524,48 @@ model BackgroundJob {
   @@index([type, status, availableAt])
   @@index([lockedAt])
   @@index([processedAt])
+}
+
+model CanteenItem {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  price       Float
+  category    String
+  description String?
+  image       String?
+  isAvailable Boolean  @default(true)
+  stock       Int      @default(100)
+  orders      CanteenOrderItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category, isAvailable])
+}
+
+model CanteenOrder {
+  id          String   @id @default(uuid())
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentName String?
+  hostelRoom  String
+  totalAmount Float
+  status      String   @default("Pending") // "Pending", "Delivered", "Cancelled"
+  items       CanteenOrderItem[]
+  timestamp   DateTime @default(now())
+
+  @@index([studentId, status])
+  @@index([timestamp])
+}
+
+model CanteenOrderItem {
+  id        String       @id @default(uuid())
+  orderId   String
+  order     CanteenOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      CanteenItem  @relation(fields: [itemId], references: [id])
+  name      String       // De-normalized name for history
+  quantity  Int
+  price     Float
+
+  @@index([orderId])
 }

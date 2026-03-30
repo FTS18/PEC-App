@@ -10,7 +10,7 @@ import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 export class AttendanceQueryDto extends PaginationQueryDto {
   @IsOptional()
-  @IsUUID('4')
+  @IsString()
   studentId?: string;
 
   @IsOptional()

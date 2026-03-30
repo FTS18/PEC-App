@@ -21,9 +21,24 @@ export class TimetableRepository extends BaseRepository {
 
     return this.findManyWithCount(this.prisma.timetable, {
       query,
-      defaultLimit: 50,
+      defaultLimit: 500,
       where,
       orderBy: [{ day: 'asc' }, { startTime: 'asc' }],
+    });
+  }
+
+  async findConflicts(room: string, day: string, startTime: string, endTime: string, excludeId?: string) {
+    return this.prisma.timetable.findFirst({
+      where: {
+        room,
+        day,
+        id: excludeId ? { not: excludeId } : undefined,
+        OR: [
+          { startTime: { gte: startTime, lt: endTime } },
+          { endTime: { gt: startTime, lte: endTime } },
+          { startTime: { lte: startTime }, endTime: { gte: endTime } }
+        ]
+      }
     });
   }
 
@@ -64,6 +79,10 @@ export class TimetableRepository extends BaseRepository {
         ...(data.batch !== undefined ? { batch: data.batch ?? null } : {}),
       },
     });
+  }
+
+  findById(id: string) {
+    return this.prisma.timetable.findUnique({ where: { id } });
   }
 
   remove(id: string) {
