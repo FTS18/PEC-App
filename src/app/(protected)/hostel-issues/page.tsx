@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { usePermissions } from '@/hooks/usePermissions';
 import api from '@/lib/api';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 
 interface HostelIssue {
   id: string;
@@ -126,11 +127,9 @@ export default function HostelIssuesPage() {
 
     try {
       setLoading(true);
-      const response = await api.get('/hostelIssues', {
-        params: { studentId: user.uid, limit: 200, offset: 0 },
+      const data = await fetchAllPages<HostelIssue>('/hostelIssues', {
+        studentId: user.uid,
       });
-
-      const data = response.data?.data || [];
       setIssues(Array.isArray(data) ? data : []);
       setAuthFailed(false);
     } catch (error: any) {

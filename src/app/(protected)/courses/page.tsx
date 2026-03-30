@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   BookOpen,
@@ -16,7 +16,6 @@ import {
   Upload,
   Download,
   Clock,
-  MapPin,
 } from 'lucide-react';
 import { ImageWithBlur, CourseSkeleton } from '@/components/ui/image-with-blur';
 import { Button } from '@/components/ui/button';
@@ -39,13 +38,13 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-;
 import { usePermissions } from '@/hooks/usePermissions';
 import dynamic from 'next/dynamic';
 
 import PDFExportButton from '@/components/common/PDFExportButton';
 import { EmptyState, LoadingGrid } from '@/components/common/AsyncState';
 import api from '@/lib/api';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 
 const BulkUpload = dynamic(() => import('@/components/BulkUpload'), {
   ssr: false,
@@ -70,6 +69,16 @@ interface Course {
     room: string;
   }[];
   description: string;
+}
+
+interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  meta?: {
+    total?: number;
+    limit?: number;
+    offset?: number;
+  };
 }
 
 export default function Courses() {
@@ -189,6 +198,7 @@ export default function Courses() {
   const [enrolling, setEnrolling] = useState(false);
   const [courseSchedule, setCourseSchedule] = useState<{day: string; timeSlot: string; room: string}[]>([]);
   const [loadingSchedule, setLoadingSchedule] = useState(false);
+  const MAX_PAGE_SIZE = 200;
 
   // Deterministic Keyword Mapping for Images
   const getCourseImage = (dept: string, name: string) => {
@@ -219,11 +229,8 @@ export default function Courses() {
     setLoadingSchedule(true);
     setCourseSchedule([]);
     try {
-      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
-      const response = await api.get<ApiResponse<any[]>>('/timetable', {
-        params: { limit: 200, offset: 0, courseId },
-      });
-      const schedule = (response.data.data || []).map((data: any) => {
+      const timetableRows = await fetchAllPages<any>('/timetable', { courseId });
+      const schedule = timetableRows.map((data: any) => {
         return {
           day: data.day,
           timeSlot: data.timeSlot || `${data.startTime}-${data.endTime}`,
@@ -245,46 +252,41 @@ export default function Courses() {
     }
   };
 
-  useEffect(() => {
-    if (authLoading) return;
-    
-    if (!user) {
-      router.replace('/auth');
-      return;
-    }
-
-    const loadData = async () => {
-      try {
-        await fetchCourses();
-
-        // Fetch enrollments for students
-        if (isStudent && user.uid) {
-          type ApiResponse<T> = { success: boolean; data: T; meta?: any };
-          const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
-            params: { limit: 100, offset: 0, studentId: user.uid, status: 'active' },
-          });
-          const enrolledIds = (enrollmentsResponse.data.data || []).map((item: any) => item.courseId);
-          setEnrolledCourseIds(enrolledIds);
-        }
-      } catch (error) {
-        console.error('Error:', error);
-        toast.error('Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, [user, isStudent, router]);
-
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
     try {
-      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
-      const response = await api.get<ApiResponse<any[]>>('/courses', {
-        params: { limit: 200, offset: 0 },
+      const firstPage = await api.get<ApiResponse<any[]>>('/courses', {
+        params: { limit: MAX_PAGE_SIZE, offset: 0 },
       });
 
-      let coursesData = (response.data.data || []).map((course: any) => ({
+      const initialCourses = firstPage.data.data || [];
+      const total = Number(firstPage.data.meta?.total || initialCourses.length);
+
+      let allRawCourses = [...initialCourses];
+      if (total > initialCourses.length) {
+        const remainingOffsets: number[] = [];
+        for (
+          let offset = initialCourses.length;
+          offset < total;
+          offset += MAX_PAGE_SIZE
+        ) {
+          remainingOffsets.push(offset);
+        }
+
+        const remainingPages = await Promise.all(
+          remainingOffsets.map((offset) =>
+            api.get<ApiResponse<any[]>>('/courses', {
+              params: { limit: MAX_PAGE_SIZE, offset },
+            }),
+          ),
+        );
+
+        const remainingCourses = remainingPages.flatMap(
+          (page) => page.data.data || [],
+        );
+        allRawCourses = [...allRawCourses, ...remainingCourses];
+      }
+
+      let coursesData = allRawCourses.map((course: any) => ({
         ...course,
         facultyName: course.facultyName || course.instructor || 'TBA',
         maxStudents: Number(course.maxStudents || 60),
@@ -309,7 +311,71 @@ export default function Courses() {
       console.error('Error fetching courses:', error);
       toast.error('Failed to load courses');
     }
-  };
+  }, [MAX_PAGE_SIZE, isFaculty, user?.uid, user?.fullName]);
+
+  const fetchAllStudentEnrollments = useCallback(async (studentId: string) => {
+    const firstPage = await api.get<ApiResponse<any[]>>('/enrollments', {
+      params: { limit: MAX_PAGE_SIZE, offset: 0, studentId, status: 'active' },
+    });
+
+    const initialEnrollments = firstPage.data.data || [];
+    const total = Number(firstPage.data.meta?.total || initialEnrollments.length);
+
+    if (total <= initialEnrollments.length) {
+      return initialEnrollments;
+    }
+
+    const remainingOffsets: number[] = [];
+    for (
+      let offset = initialEnrollments.length;
+      offset < total;
+      offset += MAX_PAGE_SIZE
+    ) {
+      remainingOffsets.push(offset);
+    }
+
+    const remainingPages = await Promise.all(
+      remainingOffsets.map((offset) =>
+        api.get<ApiResponse<any[]>>('/enrollments', {
+          params: { limit: MAX_PAGE_SIZE, offset, studentId, status: 'active' },
+        }),
+      ),
+    );
+
+    const remainingEnrollments = remainingPages.flatMap(
+      (page) => page.data.data || [],
+    );
+    return [...initialEnrollments, ...remainingEnrollments];
+  }, [MAX_PAGE_SIZE]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    
+    if (!user) {
+      router.replace('/auth');
+      return;
+    }
+
+    const loadData = async () => {
+      try {
+        await fetchCourses();
+
+        // Fetch enrollments for students
+        if (isStudent && user.uid) {
+          const allEnrollments = await fetchAllStudentEnrollments(user.uid);
+          const enrolledIds = allEnrollments.map((item: any) => item.courseId);
+          setEnrolledCourseIds(enrolledIds);
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        toast.error('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [authLoading, user, isStudent, router, fetchAllStudentEnrollments, fetchCourses]);
 
   const handleEditCourse = (course: Course) => {
     // Faculty can only edit courses in their department
@@ -345,7 +411,7 @@ export default function Courses() {
       toast.success('Course created successfully!');
       setShowCourseDialog(false);
       resetCourseForm();
-      fetchCourses();
+      await fetchCourses();
     } catch (error) {
       console.error('Error creating course:', error);
       toast.error('Failed to create course');
@@ -367,7 +433,7 @@ export default function Courses() {
       setShowCourseDialog(false);
       setEditingCourse(null);
       resetCourseForm();
-      fetchCourses();
+      await fetchCourses();
     } catch (error) {
       console.error('Error updating course:', error);
       toast.error('Failed to update course');
@@ -379,7 +445,7 @@ export default function Courses() {
     try {
       await api.delete(`/courses/${courseId}`);
       toast.success('Course deleted successfully!');
-      fetchCourses();
+      await fetchCourses();
     } catch (error) {
       console.error('Error deleting course:', error);
       toast.error('Failed to delete course');
@@ -441,7 +507,7 @@ export default function Courses() {
         status: 'active',
       });
 
-      setEnrolledCourseIds([...enrolledCourseIds, course.id]);
+      setEnrolledCourseIds((prev) => [...prev, course.id]);
       await fetchCourses();
       toast.success(`Enrolled in ${course.code} successfully!`);
       setShowDetailsDialog(false);
@@ -457,11 +523,11 @@ export default function Courses() {
     if (!user?.uid || !isStudent) return;
 
     try {
-      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
-      const enrollmentResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
-        params: { limit: 200, offset: 0, studentId: user.uid, courseId, status: 'active' },
+      const enrollmentData = await fetchAllPages<any>('/enrollments', {
+        studentId: user.uid,
+        courseId,
+        status: 'active',
       });
-      const enrollmentData = enrollmentResponse.data.data || [];
 
       if (enrollmentData.length === 0) {
         toast.error('Enrollment not found');
@@ -473,7 +539,7 @@ export default function Courses() {
         status: 'dropped',
       });
 
-      setEnrolledCourseIds(enrolledCourseIds.filter(id => id !== courseId));
+      setEnrolledCourseIds((prev) => prev.filter((id) => id !== courseId));
       await fetchCourses();
       toast.success('Course dropped successfully');
     } catch (error) {
@@ -994,7 +1060,7 @@ function CourseCard({
           </div>
           <div className="flex items-center gap-2">
             <GraduationCap className="w-3.5 h-3.5 text-primary/70" />
-            {course.credits} Credits • Sem {course.semester}
+            {course.credits} Credits | Sem {course.semester}
           </div>
            <div className="flex items-center gap-2">
              <div className="w-3.5 h-3.5 flex items-center justify-center">

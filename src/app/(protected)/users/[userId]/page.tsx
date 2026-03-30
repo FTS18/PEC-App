@@ -9,6 +9,7 @@ import { ArrowLeft, Mail, Phone, Building2, Calendar, User, BookOpen, ClipboardC
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 
 export default function UserDetail() {
   const { userId } = useParams();
@@ -31,8 +32,6 @@ export default function UserDetail() {
           return;
         }
 
-        type ApiResponse<T> = { success: boolean; data: T; meta?: any };
-
         const userResponse = await api.get(`/users/${userId}`);
         const userData = userResponse.data?.success ? userResponse.data.data : userResponse.data;
 
@@ -52,24 +51,16 @@ export default function UserDetail() {
             attendanceResult,
             coursesResult,
           ] = await Promise.all([
-            api.get<ApiResponse<any[]>>('/enrollments', {
-              params: { limit: 200, offset: 0, studentId: userId },
-            }),
-            api.get<ApiResponse<any[]>>('/examinations/grades', {
-              params: { limit: 200, offset: 0, studentId: userId },
-            }),
-            api.get<ApiResponse<any[]>>('/attendance', {
-              params: { limit: 200, offset: 0, studentId: userId },
-            }),
-            api.get<ApiResponse<any[]>>('/courses', {
-              params: { limit: 200, offset: 0 },
-            }),
+            fetchAllPages<any>('/enrollments', { studentId: userId }),
+            fetchAllPages<any>('/examinations/grades', { studentId: userId }),
+            fetchAllPages<any>('/attendance', { studentId: userId }),
+            fetchAllPages<any>('/courses'),
           ]);
 
-          const enrollmentsData = enrollmentsResult.data.data || [];
-          const gradesRaw = gradesResult.data.data || [];
-          const attendanceData = attendanceResult.data.data || [];
-          const courses = coursesResult.data.data || [];
+          const enrollmentsData = enrollmentsResult || [];
+          const gradesRaw = gradesResult || [];
+          const attendanceData = attendanceResult || [];
+          const courses = coursesResult || [];
 
           const courseMap = new Map(courses.map((course: any) => [course.id, course]));
           const gradesData = gradesRaw.map((grade: any) => {

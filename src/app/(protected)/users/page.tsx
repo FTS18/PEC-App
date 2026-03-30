@@ -48,6 +48,7 @@ import { authClient } from '@/lib/auth-client';
 import { EmptyState, LoadingGrid } from '@/components/common/AsyncState';
 import { VirtualList } from '@/components/ui/virtual-list';
 import api from '@/lib/api';
+import { fetchAllPages } from '@/lib/fetchAllPages';
 
 const BulkUpload = dynamic(() => import('@/components/BulkUpload'), {
   ssr: false,
@@ -112,15 +113,8 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
-      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
-      const params: Record<string, unknown> = {
-        limit: 200,
-        offset: 0,
-      };
-
-
-      const usersResponse = await api.get<ApiResponse<any[]>>('/users', { params });
-      let usersData = (usersResponse.data.data || []).map((data: any) => {
+      const allUsers = await fetchAllPages<any>('/users');
+      let usersData = allUsers.map((data: any) => {
         return {
           id: data.id,
           ...data,
