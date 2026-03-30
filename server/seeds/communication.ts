@@ -87,7 +87,7 @@ export async function seedCommunicationAndActivity(
     const clubRoom = await prisma.chatRoom.create({
       data: { name: `CLUB::${clubName}`, isGroup: true },
     });
-    const club = await prisma.club.create({
+    const club = await prismaAny.club.create({
       data: {
         name: clubName,
         chatRoomId: clubRoom.id,
@@ -105,7 +105,7 @@ export async function seedCommunicationAndActivity(
     const approvedRequester = students[(index + 3) % students.length];
     const rejectedRequester = faculties[index % faculties.length];
 
-    await prisma.clubJoinRequest.create({
+    await prismaAny.clubJoinRequest.create({
       data: {
         clubId: club.id,
         requesterId: pendingRequester.id,
@@ -122,7 +122,7 @@ export async function seedCommunicationAndActivity(
       },
     });
 
-    await prisma.clubJoinRequest.create({
+    await prismaAny.clubJoinRequest.create({
       data: {
         clubId: club.id,
         requesterId: approvedRequester.id,
@@ -137,7 +137,7 @@ export async function seedCommunicationAndActivity(
       data: { userId: approvedRequester.id, chatRoomId: clubRoom.id },
     });
 
-    await prisma.clubJoinRequest.create({
+    await prismaAny.clubJoinRequest.create({
       data: {
         clubId: club.id,
         requesterId: rejectedRequester.id,

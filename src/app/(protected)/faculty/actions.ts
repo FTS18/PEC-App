@@ -2,6 +2,8 @@
 
 import { revalidateTag } from 'next/cache';
 import { cookies } from 'next/headers';
+import { logActivity } from '@/lib/logger';
+import { facultySchema } from '@/lib/schemas';
 
 const API = process.env.INTERNAL_API_URL ?? 'http://localhost:8000';
 
@@ -26,7 +28,7 @@ async function apiFetch(method: string, path: string, body?: object) {
 }
 
 export async function createFaculty(_prev: any, formData: FormData) {
-  const body = {
+  const rawData = {
     fullName: formData.get('fullName') as string,
     email: formData.get('email') as string,
     role: 'faculty',
@@ -37,16 +39,22 @@ export async function createFaculty(_prev: any, formData: FormData) {
     phone: formData.get('phone') || undefined,
   };
 
-  const { ok } = await apiFetch('POST', 'users', body);
+  const validation = facultySchema.safeParse(rawData);
+  if (!validation.success) {
+    return { error: validation.error.errors[0].message };
+  }
+
+  const { ok } = await apiFetch('POST', 'users', validation.data);
   if (!ok) return { error: 'Failed to create faculty member' };
 
-  revalidateTag('faculty');
+  revalidateTag('faculty', 'default');
+  logActivity('create', 'faculty', { name: validation.data.fullName, email: validation.data.email });
   return { success: true };
 }
 
 export async function updateFaculty(_prev: any, formData: FormData) {
   const id = formData.get('id') as string;
-  const body = {
+  const rawData = {
     fullName: formData.get('fullName') as string,
     email: formData.get('email') as string,
     department: formData.get('department') || undefined,
@@ -56,10 +64,16 @@ export async function updateFaculty(_prev: any, formData: FormData) {
     phone: formData.get('phone') || undefined,
   };
 
-  const { ok } = await apiFetch('PATCH', `users/${id}`, body);
+  const validation = facultySchema.safeParse(rawData);
+  if (!validation.success) {
+    return { error: validation.error.errors[0].message };
+  }
+
+  const { ok } = await apiFetch('PATCH', `users/${id}`, validation.data);
   if (!ok) return { error: 'Failed to update faculty member' };
 
-  revalidateTag('faculty');
+  revalidateTag('faculty', 'default');
+  logActivity('update', 'faculty', { id, email: validation.data.email });
   return { success: true };
 }
 
@@ -68,7 +82,8 @@ export async function deleteFaculty(_prev: any, formData: FormData) {
   const { ok } = await apiFetch('DELETE', `users/${id}`);
   if (!ok) return { error: 'Failed to delete faculty member' };
 
-  revalidateTag('faculty');
+  revalidateTag('faculty', 'default');
+  logActivity('delete', 'faculty', { id });
   return { success: true };
 }
 
@@ -101,7 +116,8 @@ export async function promoteToHOD(_prev: any, formData: FormData) {
     }
   }
 
-  revalidateTag('faculty');
-  revalidateTag('departments');
+  revalidateTag('faculty', 'default');
+  revalidateTag('departments', 'default');
+  logActivity('promote', 'faculty', { id, role: 'HOD' });
   return { success: true };
 }
