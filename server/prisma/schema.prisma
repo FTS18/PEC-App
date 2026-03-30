@@ -41,6 +41,7 @@ model User {
   clubJoinRequests ClubJoinRequest[] @relation("ClubJoinRequester")
   reviewedClubJoinRequests ClubJoinRequest[] @relation("ClubJoinReviewer")
   createdClubs Club[] @relation("ClubCreator")
+  notices Notice[] @relation("NoticeAuthor")
 
   @@index([role])
   @@index([emailVerified])
@@ -383,6 +384,27 @@ model ChatRoom {
 
   @@unique([name, isGroup])
   @@index([createdAt])
+}
+
+model Notice {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  category    String   @default("update")
+  important   Boolean  @default(false)
+  pinned      Boolean  @default(false)
+  mediaJson   String?
+  authorId    String?
+  author      User?    @relation("NoticeAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  @@index([pinned, publishedAt])
+  @@index([category, publishedAt])
+  @@index([authorId])
+  @@index([deletedAt, publishedAt])
 }
 
 model Club {

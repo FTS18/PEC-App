@@ -20,6 +20,7 @@ import {
   IconTool,
   IconSettings,
   IconHelpCircle,
+  IconBell,
 } from "@tabler/icons-react";
 import {
   ChevronLeft,
@@ -66,6 +67,12 @@ const navItems: NavItem[] = [
     icon: IconMessageCircle,
     label: "Chat",
     path: "/chat",
+    roles: ["student", "faculty", "college_admin"],
+  },
+  {
+    icon: IconBell,
+    label: "Noticeboard",
+    path: "/noticeboard",
     roles: ["student", "faculty", "college_admin"],
   },
   {
@@ -188,7 +195,7 @@ export function Sidebar({
   const sectionConfig: Array<{ title: string; paths: string[] }> = [
     {
       title: 'Core',
-      paths: ['/dashboard', '/profile', '/chat', '/clubs', '/users', '/departments', '/faculty'],
+      paths: ['/dashboard', '/profile', '/chat', '/noticeboard', '/clubs', '/users', '/departments', '/faculty'],
     },
     {
       title: 'Academics',

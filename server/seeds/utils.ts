@@ -44,6 +44,7 @@ export async function clearDatabase() {
   await prisma.bookBorrow.deleteMany();
   await prisma.attendance.deleteMany();
   await prisma.message.deleteMany();
+  await prismaAny.notice.deleteMany();
   await prisma.clubJoinRequest.deleteMany();
   await prisma.club.deleteMany();
   await prisma.userChatRoom.deleteMany();
