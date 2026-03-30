@@ -38,6 +38,27 @@ export type CourseSeed = {
   facultyName: string;
 };
 
+export type CanteenItemSeed = {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  description: string;
+  image: string;
+};
+
+export type HostelIssueSeed = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  hostelName: string;
+  roomNumber: string;
+  category: string;
+  description: string;
+  status: string;
+  priority: string;
+};
+
 export const ACTIVE_SEMESTERS = [1, 3, 5, 7];
 export const TIMETABLE_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] as const;
 export const TIMETABLE_TIME_SLOTS = [
@@ -179,3 +200,16 @@ export const DEPARTMENTS: DepartmentSeed[] = [
     7: ['Compiler Design', 'Distributed Systems', 'Information Security', 'Cloud Computing', 'Capstone Project'],
   }),
 ];
+
+export const CANTEEN_ITEMS = [
+  { name: 'Veg Cheese Maggi', price: 60, category: 'Snacks', description: 'Classic comfort food with extra cheese', image: 'https://images.unsplash.com/photo-1594970719739-4s5b9a81723a' },
+  { name: 'Schezwan Noodles', price: 80, category: 'Snacks', description: 'Spicy street-style Indo-Chinese noodles', image: 'https://images.unsplash.com/photo-1585032226651-759b368d7246' },
+  { name: 'Cold Coffee with Ice Cream', price: 70, category: 'Drinks', description: 'Creamy and refreshing', image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c' },
+  { name: 'Paneer Butter Masala & Roti', price: 120, category: 'Meals', description: 'Hearty late night dinner', image: 'https://images.unsplash.com/photo-1631452180519-c014fe946bc7' },
+  { name: 'Chocolate Brownie', price: 50, category: 'Desserts', description: 'Warm and gooey', image: 'https://images.unsplash.com/photo-1564355808539-22fda35bed7e' },
+];
+
+export const HOSTELS = ['H1', 'H2', 'H3', 'H4', 'H5', 'GDH1', 'GDH2'];
+export const HOSTEL_CATEGORIES = ['Plumbing', 'Electrical', 'Internet', 'Furniture', 'Other'];
+export const ISSUE_STATUSES = ['Open', 'InProgress', 'Resolved'];
+export const ISSUE_PRIORITIES = ['Low', 'Medium', 'High'];

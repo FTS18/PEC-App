@@ -28,18 +28,54 @@ export async function seedCommunicationAndActivity(
     });
     const departmentFaculty = faculties.filter((f) => f.departmentCode === department.code);
     const departmentStudents = students.filter((s) => s.departmentCode === department.code);
-    for (const userId of [...departmentFaculty.map((f) => f.id), ...departmentStudents.map((s) => s.id)]) {
+    const departmentUsers = [...departmentFaculty.map((f) => f.id), ...departmentStudents.map((s) => s.id)];
+    
+    for (const userId of departmentUsers) {
       await prisma.userChatRoom.create({ data: { userId, chatRoomId: departmentRoom.id } });
     }
+
     const senders = [...departmentFaculty.map((f) => f.id), ...departmentStudents.slice(0, 4).map((s) => s.id)];
-    for (let i = 0; i < 8; i += 1) {
+    const messages = [
+      `Has anyone started the assignment for ${department.code}?`,
+      `The lecture for ${department.code} is rescheduled to 2 PM today.`,
+      `Where can I find the notes for the last session?`,
+      `The lab manual has been uploaded to the course content section.`,
+      `Reminder: Quiz 1 is scheduled for next Monday.`,
+      `Does anyone want to form a study group for the midterms?`,
+      `The department seminar on AI has been moved to the main auditorium.`,
+      `Please submit your project titles by the end of this week.`
+    ];
+
+    for (let i = 0; i < messages.length; i += 1) {
       await prisma.message.create({
         data: {
           chatRoomId: departmentRoom.id,
           senderId: senders[i % senders.length],
-          content: i % 2 === 0 ? `${department.code} timetable updated for sem ${ACTIVE_SEMESTERS[i % ACTIVE_SEMESTERS.length]}.` : `${department.code} assignment checkpoints live.`,
+          content: messages[i],
+          createdAt: daysAgo(i % 3),
         },
       });
+    }
+  }
+
+  // 12.5 Private Chats for mock-user
+  const mockUserId = students.find(s => s.id === 'mock-user-id')?.id;
+  if (mockUserId) {
+    for (let i = 0; i < 5; i++) {
+        const otherUser = faculties[i % faculties.length].id;
+        const privateRoom = await prisma.chatRoom.create({
+            data: { name: `Direct Chat ${i}`, isGroup: false },
+        });
+        await prisma.userChatRoom.create({ data: { userId: mockUserId, chatRoomId: privateRoom.id } });
+        await prisma.userChatRoom.create({ data: { userId: otherUser, chatRoomId: privateRoom.id } });
+        
+        await prisma.message.create({
+            data: {
+                chatRoomId: privateRoom.id,
+                senderId: otherUser,
+                content: `Hello! I had a question about your project submission. Can we discuss?`,
+            }
+        });
     }
   }
 

@@ -58,7 +58,13 @@ export default function NightCanteen() {
       try {
         const q = query(collection(({} as any), 'canteenItems'), where('isAvailable', '==', true));
         const snapshot = await getDocs(q);
-        setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CanteenItem)));
+        const fetchedItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CanteenItem));
+        // Idempotent state update to prevent duplicates from strict mode or bridge polling
+        setItems(prev => {
+          const combined = [...prev, ...fetchedItems];
+          const uniqueMap = new Map(combined.map(item => [item.id, item]));
+          return Array.from(uniqueMap.values());
+        });
       } catch (error) {
         console.error('Error fetching canteen items:', error);
         toast.error('Failed to load menu');

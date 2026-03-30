@@ -8,7 +8,9 @@ const emptyModulePath = path.resolve(__dirname, 'src/lib/empty-module.ts');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  typedRoutes: true,
   experimental: {
+    cacheComponents: true,
     optimizePackageImports: [
       'lucide-react',
       '@tabler/icons-react',
@@ -22,6 +24,14 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'res.cloudinary.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'upload.wikimedia.org',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
       },
     ],
     unoptimized: false,

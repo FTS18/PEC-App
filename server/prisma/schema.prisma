@@ -159,6 +159,7 @@ model Course {
   department       String
   semester         Int
   status           String
+  facultyId        String?
   assignments      Assignment[] @relation("CourseAssignments")
   examSchedules    ExamSchedule[]
   grades           Grade[]
@@ -459,4 +460,66 @@ model BackgroundJob {
   @@index([type, status, availableAt])
   @@index([lockedAt])
   @@index([processedAt])
+}
+
+model CanteenItem {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  price       Float
+  category    String
+  description String?
+  image       String?
+  isAvailable Boolean  @default(true)
+  stock       Int      @default(100)
+  orders      CanteenOrderItem[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category, isAvailable])
+}
+
+model CanteenOrder {
+  id          String   @id @default(uuid())
+  studentId   String
+  studentName String?
+  hostelRoom  String
+  totalAmount Float
+  status      String   @default("Pending") // "Pending", "Delivered", "Cancelled"
+  items       CanteenOrderItem[]
+  timestamp   DateTime @default(now())
+
+  @@index([studentId, status])
+  @@index([timestamp])
+}
+
+model CanteenOrderItem {
+  id        String       @id @default(uuid())
+  orderId   String
+  order     CanteenOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  itemId    String
+  item      CanteenItem  @relation(fields: [itemId], references: [id])
+  name      String       // De-normalized name for history
+  quantity  Int
+  price     Float
+
+  @@index([orderId])
+}
+
+model HostelIssue {
+  id          String   @id @default(uuid())
+  studentId   String
+  studentName String?
+  hostelName  String
+  roomNumber  String
+  category    String   // "Plumbing", "Electrical", "Internet", "Furniture", "Other"
+  description String
+  status      String   @default("Open") // "Open", "InProgress", "Resolved", "Closed"
+  priority    String   @default("Medium") // "Low", "Medium", "High", "Critical"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([studentId, status])
+  @@index([hostelName, status])
+  @@index([category])
+  @@index([createdAt])
 }

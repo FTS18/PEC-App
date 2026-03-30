@@ -20,6 +20,10 @@ export class AttendanceService {
     return this.repo.findById(id);
   }
 
+  getStudentSummary(studentId: string) {
+    return this.repo.getStudentSummary(studentId);
+  }
+
   update(id: string, data: UpdateAttendanceDto) {
     return this.repo.update(id, data);
   }

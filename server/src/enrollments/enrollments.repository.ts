@@ -42,4 +42,51 @@ export class EnrollmentsRepository extends BaseRepository {
       data,
     });
   }
+
+  async findConflicts(studentId: string, targetCourseId: string) {
+    const [currentEnrollments, newCourseSlots] = await Promise.all([
+      this.prisma.enrollment.findMany({
+        where: { studentId, status: 'active' },
+        select: { courseId: true }
+      }),
+      this.prisma.timetable.findMany({
+        where: { courseId: targetCourseId }
+      })
+    ]);
+
+    const currentCourseIds = currentEnrollments.map(e => e.courseId);
+    if (currentCourseIds.length === 0) return [];
+
+    const existingSlots = await this.prisma.timetable.findMany({
+      where: { courseId: { in: currentCourseIds } }
+    });
+
+    const conflicts: any[] = [];
+    for (const newSlot of newCourseSlots) {
+       const collision = existingSlots.find(existing => 
+          existing.day === newSlot.day && 
+          ((newSlot.startTime >= existing.startTime && newSlot.startTime < existing.endTime) ||
+           (newSlot.endTime > existing.startTime && newSlot.endTime <= existing.endTime) ||
+           (newSlot.startTime <= existing.startTime && newSlot.endTime >= existing.endTime))
+       );
+       if (collision) {
+         conflicts.push({ 
+           day: newSlot.day, 
+           time: `${newSlot.startTime}-${newSlot.endTime}`,
+           withCourse: collision.courseCode || collision.courseName || collision.courseId
+         });
+       }
+    }
+    
+    return conflicts;
+  }
+
+  async removeByStudentAndCourse(studentId: string | undefined, courseId: string) {
+    return this.prisma.enrollment.deleteMany({
+      where: {
+        ...(studentId ? { studentId } : {}),
+        courseId,
+      },
+    });
+  }
 }

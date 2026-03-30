@@ -8,6 +8,7 @@ import { seedCourses } from './seeds/courses';
 import { seedAcademicRecords } from './seeds/academic_records';
 import { seedTimetable } from './seeds/timetable';
 import { seedCommunicationAndActivity } from './seeds/communication';
+import { seedCampusFacilities } from './seeds/campus_facilities';
 
 async function main() {
   console.log('--- Starting Modular PEC Campus Seed ---');
@@ -39,8 +40,8 @@ async function main() {
     console.log('8. Generating complex timetable...');
     await seedTimetable(courses);
 
-
-
+    console.log('9. Seeding campus facilities (Canteen & Hostel)...');
+    await seedCampusFacilities(students);
 
     console.log('12. Seeding communication systems (Chat, Audit, Flags)...');
     await seedCommunicationAndActivity(admin.id, faculties, students, courses);

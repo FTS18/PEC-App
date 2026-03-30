@@ -6,6 +6,7 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Delete,
   Query,
   Request,
   UseGuards,
@@ -29,7 +30,7 @@ export class EnrollmentsController {
   async findAll(@Request() req: any, @Query() query: EnrollmentQueryDto) {
     const effectiveQuery = { ...query };
     if (req.user?.role === 'student') {
-      effectiveQuery.studentId = req.user.sub;
+      effectiveQuery.studentId = req.user.sub || req.user.uid;
     }
 
     const result = await this.enrollmentsService.findAll(effectiveQuery);
@@ -40,7 +41,7 @@ export class EnrollmentsController {
     });
   }
 
-  @Roles('faculty', 'college_admin')
+  @Roles('student', 'faculty', 'college_admin')
   @Post()
   async create(@Body() body: CreateEnrollmentDto) {
     const data = await this.enrollmentsService.create(body);
@@ -55,5 +56,17 @@ export class EnrollmentsController {
   ) {
     const data = await this.enrollmentsService.update(id, body);
     return ok(data);
+  }
+
+  @Roles('student', 'faculty', 'college_admin')
+  @Delete()
+  async remove(
+    @Request() req: any, 
+    @Query('courseId', new ParseUUIDPipe({ version: '4' })) courseId: string,
+    @Query('studentId') studentIdQuery?: string,
+  ) {
+    const studentId = req.user.role === 'student' ? (req.user.sub || req.user.uid) : studentIdQuery;
+    const result = await this.enrollmentsService.remove(studentId, courseId);
+    return ok(result);
   }
 }

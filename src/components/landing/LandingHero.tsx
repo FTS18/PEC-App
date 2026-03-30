@@ -3,6 +3,7 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRef, useEffect } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
@@ -92,7 +93,15 @@ export function LandingHero() {
                 whileTap={{ scale: 0.95 }}
                 className="flex items-center gap-3 cursor-pointer"
               >
-                <img src="/logo.png" alt="PEC" className="h-12 w-auto" />
+                <div className="relative h-12 w-32">
+                  <Image 
+                    src="/logo.png" 
+                    alt="PEC Logo" 
+                    fill 
+                    className="object-contain" 
+                    priority 
+                  />
+                </div>
               </motion.div>
             </Link>
             <div className="hidden md:flex items-center gap-2">
@@ -135,10 +144,12 @@ export function LandingHero() {
       >
         {/* Hero Background Image */}
         <div className="absolute inset-0 -z-0">
-          <img 
+          <Image 
             src="/image.png" 
             alt="Background" 
-            className="w-full h-full object-cover"
+            fill
+            className="object-cover"
+            priority
           />
         </div>
 

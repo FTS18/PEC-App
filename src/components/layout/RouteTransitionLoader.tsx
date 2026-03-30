@@ -2,6 +2,7 @@
 
 import { usePathname, useSearchParams } from 'next/navigation';
 import { MouseEvent as ReactMouseEvent, useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import PECLoader from '../loading/PECLoader';
 
 const isModifiedEvent = (event: MouseEvent | ReactMouseEvent) =>
   event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
@@ -141,11 +142,8 @@ function RouteTransitionLoaderInner() {
   }
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-background/80 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-4" role="status" aria-live="polite" aria-label="Loading page">
-        <div className="h-11 w-11 animate-spin rounded-full border-4 border-primary/20 border-t-primary" />
-        <p className="text-sm font-medium text-foreground/80">Loading page...</p>
-      </div>
+    <div role="status" aria-live="polite" aria-label="Loading page">
+      <PECLoader />
     </div>
   );
 }

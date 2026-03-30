@@ -19,11 +19,21 @@ import { ok } from '../common/utils/api-response';
 import { AuthGuard } from '../auth/auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
+import { BadRequestException } from '@nestjs/common';
 
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('attendance')
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
+
+  @Roles('student', 'faculty', 'college_admin')
+  @Get('summary')
+  async getSummary(@Request() req: any, @Query('studentId') studentId?: string) {
+    const targetId = req.user?.role === 'student' ? req.user.sub : studentId;
+    if (!targetId) throw new BadRequestException('Student ID is required');
+    const data = await this.attendanceService.getStudentSummary(targetId);
+    return ok(data);
+  }
 
   @Roles('faculty', 'college_admin')
   @Post()

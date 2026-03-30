@@ -48,6 +48,7 @@ const unwrapSuccess = <T = any>(payload: any): T => {
 const normalizeCollectionName = (collectionName: string) => {
   if (collectionName === "feeRecords") return "fee-records";
   if (collectionName === "placement_drives") return "jobs";
+  if (collectionName === "canteenOrders") return "canteenOrders";
   return collectionName;
 };
 

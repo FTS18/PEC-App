@@ -20,8 +20,17 @@ export async function createUserWithRole(params: {
 }) {
   const role = await ensureRole(params.role);
 
-  return prisma.user.create({
-    data: {
+  return prisma.user.upsert({
+    where: { email: params.email },
+    update: {
+      name: params.name,
+      password: params.passwordHash,
+      role: params.role,
+      githubUsername: params.githubUsername ?? null,
+      linkedinUsername: params.linkedinUsername ?? null,
+      isPublicProfile: params.isPublicProfile ?? true,
+    },
+    create: {
       email: params.email,
       name: params.name,
       password: params.passwordHash,
@@ -69,6 +78,36 @@ export async function seedCoreUsers(passwordHash: string) {
     name: 'Generic Campus User',
     role: 'user',
     passwordHash,
+  });
+
+  // Ensure mock-user-id exists for stable dev testing
+  const mockUser = await prisma.user.upsert({
+    where: { id: 'mock-user-id' },
+    update: {},
+    create: {
+       id: 'mock-user-id',
+       email: 'student@pec.edu',
+       name: 'John Student',
+       password: passwordHash,
+       role: 'student',
+       profileComplete: true,
+       emailVerified: true,
+    }
+  });
+
+  // Also seed a profile for this mock user to unify it with the system
+  await prisma.studentProfile.upsert({
+    where: { userId: mockUser.id },
+    update: {},
+    create: {
+      userId: mockUser.id,
+      enrollmentNumber: 'PEC2024CSE001',
+      department: 'Computer Science & Engineering',
+      semester: 1,
+      dob: new Date('2004-05-15'),
+      phone: 'encrypted_phone_mock',
+      address: 'encrypted_address_mock',
+    }
   });
 
   return admin;

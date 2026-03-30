@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -222,7 +222,7 @@ export function Sidebar({
     return (
       <li key={item.path} className={cn(!collapsed && "flex")}>
         <Link
-          href={item.path}
+          href={item.path as any}
           className={cn(
             "sidebar-item",
             !collapsed && "w-full",
@@ -307,8 +307,15 @@ export function Sidebar({
           </button>
         ) : (
           <>
-            <div className="h-10 w-10 shrink-0 overflow-hidden flex items-center justify-center">
-              <img src={appLogoSrc} alt="App logo" className="h-8 w-8 object-contain" />
+            <div className="h-10 w-10 shrink-0 relative overflow-hidden flex items-center justify-center">
+              <Image 
+                src={appLogoSrc} 
+                alt="App logo" 
+                width={32} 
+                height={32} 
+                className="object-contain" 
+                priority 
+              />
             </div>
             <button
               onClick={onToggle}

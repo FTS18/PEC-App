@@ -19,6 +19,8 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 import { InputSanitizationMiddleware } from './common/middleware/input-sanitization.middleware';
 import { RequestLoggingMiddleware } from './common/middleware/request-logging.middleware';
+import { CanteenModule } from './canteen/canteen.module';
+import { HostelModule } from './hostel/hostel.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { RequestLoggingMiddleware } from './common/middleware/request-logging.mi
     DepartmentsModule,
     FeatureFlagsModule,
     BackgroundJobsModule,
+    CanteenModule,
+    HostelModule,
   ],
   controllers: [AppController],
   providers: [

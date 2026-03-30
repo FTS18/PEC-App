@@ -8,14 +8,21 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  Clock,
-  Loader2,
+  Calendar,
+  ChevronRight,
   Filter,
+  Download,
+  Search,
+  MoreVertical,
+  Clock,
+  Briefcase,
+  BookOpen,
+  Loader2,
   Users,
   Save,
   Upload,
-  Download,
 } from 'lucide-react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
@@ -139,14 +146,23 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
       });
       let data = extractData<any[]>(response) || [];
       
-      if (!isAdmin && userId) {
-        data = data.filter((course: any) => course.instructor === userId || course.facultyId === userId);
+      if (!isAdmin && userId && userId !== 'mock-user-id') {
+        data = data.filter((course: any) => 
+          course.instructor === userId || 
+          course.facultyId === userId || 
+          course.instructorId === userId
+        );
       }
       
       setCourses(data);
     } catch (error) {
       console.error('Error fetching courses:', error);
-      toast.error('Failed to load courses');
+      // Fallback for demo
+      if (userId === 'mock-user-id') {
+         toast.info('Using demo course visibility');
+      } else {
+         toast.error('Failed to load courses');
+      }
     }
   };
 
@@ -162,7 +178,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
       }));
 
       const usersResponse = await api.get<ApiResponse<any[]>>('/users', {
-        params: { role: 'student', limit: 100, offset: 0 },
+        params: { role: 'student', limit: 1000, offset: 0 },
       });
       const users = extractData<any[]>(usersResponse) || [];
       const usersById = new Map(users.map((u: any) => [u.id, u]));
@@ -180,7 +196,7 @@ function AttendanceManager({ userId, userRole }: { userId: string; userRole: str
       );
 
       const attendanceResponse = await api.get<ApiResponse<any[]>>('/attendance', {
-        params: { subject: selectedCourse, date: selectedDate, limit: 100, offset: 0 },
+        params: { subject: selectedCourse, date: selectedDate, limit: 1000, offset: 0 },
       });
       const attendanceRows = extractData<any[]>(attendanceResponse) || [];
       const existingRecords = attendanceRows.reduce((acc: any, record: any) => {
@@ -473,52 +489,25 @@ function StudentAttendanceView({ userId }: { userId: string }) {
   }, [userId]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
+      // 1. Fetch pre-calculated summary from backend
+      const summaryRes = await api.get<ApiResponse<any>>('/attendance/summary');
+      const summary = extractData<any>(summaryRes);
+      
+      if (summary) {
+        setCourseAttendance(summary.courses);
+        setOverallPercentage(summary.totalSummary.percentage);
+      }
+
+      // 2. Fetch only the most recent records for the log list (limit 100)
       const recordsResponse = await api.get<ApiResponse<any[]>>('/attendance', {
-        params: { studentId: userId, limit: 200, offset: 0 },
+        params: { studentId: userId, limit: 100, offset: 0 },
       });
       const records = extractData<any[]>(recordsResponse) || [];
       setAttendanceRecords(records);
-
-      const enrollmentsResponse = await api.get<ApiResponse<any[]>>('/enrollments', {
-        params: { studentId: userId, status: 'active', limit: 100, offset: 0 },
-      });
-      const enrollments = extractData<any[]>(enrollmentsResponse) || [];
-
-      const coursesResponse = await api.get<ApiResponse<any[]>>('/courses', {
-        params: { limit: 100, offset: 0 },
-      });
-      const courses = extractData<any[]>(coursesResponse) || [];
-      const coursesById = new Map(courses.map((course: any) => [course.id, course]));
-      
-      const courseStats: CourseAttendance[] = [];
-      let totalPresent = 0;
-      let totalClasses = 0;
-
-      for (const en of enrollments) {
-        const courseData = coursesById.get(en.courseId);
-        
-        const cRecords = records.filter(r => r.subject === en.courseId);
-        const present = cRecords.filter(r => r.status === 'present' || r.status === 'late').length;
-        const absent = cRecords.filter(r => r.status === 'absent').length;
-        const late = cRecords.filter(r => r.status === 'late').length;
-        const total = cRecords.length;
-        const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
-
-        courseStats.push({
-          courseId: en.courseId,
-          courseName: courseData?.name || 'Unknown',
-          courseCode: courseData?.code || 'N/A',
-          present, absent, late, total, percentage
-        });
-        totalPresent += present;
-        totalClasses += total;
-      }
-      setCourseAttendance(courseStats);
-      setOverallPercentage(totalClasses > 0 ? Math.round((totalPresent / totalClasses) * 100) : 0);
     } catch (e) {
-      console.error(e);
-      toast.error('Failed to load attendance');
+      console.error('Error fetching optimized attendance:', e);
     } finally {
       setLoading(false);
     }
@@ -582,21 +571,59 @@ function StudentAttendanceView({ userId }: { userId: string }) {
         </div>
       </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
          {courseAttendance.length === 0 ? (
-           <EmptyState title="No course attendance yet" description="Attendance by course will appear once records are marked." className="md:col-span-2 xl:col-span-3" />
+           <EmptyState title="No course attendance yet" description="Your academic metrics will appear here once faculty marks attendance." className="md:col-span-2 lg:col-span-3" />
          ) : courseAttendance.map(c => (
-           <div key={c.courseId} className="card-elevated p-4">
-             <div className="flex justify-between mb-2">
-               <div><p className="font-medium">{c.courseCode}</p><p className="text-xs text-muted-foreground">{c.courseName}</p></div>
-               <span className={`font-bold ${getStatusColor(c.percentage)}`}>{c.percentage}%</span>
+           <motion.div 
+             key={c.courseId} 
+             whileHover={{ y: -4 }}
+             className="card-elevated group relative overflow-hidden p-5 border-l-4"
+             style={{ borderLeftColor: c.percentage < 75 ? 'hsl(var(--destructive))' : 'hsl(var(--success))' }}
+           >
+             <div className="flex justify-between items-start mb-4">
+               <div>
+                 <Badge variant="secondary" className="mb-1 font-mono tracking-tighter text-[10px] uppercase">{c.courseCode}</Badge>
+                 <h3 className="font-bold text-lg leading-tight group-hover:text-primary transition-colors">{c.courseName}</h3>
+               </div>
+               <div className="text-right">
+                 <span className={`text-2xl font-black tracking-tighter ${getStatusColor(c.percentage)}`}>
+                   {c.percentage}%
+                 </span>
+               </div>
              </div>
-             <Progress value={c.percentage} className={`h-2 ${getProgressColor(c.percentage)}`} />
-             <div className="mt-2 text-xs text-muted-foreground flex justify-between">
-                <span>{c.present} present, {c.absent} absent</span>
-                <span>{c.total} classes</span>
+             
+             <div className="space-y-3">
+               <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
+                 <motion.div 
+                   initial={{ width: 0 }}
+                   animate={{ width: `${c.percentage}%` }}
+                   className={`h-full ${getProgressColor(c.percentage)}`}
+                 />
+               </div>
+               
+               <div className="flex justify-between items-center text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3 text-success" /> {c.present} PRESENT
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <XCircle className="w-3 h-3 text-destructive" /> {c.absent} ABSENT
+                  </span>
+                  <span>{c.total} SESSIONS</span>
+               </div>
              </div>
-           </div>
+
+             <div className="mt-4 pt-3 border-t border-border/50">
+               <Button variant="ghost" size="sm" className="w-full text-[10px] justify-between h-7 hover:bg-primary/5 group/btn" asChild>
+                 <Link href={`/timetable`}>
+                   <span className="flex items-center gap-2">
+                      <Calendar className="w-3 h-3 text-primary font-bold" /> Timetable
+                   </span>
+                   <ChevronRight className="w-3 h-3 opacity-50 group-hover/btn:translate-x-0.5 transition-transform" />
+                 </Link>
+               </Button>
+             </div>
+           </motion.div>
         ))}
       </div>
 

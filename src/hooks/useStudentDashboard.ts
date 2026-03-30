@@ -9,6 +9,7 @@ import type {
   Course, 
   AttendanceRecord
 } from '@/types';
+import { extractData } from '@/lib/utils';
 
 interface StudentStats {
   attendancePercentage: number;
@@ -64,88 +65,51 @@ export function useStudentDashboard() {
       type ApiResponse<T> = { success: boolean; data: T; meta?: any };
       const department = user.department;
       const semester = user.semester;
-      const skipGrades = isGradesEndpointDisabled();
-      const gradesPromise = Promise.resolve({ data: { success: true, data: [] as GradeRecord[] } });
 
-      const [coursesResult, enrollmentsResult, attendanceResult, timetableResult] =
-        await Promise.allSettled([
-          api.get<ApiResponse<Course[]>>('/courses', {
-            params: {
-              limit: 200,
-              offset: 0,
-              ...(department ? { department } : {}),
-              ...(semester ? { semester } : {}),
-            },
-          }),
-          api.get<ApiResponse<any>>('/enrollments', {
-            params: { limit: 200, offset: 0, status: 'active' },
-          }),
-          api.get<ApiResponse<AttendanceRecord[]>>('/attendance', {
-            params: { limit: 200, offset: 0 },
-          }),
-          api.get<ApiResponse<any>>('/timetable', {
-            params: {
-              limit: 200,
-              offset: 0,
-              ...(department ? { department } : {}),
-              ...(semester ? { semester } : {}),
-            },
-          }),
-        ]);
+      // 1. Fetch Summary + Courses + Timetable in Parallel
+      const [summaryRes, coursesRes, timetableRes] = await Promise.all([
+        api.get<ApiResponse<any>>('/attendance/summary'),
+        api.get<ApiResponse<Course[]>>('/courses', {
+          params: {
+            limit: 1000,
+            offset: 0,
+            ...(department ? { department } : {}),
+            ...(semester ? { semester } : {}),
+          },
+        }),
+        api.get<ApiResponse<any>>('/timetable', {
+          params: {
+            limit: 500,
+            offset: 0,
+            ...(department ? { department } : {}),
+            ...(semester ? { semester } : {}),
+          },
+        }),
+      ]);
 
-      const allCourses =
-        coursesResult.status === 'fulfilled' ? coursesResult.value.data.data || [] : [];
-      const enrollments =
-        enrollmentsResult.status === 'fulfilled'
-          ? enrollmentsResult.value.data.data || []
-          : [];
-      const attendanceRecords =
-        attendanceResult.status === 'fulfilled'
-          ? attendanceResult.value.data.data || []
-          : [];
-      const timetableData =
-        timetableResult.status === 'fulfilled'
-          ? timetableResult.value.data.data || []
-          : [];
-      if (attendanceResult.status === 'rejected' && isNotFoundError(attendanceResult.reason)) {
-        // Handle attendance error
+      const summary = extractData<any>(summaryRes);
+      const allCourses = extractData<Course[]>(coursesRes) || [];
+      const timetableData = extractData<any[]>(timetableRes) || [];
+
+      if (summary) {
+        setEnrolledCoursesList(summary.courses);
+        setStats({
+          attendancePercentage: summary.totalSummary.percentage,
+          enrolledCourses: summary.courses.length,
+        });
       }
 
-      const enrolledCourseIds = new Set(enrollments.map((e: any) => e.courseId));
-      const enrolledCourses = allCourses.filter((c: any) => enrolledCourseIds.has(c.id));
-      const enrolledCourseCodes = new Set(
-        enrollments
-          .map((enrollment: any) => enrollment.courseCode)
-          .filter(Boolean),
-      );
-
-      setEnrolledCoursesList(enrolledCourses);
-
-      // --- Process Attendance ---
-      const present = attendanceRecords.filter((r: any) => r.status === 'present' || r.status === 'late').length;
-      const attendancePercentage = attendanceRecords.length > 0 ? Math.round((present / attendanceRecords.length) * 100) : 0;
-
       // --- Process Timetable ---
+      const enrolledCourseIds = new Set(summary?.courses.map((c: any) => c.courseId) || []);
       const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       
       let scheduleItems = (timetableData || [])
-        .filter(
-          (t: any) =>
-            enrolledCourseIds.has(t.courseId) ||
-            enrolledCourseCodes.has(t.courseCode),
-        )
+        .filter((t: any) => enrolledCourseIds.has(t.courseId))
         .map((t: any) => ({
           ...t,
-          day: t.day,
-          courseName:
-            allCourses.find((c: any) => c.code === t.courseCode)?.name ||
-            t.courseName ||
-            'Unknown',
-          instructor:
-            allCourses.find((c: any) => c.code === t.courseCode)?.instructor ||
-            t.facultyName ||
-            'TBA',
+          courseName: allCourses.find((c: any) => c.id === t.courseId)?.name || t.courseName || 'Class',
+          instructor: allCourses.find((c: any) => c.id === t.courseId)?.instructor || t.facultyName || 'Faculty',
         }));
 
       const getScheduleForDay = (dayName: string) => {
@@ -177,15 +141,9 @@ export function useStudentDashboard() {
       setTodayClasses(activeSchedule);
       setScheduleDay(displayLabel);
 
-      setStats({
-        attendancePercentage,
-        enrolledCourses: enrolledCourses.length,
-      });
-
     } catch (error) {
-      console.error('Error fetching stats:', error);
+      console.error('Error fetching dashboard stats:', error);
       setLoadError('Unable to refresh dashboard data.');
-      throw error;
     }
   }, [user]);
 

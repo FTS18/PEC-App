@@ -15,21 +15,43 @@ export class CoursesRepository extends BaseRepository {
     const where = {
       deletedAt: null,
       ...(query.department ? { department: query.department } : {}),
+      ...(query.facultyId ? { facultyId: query.facultyId } : {}),
       ...(query.semester ? { semester: query.semester } : {}),
       ...(query.status ? { status: query.status } : {}),
     };
 
+    const requestedLimit = query.limit ?? 100;
+    const take = Math.min(Math.max(requestedLimit, 1), 1000);
+    const skip = Math.max(query.offset ?? 0, 0);
+
     const sortBy = query.sortBy ?? 'name';
     const sortOrder = query.sortOrder ?? 'asc';
 
-    return this.findManyWithCount(this.prisma.course, {
-      query,
-      defaultLimit: 20,
-      where,
-      orderBy: {
-        [sortBy]: sortOrder,
-      },
-    });
+    const [items, total] = await Promise.all([
+      this.prisma.course.findMany({
+        where,
+        take,
+        skip,
+        include: {
+          _count: {
+            select: {
+              enrollments: true
+            }
+          }
+        },
+        orderBy: {
+          [sortBy]: sortOrder,
+        },
+      }),
+      this.prisma.course.count({ where }),
+    ]);
+
+    return {
+      items,
+      total,
+      limit: take,
+      offset: skip,
+    };
   }
 
   findById(id: string) {
