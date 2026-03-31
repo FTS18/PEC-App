@@ -1,75 +1,80 @@
-'use client';
-
-import { Bell, ArrowRight, Pin } from 'lucide-react';
+import { Bell, ArrowUpRight, Pin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { motion } from 'framer-motion';
-import { formatDistanceToNow } from 'date-fns';
+import { EmptyState } from '@/components/common/AsyncState';
 
-interface Notice {
+export interface NoticeboardItem {
   id: string;
   title: string;
   content: string;
-  category: string;
-  pinned: boolean;
-  createdAt: string;
+  category: 'news' | 'update' | 'event' | 'alert' | string;
+  important?: boolean;
+  pinned?: boolean;
+  authorName?: string;
+  publishedAt?: string;
 }
 
 interface Props {
-  notices: Notice[];
+  notices: NoticeboardItem[];
   onViewAll: () => void;
 }
 
 export function NoticeboardCard({ notices, onViewAll }: Props) {
+  const safeNotices = Array.isArray(notices) ? notices : [];
+
   return (
-    <div className="card-elevated ui-card-pad h-full flex flex-col">
+    <div className="card-elevated ui-card-pad flex h-full flex-col">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-lg font-semibold text-foreground">
           <Bell className="h-5 w-5 text-primary" />
-          Latest Notices
+          Noticeboard
         </h2>
-        <Button variant="ghost" size="sm" onClick={onViewAll} className="text-xs">
+        <Button variant="ghost" size="sm" onClick={onViewAll}>
           View All
-          <ArrowRight className="ml-1 h-3 w-3" />
+          <ArrowUpRight className="ml-1 h-4 w-4" />
         </Button>
       </div>
 
-      <div className="flex-1 space-y-3 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-        {notices.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Bell className="h-8 w-8 text-muted-foreground/30 mb-2" />
-            <p className="text-sm text-muted-foreground">No recent notices</p>
-          </div>
+      <div className="flex-1 space-y-3">
+        {safeNotices.length === 0 ? (
+          <EmptyState title="No notices yet" description="You are all caught up." />
         ) : (
-          notices.map((notice, index) => (
-            <motion.div
-              key={notice.id}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: index * 0.05 }}
-              className="group relative rounded-lg border border-border bg-secondary/5 p-3 hover:bg-secondary/10 transition-colors cursor-pointer"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    {notice.pinned && <Pin className="h-3 w-3 text-primary fill-primary" />}
-                    <h3 className="text-sm font-semibold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
-                      {notice.title}
-                    </h3>
+          <div className="space-y-3 pb-2">
+            {safeNotices.slice(0, 4).map((notice, index) => (
+              <div
+                key={`${notice.id || 'notice'}-${index}`}
+                className="rounded-lg border border-border bg-secondary/10 p-3 hover:bg-secondary/20 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <p className="text-sm font-semibold text-foreground line-clamp-1">{notice.title}</p>
+                      {notice.pinned && (
+                        <Badge variant="secondary" className="inline-flex items-center gap-1 text-[10px] h-4">
+                          <Pin className="h-2.5 w-2.5" />
+                          Pinned
+                        </Badge>
+                      )}
+                      {notice.important && (
+                        <Badge variant="destructive" className="text-[10px] h-4">Important</Badge>
+                      )}
+                      <Badge variant="outline" className="uppercase text-[10px] h-4 bg-background/40">
+                        {notice.category || 'update'}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                      {notice.content}
+                    </p>
                   </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                    {notice.content}
-                  </p>
+                  {notice.publishedAt && (
+                    <span className="shrink-0 text-[10px] text-muted-foreground font-medium opacity-60">
+                      {new Date(notice.publishedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
                 </div>
-                <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-background shrink-0">
-                  {notice.category}
-                </Badge>
               </div>
-              <div className="mt-2 text-[10px] text-muted-foreground/60 flex justify-end">
-                {formatDistanceToNow(new Date(notice.createdAt), { addSuffix: true })}
-              </div>
-            </motion.div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>

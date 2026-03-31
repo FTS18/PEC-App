@@ -19,8 +19,8 @@ export function useFacultyDashboard(initialData?: any, serverUser?: any) {
   
   const [courses, setCourses] = useState<any[]>(initialData?.courses || []);
   const [notices, setNotices] = useState<any[]>(initialData?.notices || []);
-  const [todaySchedule, setTodaySchedule] = useState<any[]>([]);
-  const [courseCards, setCourseCards] = useState<any[]>([]);
+  const [courseCards, setCourseCards] = useState<any[]>(initialData?.courseCards || []);
+  const [todaySchedule, setTodaySchedule] = useState<any[]>(initialData?.todaySchedule || []);
   const [loading, setLoading] = useState(!initialData);
   const [stats, setStats] = useState(initialData?.stats || { activeCount: 0, studentCount: 0, lowAttendanceCount: 0 });
 
@@ -71,14 +71,23 @@ export function useFacultyDashboard(initialData?: any, serverUser?: any) {
         lowAttendanceCount,
       });
 
-      // Prepare Course Cards
-      setCourseCards(facultyCourses.map(c => ({
-        id: c.id,
-        code: c.code,
-        name: c.name,
-        students: allEnrollments.filter((e: any) => e.courseId === c.id).length,
-        attendance: 85, // Placeholder
-      })));
+      const enrollmentByCourse = allEnrollments.reduce((acc: Record<string, number>, item: any) => {
+        const key = String(item.courseId || '');
+        if (!key) return acc;
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+
+      setCourseCards(
+        facultyCourses.map((course: any) => ({
+          id: course.id,
+          code: course.code || 'COURSE',
+          name: course.name || 'Course',
+          students: enrollmentByCourse[String(course.id)] || 0,
+          progress: 0,
+          avgAttendance: 0,
+        }))
+      );
 
       // Prepare Today's Schedule
       const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -95,7 +104,7 @@ export function useFacultyDashboard(initialData?: any, serverUser?: any) {
           course: course?.name || 'Class',
           section: t.section || 'N/A',
           room: t.room || 'TBA',
-          students: allEnrollments.filter((e: any) => e.courseId === t.courseId).length,
+          students: enrollmentByCourse[String(t.courseId)] || 0,
           status: 'upcoming' as const,
         };
       }));
