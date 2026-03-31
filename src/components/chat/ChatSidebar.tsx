@@ -45,7 +45,7 @@ export function ChatSidebar({
         return room.participantNames[otherUserId];
       }
     }
-    return room.title;
+    return room.title ?? "";
   };
 
   // Filter rooms based on search

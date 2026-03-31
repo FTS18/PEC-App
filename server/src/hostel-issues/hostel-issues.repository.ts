@@ -53,13 +53,16 @@ export class HostelIssuesRepository {
   }
 
   create(data: CreateHostelIssueDto) {
+    if (!data.studentId) {
+      throw new Error('studentId is required to create a hostel issue');
+    }
     return this.prisma.hostelIssue.create({
       data: {
         title: data.title,
         description: data.description,
         category: data.category,
         priority: data.priority,
-        status: data.status ?? 'open',
+        status: data.status ?? 'Open',
         roomNumber: data.roomNumber,
         studentId: data.studentId,
         studentName: data.studentName,
@@ -105,7 +108,7 @@ export class HostelIssuesRepository {
         (responsePatch as { val?: unknown }).val ?? null,
       );
       nextResponses = currentResponses.filter(
-        (item) => JSON.stringify(item) !== removeVal,
+        (item: Prisma.JsonValue) => JSON.stringify(item) !== removeVal,
       ) as Prisma.JsonArray;
     }
 

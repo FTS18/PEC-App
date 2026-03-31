@@ -1,11 +1,66 @@
-import axios from "axios";
 import { authClient } from "./auth-client";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 
-const API = axios.create({
-  baseURL: API_BASE_URL,
-});
+const buildUrl = (route: string, params?: Record<string, any>) => {
+  const url = route.startsWith("http")
+    ? new URL(route)
+    : new URL(route, API_BASE_URL);
+
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value === undefined || value === null) return;
+      if (Array.isArray(value)) {
+        value.forEach((item) => url.searchParams.append(key, String(item)));
+        return;
+      }
+      url.searchParams.set(key, String(value));
+    });
+  }
+
+  return url.toString();
+};
+
+const buildAuthHeaders = () => {
+  const token = authClient.getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+const request = async (
+  method: "GET" | "POST" | "PATCH" | "DELETE",
+  route: string,
+  options?: { params?: Record<string, any>; body?: any },
+) => {
+  const url = buildUrl(route, options?.params);
+  const hasBody = options?.body !== undefined;
+  const res = await fetch(url, {
+    method,
+    headers: {
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
+      ...buildAuthHeaders(),
+    },
+    body: hasBody ? JSON.stringify(options?.body) : undefined,
+  });
+
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const error = new Error(
+      (data && (data.message || data.error)) ||
+        `Request failed with status ${res.status}`,
+    );
+    throw error;
+  }
+
+  return { data };
+};
+
+const API = {
+  get: (route: string, options?: { params?: Record<string, any> }) =>
+    request("GET", route, { params: options?.params }),
+  post: (route: string, body?: any) => request("POST", route, { body }),
+  patch: (route: string, body?: any) => request("PATCH", route, { body }),
+  delete: (route: string) => request("DELETE", route),
+};
 
 const timestampWrapper = (value: string | Date | undefined) => {
   const date = value ? new Date(value) : new Date();
@@ -17,14 +72,6 @@ const timestampWrapper = (value: string | Date | undefined) => {
     nanoseconds: 0,
   };
 };
-
-API.interceptors.request.use((config) => {
-  const token = authClient.getAccessToken();
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
 
 export const db = {};
 export const auth = {};

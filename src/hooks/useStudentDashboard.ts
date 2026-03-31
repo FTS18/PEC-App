@@ -42,17 +42,41 @@ export function useStudentDashboard(initialData?: any, initialUser?: any) {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const processDashboardData = useCallback((summary: any, allCourses: Course[], timetableData: any[]) => {
-    if (summary && typeof summary === 'object') {
-      const statsObj = summary.totalSummary || {};
-      const coursesArr = Array.isArray(summary.courses) ? summary.courses : [];
-      
-      setEnrolledCoursesList(coursesArr);
+      const statsObj = summary?.totalSummary ?? {};
+      const summaryCourses = Array.isArray(summary?.courses) ? summary.courses : [];
+      const fallbackCourses = Array.isArray(allCourses) ? allCourses : [];
+      const rawEnrolled = summaryCourses.length > 0 ? summaryCourses : fallbackCourses;
+
+      const normalizedEnrolled: Course[] = rawEnrolled.map((course: any, index: number) => {
+        const matchById = fallbackCourses.find((c) => c.id === course.courseId || c.id === course.id);
+        const matchByCode = fallbackCourses.find((c) => c.code === course.courseCode || c.code === course.code);
+        const matched = matchById ?? matchByCode;
+
+        const resolvedId = course.courseId ?? course.id ?? matched?.id ?? `course-${index}`;
+
+        return {
+          id: resolvedId,
+          code: course.code ?? course.courseCode ?? matched?.code ?? 'COURSE',
+          name: course.name ?? course.courseName ?? matched?.name ?? 'Course',
+          department: course.department ?? matched?.department ?? 'General',
+          semester: course.semester ?? matched?.semester ?? 0,
+          credits: course.credits ?? matched?.credits ?? 0,
+          facultyName: course.facultyName ?? matched?.facultyName ?? '',
+          maxStudents: course.maxStudents ?? matched?.maxStudents ?? 0,
+          enrolledStudents: course.enrolledStudents ?? matched?.enrolledStudents ?? 0,
+          description: course.description ?? matched?.description,
+          type: course.type ?? matched?.type,
+          instructor: course.instructor ?? course.facultyName ?? matched?.instructor ?? matched?.facultyName,
+        };
+      });
+
+      setEnrolledCoursesList(normalizedEnrolled);
       setStats({
         attendancePercentage: typeof statsObj.percentage === 'number' ? statsObj.percentage : 0,
-        enrolledCourses: coursesArr.length,
+        enrolledCourses: normalizedEnrolled.length,
       });
       
-      const enrolledCourseIds = new Set(coursesArr.map((c: any) => c.courseId || c.id));
+      const enrolledCourseIds = new Set(normalizedEnrolled.map((c: any) => c.courseId || c.id));
       const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       
@@ -60,11 +84,14 @@ export function useStudentDashboard(initialData?: any, initialUser?: any) {
       
       let scheduleItems = safeTimetable
         .filter((t: any) => enrolledCourseIds.has(t.courseId))
-        .map((t: any) => ({
-          ...t,
-          courseName: allCourses.find((c: any) => c.id === t.courseId)?.name || t.courseName || 'Class',
-          instructor: allCourses.find((c: any) => c.id === t.courseId)?.instructor || t.facultyName || 'Faculty',
-        }));
+        .map((t: any) => {
+          const courseMatch = fallbackCourses.find((c: any) => c.id === t.courseId);
+          return {
+            ...t,
+            courseName: courseMatch?.name || t.courseName || 'Class',
+            instructor: courseMatch?.instructor || courseMatch?.facultyName || t.facultyName || 'Faculty',
+          };
+        });
 
       const getScheduleForDay = (dayName: string) => {
         return scheduleItems
@@ -92,7 +119,6 @@ export function useStudentDashboard(initialData?: any, initialUser?: any) {
 
       setTodayClasses(activeSchedule);
       setScheduleDay(displayLabel);
-    }
   }, []);
 
   const fetchStudentStats = useCallback(async () => {
