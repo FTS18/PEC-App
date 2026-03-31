@@ -11,7 +11,7 @@
     "build": "next build",
     "start": "next start",
     "start:fresh": "npm run clean:next && next build && next start",
-    "lint": "next lint",
+    "lint": "next lint .",
     "clean:next": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true});console.log('cleaned .next')\"",
     "dev:docker:logs": "docker compose -f docker-compose.dev.yml logs -f --tail=100",
     "dev:docker:restart": "docker compose -f docker-compose.dev.yml restart",
