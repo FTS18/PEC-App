@@ -6,8 +6,8 @@ import AttendanceView from '@/modules/attendance/views/AttendanceView';
 export const experimental_ppr = true;
 
 export const metadata = {
-  title: 'Attendance | OmniFlow',
-  description: 'Manage and track academic attendance.',
+  title: 'Attendance Tracking | PEC APP',
+  description: 'Manage and track institutional academic attendance and compliance.',
 };
 
 export default async function AttendancePage() {

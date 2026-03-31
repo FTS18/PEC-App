@@ -3,8 +3,8 @@ import { Metadata } from 'next';
 export const experimental_ppr = true;
 
 export const metadata: Metadata = {
-  title: 'Settings | OmniFlow ERP',
-  description: 'Manage your account and platform preferences.',
+  title: 'Platform Settings | PEC APP ERP',
+  description: 'Manage institutional account preferences and configurations.',
 };
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
