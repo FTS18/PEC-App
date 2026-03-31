@@ -1,6 +1,6 @@
 import { authClient } from "./auth-client";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 const resolveBaseUrl = () => {
   if (API_BASE_URL.startsWith("http")) {
@@ -14,9 +14,25 @@ const resolveBaseUrl = () => {
 
 const buildUrl = (route: string, params?: Record<string, any>) => {
   const baseUrl = resolveBaseUrl();
-  const url = route.startsWith("http")
-    ? new URL(route)
-    : new URL(route, baseUrl);
+  if (!route.startsWith("http") && route.startsWith("/") && baseUrl.startsWith("http")) {
+    const base = new URL(baseUrl);
+    const basePath = base.pathname && base.pathname !== "/" ? base.pathname.replace(/\/$/, "") : "";
+    const merged = `${base.origin}${basePath}${route}`;
+    const url = new URL(merged);
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value === undefined || value === null) return;
+        if (Array.isArray(value)) {
+          value.forEach((item) => url.searchParams.append(key, String(item)));
+          return;
+        }
+        url.searchParams.set(key, String(value));
+      });
+    }
+    return url.toString();
+  }
+
+  const url = route.startsWith("http") ? new URL(route) : new URL(route, baseUrl);
 
   if (params) {
     Object.entries(params).forEach(([key, value]) => {
@@ -310,6 +326,10 @@ export const getDoc = async (docRef: string) => {
       const { data } = await API.get(`/feature-flags/payment-config`);
       const featureFlag = unwrapSuccess<any>(data);
       value = featureFlag?.payload ? JSON.parse(featureFlag.payload) : null;
+    } else if (docRef === "collegeSettings/main") {
+      const { data } = await API.get(`/feature-flags/college-settings`);
+      const featureFlag = unwrapSuccess<any>(data);
+      value = featureFlag?.payload ? JSON.parse(featureFlag.payload) : null;
     } else {
       const [col, id] = docRef.split("/");
       const route = routeForCollection(col);
@@ -586,6 +606,14 @@ export const setDoc = async (docRef: string, payload: any, options?: any) => {
     });
     return;
   }
+  if (docRef === "collegeSettings/main") {
+    await API.post(`/feature-flags/college-settings`, {
+      enabled: true,
+      description: "College settings",
+      payload: JSON.stringify(payload),
+    });
+    return;
+  }
 
   const [col, id] = docRef.split("/");
   const route = routeForCollection(col);
@@ -602,6 +630,14 @@ export const updateDoc = async (docRef: string, payload: any) => {
     await API.post(`/feature-flags/payment-config`, {
       enabled: true,
       description: "Campus payment gateway configuration",
+      payload: JSON.stringify(payload),
+    });
+    return;
+  }
+  if (docRef === "collegeSettings/main") {
+    await API.post(`/feature-flags/college-settings`, {
+      enabled: true,
+      description: "College settings",
       payload: JSON.stringify(payload),
     });
     return;

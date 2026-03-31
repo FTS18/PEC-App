@@ -138,6 +138,7 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
                 src={appLogoSrc} 
                 alt="App logo" 
                 fill 
+                sizes="44px"
                 className="object-contain" 
                 priority 
               />
@@ -215,6 +216,7 @@ export function Header({ user, sidebarCollapsed, isMobile, onMenuClick, densityM
                       src={user.avatar} 
                       alt={user.name} 
                       fill 
+                      sizes="32px"
                       className="object-cover" 
                     />
                   ) : (
