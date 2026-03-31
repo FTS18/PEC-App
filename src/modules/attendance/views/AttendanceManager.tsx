@@ -40,7 +40,7 @@ export default function AttendanceManager({ userId, userRole, initialData }: any
   });
 
   useEffect(() => {
-    if (!initialData?.courses) fetchCourses();
+    if (!initialData?.courses || initialData.courses.length === 0) fetchCourses();
   }, [userId, userRole]);
 
   useEffect(() => {
@@ -49,28 +49,45 @@ export default function AttendanceManager({ userId, userRole, initialData }: any
   }, [selectedCourse, selectedDate]);
 
   const fetchCourses = async () => {
-    try {
+    let data: any[] = [];
+    if (isAdmin) {
       const response = await api.get<any>('/courses', { params: { limit: 200 } });
-      let data = extractData<any[]>(response) || [];
-      if (!isAdmin) {
-        data = data.filter((c: any) => c.instructorId === userId || c.instructor === userId);
+      data = extractData<any[]>(response) || [];
+    } else {
+      const response = await api.get<any>('/courses', { params: { facultyId: userId, limit: 200 } });
+      data = extractData<any[]>(response) || [];
+      if (!data.length) {
+        let facultyName = '';
+        try {
+          const profileRes = await api.get<any>('/auth/profile');
+          facultyName = profileRes?.data?.data?.fullName || profileRes?.data?.data?.name || profileRes?.data?.fullName || profileRes?.data?.name || '';
+        } catch {
+          facultyName = '';
+        }
+        const fallback = await api.get<any>('/courses', { params: { limit: 200 } });
+        const allCourses = extractData<any[]>(fallback) || [];
+        const name = facultyName.toLowerCase();
+        data = allCourses.filter((c: any) => {
+          if (c.facultyId === userId || c.instructorId === userId) return true;
+          if (!name) return false;
+          const instructor = String(c.instructor || c.facultyName || c.instructorName || '').toLowerCase();
+          return instructor.includes(name);
+        });
       }
-      setCourses(data);
-    } catch (e) {
-      console.error(e);
     }
+    setCourses(data);
   };
 
   const fetchStudentAttendance = async () => {
     setLoading(true);
     try {
       const course = courses.find((c) => c.id === selectedCourse);
-      const subjectCode = course?.code || selectedCourse;
+      const subjectId = course?.id || selectedCourse;
 
       const [enrollRes, usersRes, attRes] = await Promise.all([
         api.get<any>('/enrollments', { params: { courseId: selectedCourse, status: 'active', limit: 200 } }),
         fetchAllPages<any>('/users', { role: 'student' }, 200),
-        api.get<any>('/attendance', { params: { subject: subjectCode, date: selectedDate } })
+        api.get<any>('/attendance', { params: { subject: subjectId, date: selectedDate } })
       ]);
 
       const enrolled = extractData<any[]>(enrollRes) || [];
@@ -268,4 +285,3 @@ export default function AttendanceManager({ userId, userRole, initialData }: any
     </div>
   );
 }
-
