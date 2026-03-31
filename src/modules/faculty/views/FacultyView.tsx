@@ -334,7 +334,7 @@ export function FacultyView({ initialFaculty, isAdmin }: FacultyViewProps) {
        </div>
       </div>
       <div className="flex gap-4 pt-8">
-       <Button onClick(formSubmit(onSubmit)) className="flex-1 h-14 bg-primary text-white font-black uppercase tracking-widest text-xs shadow-lg rounded-sm hover:brightness-110 active:scale-[0.98] transition-all" disabled={isPending}>
+       <Button onClick={formSubmit(onSubmit)} className="flex-1 h-14 bg-primary text-white font-black uppercase tracking-widest text-xs shadow-lg rounded-sm hover:brightness-110 active:scale-[0.98] transition-all" disabled={isPending}>
         {isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
         {editingFaculty ? 'Commit Changes' : 'Authorize Identity'}
        </Button>

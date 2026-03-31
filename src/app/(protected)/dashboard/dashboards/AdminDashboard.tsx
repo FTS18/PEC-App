@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import { motion } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { Settings, Loader2, BookOpen, Users, BarChart3 } from 'lucide-react';
@@ -34,11 +36,16 @@ export interface AdminDashboardProps {
 
 export function AdminDashboard({ initialData }: AdminDashboardProps = {}) {
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState('courses');
   const {
     loading,
     courses,
     users,
     stats,
+    courseSearchQuery,
+    setCourseSearchQuery,
+    userSearchQuery,
+    setUserSearchQuery,
     showCourseDialog,
     setShowCourseDialog,
     editingCourse,
@@ -65,7 +72,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps = {}) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-muted-foreground">Loading admin dashboard...</p>
@@ -73,11 +80,6 @@ export function AdminDashboard({ initialData }: AdminDashboardProps = {}) {
       </div>
     );
   }
-
-  const onTabChange = (value: string) => {
-    const tabsTrigger = document.querySelector(`[value="${value}"]`);
-    if (tabsTrigger instanceof HTMLElement) tabsTrigger.click();
-  };
 
   const getTimePeriod = () => {
     const hour = new Date().getHours();
@@ -90,7 +92,7 @@ export function AdminDashboard({ initialData }: AdminDashboardProps = {}) {
     <div className="space-y-6">
       <div className="relative overflow-hidden p-6 rounded-2xl bg-card border border-border flex flex-col md:flex-row md:items-center md:justify-between gap-6 shadow-sm">
         <div className="z-10">
-          <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider mb-2">
+          <div className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold tracking-wider mb-2">
             System Administration
           </div>
           <h1 className="text-3xl font-bold text-foreground">
@@ -111,9 +113,9 @@ export function AdminDashboard({ initialData }: AdminDashboardProps = {}) {
         </div>
       </div>
 
-      <AdminStatsCards stats={stats} onTabChange={onTabChange} />
+      <AdminStatsCards stats={stats} onTabChange={setActiveTab} />
 
-      <Tabs defaultValue="courses" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full justify-start overflow-x-auto overflow-y-hidden flex-nowrap tabs-list-scroll">
           <TabsTrigger value="courses"><BookOpen className="w-4 h-4 mr-2" />Courses</TabsTrigger>
           <TabsTrigger value="users"><Users className="w-4 h-4 mr-2" />Users</TabsTrigger>
@@ -123,6 +125,8 @@ export function AdminDashboard({ initialData }: AdminDashboardProps = {}) {
         <TabsContent value="courses" className="space-y-4">
           <CoursesTable 
             courses={courses}
+            searchQuery={courseSearchQuery}
+            onSearchChange={setCourseSearchQuery}
             onAddCourse={() => { resetCourseForm(); setEditingCourse(null); setShowCourseDialog(true); }}
             onEditCourse={openEditCourseDialog}
             onDeleteCourse={handleDeleteCourse}
@@ -132,6 +136,8 @@ export function AdminDashboard({ initialData }: AdminDashboardProps = {}) {
         <TabsContent value="users" className="space-y-4">
           <UsersTable 
             users={users}
+            searchQuery={userSearchQuery}
+            onSearchChange={setUserSearchQuery}
             onAddUser={() => { resetUserForm(); setEditingUser(null); setShowUserDialog(true); }}
             onEditUser={openEditUserDialog}
             onDeleteUser={handleDeleteUser}
@@ -142,10 +148,11 @@ export function AdminDashboard({ initialData }: AdminDashboardProps = {}) {
           <AdminAnalyticsCharts
             totalStudents={stats.totalStudents}
             totalFaculty={stats.totalFaculty}
-            adminCount={users.filter((u) => u.role === 'college_admin' || u.role === 'super_admin').length}
+            adminCount={users.filter((u: any) => u.role === 'college_admin' || u.role === 'super_admin').length}
           />
         </TabsContent>
       </Tabs>
+
 
       <CourseDialog 
         open={showCourseDialog}

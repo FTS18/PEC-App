@@ -22,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -65,8 +66,14 @@ export default function StudentProfile() {
     const fetchAllData = async () => {
       setLoading(true);
       try {
-        const profileRes = await api.get('/auth/profile');
+        const [profileRes, statsRes] = await Promise.all([
+          api.get('/auth/profile'),
+          api.get('/attendance/summary').catch(() => ({ data: null }))
+        ]);
+
         const profile = extractData<any>(profileRes.data) || {};
+        const statsSummary = extractData<any>(statsRes.data) || {};
+        
         if (!active) return;
 
         const normalizedProfile = {
@@ -79,7 +86,12 @@ export default function StudentProfile() {
           },
           skills: Array.isArray(profile.skills) ? profile.skills : [],
           projects: Array.isArray(profile.projects) ? profile.projects : [],
-          stats: profile.stats || null,
+          stats: {
+            cgpa: profile.stats?.cgpa || 0,
+            attendance: statsSummary.totalSummary?.percentage || profile.stats?.attendance || 0,
+            performance: statsSummary.totalSummary?.performanceRatio || profile.stats?.performance || 0,
+            rank: profile.stats?.rank || null,
+          },
         };
 
         setProfileData(normalizedProfile);
@@ -164,20 +176,33 @@ export default function StudentProfile() {
   const handleSaveProfile = async () => {
     try {
       setSaving(true);
-      await api.post('/auth/complete-profile', {
-        fullName: editForm.fullName?.trim(),
+      const payload = {
+        userId: user?.uid,
+        email: user?.email || profileData?.email,
+        fullName: editForm.fullName?.trim() || user?.name || profileData?.fullName,
         phone: editForm.phone?.trim() || null,
         address: editForm.address?.trim() || null,
         bio: editForm.bio?.trim() || null,
         githubUsername: editForm.githubUsername?.trim() || null,
         linkedinUsername: editForm.linkedinUsername?.trim() || null,
         role: profileData?.role || user?.role,
-      });
+      };
+
+      // Unified profile update endpoint
+      await api.patch('/auth/profile', payload);
+
       toast.success('Profile updated');
       setEditOpen(false);
-      // Refresh profile data
-      const profileRes = await api.get('/auth/profile');
+      
+      // Refresh profile and stats
+      const [profileRes, statsRes] = await Promise.all([
+        api.get('/auth/profile'),
+        api.get('/attendance/summary').catch(() => ({ data: null }))
+      ]);
+
       const profile = extractData<any>(profileRes.data) || {};
+      const statsSummary = extractData<any>(statsRes.data) || {};
+
       setProfileData((prev: any) => ({
         ...prev,
         ...profile,
@@ -187,12 +212,16 @@ export default function StudentProfile() {
           github: profile.githubUsername || profile.socials?.github || null,
           linkedin: profile.linkedinUsername || profile.socials?.linkedin || null,
         },
-        skills: Array.isArray(profile.skills) ? profile.skills : [],
-        projects: Array.isArray(profile.projects) ? profile.projects : [],
-        stats: profile.stats || null,
+        stats: {
+          cgpa: profile.stats?.cgpa || 0,
+          attendance: statsSummary.totalSummary?.percentage || profile.stats?.attendance || 0,
+          performance: statsSummary.totalSummary?.performanceRatio || profile.stats?.performance || 0,
+          rank: profile.stats?.rank || null,
+        },
       }));
     } catch (error) {
-      toast.error('Failed to update profile');
+      console.error('Update failed:', error);
+      toast.error('Failed to update profile. Please check all fields.');
     } finally {
       setSaving(false);
     }
@@ -235,192 +264,154 @@ export default function StudentProfile() {
   const avatarUrl = profileData?.avatar || user?.avatar || githubStats?.avatar || undefined;
 
   return (
-    <div className="container mx-auto max-w-7xl p-6 space-y-8">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column: Basic Info (Sync with Older UI Pattern) */}
-        <div className="lg:col-span-1 space-y-8">
-          <Card className="overflow-hidden border-2 border-primary/10 shadow-xl bg-card">
-             <div className="h-32 bg-gradient-to-r from-primary/20 via-primary/5 to-primary/20" />
-             <div className="px-6 pb-6 -mt-16 text-center">
-               <Avatar className="w-32 h-32 mx-auto border-4 border-background shadow-2xl ring-2 ring-primary/20">
-                 <AvatarImage src={avatarUrl} />
-                 <AvatarFallback className="text-3xl bg-primary/10 text-primary font-black">
-                    {profileData?.fullName?.[0]}
-                 </AvatarFallback>
-               </Avatar>
-               
-               <div className="mt-6 space-y-2">
-                 <h2 className="text-4xl font-[1000] tracking-tighter leading-none">{profileData?.fullName}</h2>
-                 <p className="text-primary font-black uppercase text-sm tracking-widest">{displayRole}</p>
-                 <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground font-black uppercase tracking-wider">
-                   <MapPin className="w-4 h-4 text-accent" />
-                   <span>{profileData?.address || profileData?.department || 'PEC Campus'}</span>
-                 </div>
-               </div>
-
-               <div className="flex gap-2 mt-6">
-                 <Button onClick={handleShare} variant="outline" size="sm" className="flex-1 gap-2 border-primary/20 font-bold uppercase text-[10px] tracking-widest">
-                   <Share2 className="w-3.5 h-3.5" /> Share
-                 </Button>
-                 <Button onClick={openEdit} size="sm" className="flex-1 gap-2 bg-primary text-primary-foreground font-bold uppercase text-[10px] tracking-widest">
-                   <Edit2 className="w-3.5 h-3.5" /> Edit Profile
-                 </Button>
-               </div>
-             </div>
-          </Card>
-
-          <Card className="border-primary/10 shadow-lg bg-card translate-y-0 hover:-translate-y-1 transition-transform">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-black uppercase tracking-widest flex items-center gap-2 text-primary">
-                <ShieldCheck className="w-4 h-4" />
-                Contact Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10 group overflow-hidden relative">
-                <div className="absolute inset-y-0 left-0 w-1 bg-primary transform -translate-x-full group-hover:translate-x-0 transition-transform" />
-                <Mail className="w-5 h-5 text-primary" />
-                <div className="overflow-hidden">
-                  <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter">Email ADDRESS</p>
-                  <p className="text-sm font-bold truncate">{profileData?.email || user?.email || 'N/A'}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10 group overflow-hidden relative">
-                <div className="absolute inset-y-0 left-0 w-1 bg-primary transform -translate-x-full group-hover:translate-x-0 transition-transform" />
-                <Phone className="w-5 h-5 text-primary" />
-                <div>
-                  <p className="text-[10px] text-muted-foreground uppercase font-black tracking-tighter">Phone Number</p>
-                  <p className="text-sm font-bold">{profileData?.phone || 'N/A'}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+    <div className="max-w-6xl mx-auto p-4 md:p-8 space-y-10">
+      {/* Header Profile Section */}
+      <div className="flex flex-col md:flex-row items-center md:items-end justify-between gap-6 border-b-2 pb-12 border-primary/20">
+        <div className="flex flex-col md:flex-row items-center md:items-center gap-10">
+          <div className="p-1 bg-primary">
+            <Avatar className="w-32 h-32 md:w-36 md:h-36 rounded-none border-4 border-background ring-2 ring-primary ring-offset-4 ring-offset-background">
+              <AvatarImage src={avatarUrl} className="object-cover" />
+              <AvatarFallback className="text-4xl bg-primary text-primary-foreground rounded-none font-bold">
+                {profileData?.fullName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+          </div>
+          
+          <div className="space-y-3 text-center md:text-left">
+            <h1 className="text-5xl font-extrabold tracking-tighter text-foreground leading-none">{profileData?.fullName}</h1>
+            <div className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] leading-none">
+              <div className="w-1.5 h-1.5 bg-background animate-pulse" />
+              {displayRole}
+            </div>
+            <div className="flex items-center justify-center md:justify-start gap-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground mt-4">
+              <MapPin className="w-4 h-4 text-primary" />
+              <span>{profileData?.address || profileData?.department || 'Institutional Campus'}</span>
+            </div>
+          </div>
         </div>
 
-        {/* Right Column: Detailed Info (Sync with Older UI Pattern) */}
-        <div className="lg:col-span-2 space-y-8">
-           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-             <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent gap-8">
-               {['overview', 'academic', 'projects', 'achievements'].map((tab) => (
-                 <TabsTrigger 
-                   key={tab} 
-                   value={tab}
-                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary px-0 py-3 text-xs font-black uppercase tracking-widest transition-all"
-                 >
-                   {tab}
-                 </TabsTrigger>
-               ))}
-             </TabsList>
+        <div className="flex gap-4 w-full md:w-auto">
+          <Button onClick={openEdit} variant="outline" className="flex-1 md:flex-none h-14 rounded-none px-8 text-xs font-black uppercase tracking-[0.2em] border-2 border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all">
+            Edit profile
+          </Button>
+          <Button onClick={handleShare} className="flex-1 md:flex-none h-14 rounded-none px-8 text-xs font-black uppercase tracking-[0.2em] bg-primary text-primary-foreground border-2 border-primary hover:bg-transparent hover:text-primary transition-all">
+            Share profile
+          </Button>
+        </div>
+      </div>
 
-             <TabsContent value="overview" className="mt-8 space-y-8">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                   {statItems.map((stat, i) => (
-                     <Card key={i} className="border-primary/5 shadow-sm hover:shadow-md transition-all group overflow-hidden">
-                        <CardContent className="p-4 flex flex-col items-center text-center relative">
-                           <div className={`p-2 rounded-xl ${stat.bg} mb-2 group-hover:scale-110 transition-transform`}>
-                              <stat.icon className={`w-5 h-5 ${stat.color}`} />
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+        {/* Left Aspect: Contact & Bio (Themed) */}
+        <div className="lg:col-span-4 space-y-12 bg-primary/5 p-10 border-2 border-primary/20">
+          <section className="space-y-4">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-primary border-b border-primary/30 pb-2">Contact layer</h4>
+            <div className="space-y-8 pt-4">
+              <div className="flex items-start gap-4">
+                <Mail className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60">Email</p>
+                  <p className="text-sm font-medium">{profileData?.email || user?.email || 'N/A'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <Phone className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase text-muted-foreground/60">Phone</p>
+                  <p className="text-sm font-medium">{profileData?.phone || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground/80 border-b pb-2 border-border/40">Connect</h4>
+            <div className="flex gap-4 pt-2">
+               {profileData?.socials?.github && (
+                 <a href={`https://github.com/${profileData.socials.github.replace('@', '')}`} target="_blank" rel="noreferrer" className="p-2 border border-border hover:bg-muted transition-colors">
+                   <Github className="w-5 h-5" />
+                 </a>
+               )}
+               <Button variant="outline" size="icon" className="rounded-none border-border">
+                 <QrCode className="w-5 h-5" />
+               </Button>
+            </div>
+          </section>
+        </div>
+
+        {/* Right Aspect: Academic & Expertise */}
+        <div className="lg:col-span-8 space-y-12">
+          {/* Stats Bar (Themed Accented block) */}
+          <div className="grid grid-cols-2 md:grid-cols-4 border-2 border-primary bg-primary/5 divide-x-2 divide-primary">
+            {statItems.map((stat, i) => (
+              <div key={i} className="p-8 text-center space-y-1 hover:bg-primary hover:text-primary-foreground transition-all cursor-default">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-80">{stat.label}</p>
+                <p className="text-3xl font-black tracking-tighter">{stat.value}</p>
+              </div>
+            ))}
+          </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full justify-start border-b rounded-none h-auto p-0 bg-transparent flex gap-10">
+              {['overview', 'academic', 'projects', 'achievements'].map((tab) => (
+                <TabsTrigger 
+                  key={tab} 
+                  value={tab}
+                  className="rounded-none border-b-2 border-transparent data-[state=active]:border-foreground data-[state=active]:bg-transparent data-[state=active]:text-foreground px-0 py-4 text-[10px] font-bold uppercase tracking-[0.2em] transition-all opacity-60 data-[state=active]:opacity-100"
+                >
+                  {tab}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            <TabsContent value="overview" className="mt-10 space-y-12 animate-in fade-in duration-500">
+               {/* Technical Expertise */}
+               <section className="space-y-8">
+                 <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-bold tracking-tight">Technical expertise</h3>
+                    <Badge variant="outline" className="rounded-none px-3 font-semibold text-[10px] uppercase tracking-widest border-muted-foreground/30">Verified</Badge>
+                 </div>
+                 
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8">
+                    {Array.isArray(profileData?.skills) && profileData.skills.length > 0 ? (
+                      profileData.skills.map((skill: any, i: number) => (
+                        <div key={i} className="space-y-3">
+                           <div className="flex justify-between items-end">
+                             <span className="font-semibold text-sm uppercase tracking-tight text-foreground/80">{skill.name}</span>
+                             <span className="text-xs font-bold font-mono">
+                               {typeof skill.level === 'number' ? `${skill.level}%` : 'N/A'}
+                             </span>
                            </div>
-                           <p className="text-xl font-black">{stat.value}</p>
-                           <p className="text-[10px] text-muted-foreground uppercase font-black tracking-widest mt-1">{stat.label}</p>
-                        </CardContent>
-                     </Card>
-                   ))}
-                </div>
-
-                <Card className="border-primary/10 shadow-lg bg-card">
-                   <CardHeader>
-                     <CardTitle className="text-lg font-black uppercase tracking-widest flex items-center gap-2">
-                        <Code2 className="w-5 h-5 text-primary" />
-                        Technical Expertise
-                     </CardTitle>
-                     <CardDescription className="text-xs font-medium">Self-assessment based on active deployments</CardDescription>
-                   </CardHeader>
-                   <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {Array.isArray(profileData?.skills) && profileData.skills.length > 0 ? (
-                        profileData.skills.map((skill: any, i: number) => (
-                          <div key={i} className="space-y-3">
-                             <div className="flex justify-between items-end">
-                               <div className="flex items-center gap-2">
-                                 <div className="p-1.5 rounded-lg bg-primary/10 text-primary">
-                                   <Code2 className="w-4 h-4" />
-                                 </div>
-                                 <span className="font-black text-sm uppercase tracking-tight">{skill.name || 'Skill'}</span>
-                               </div>
-                               <span className="text-xs font-black text-primary">
-                                 {typeof skill.level === 'number' ? `${skill.level}%` : 'N/A'}
-                               </span>
-                             </div>
-                             <Progress value={typeof skill.level === 'number' ? skill.level : 0} className="h-1.5 rounded-full overflow-hidden bg-primary/5 [&>div]:bg-primary" />
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-xs text-muted-foreground font-bold uppercase tracking-widest">
-                          No skills added yet.
+                           <Progress value={typeof skill.level === 'number' ? skill.level : 0} className="h-1 rounded-none bg-muted [&>div]:bg-foreground" />
                         </div>
-                      )}
-                   </CardContent>
-                </Card>
+                      ))
+                    ) : (
+                      <div className="text-xs text-muted-foreground font-medium col-span-full py-8 border-2 border-dashed flex items-center justify-center">
+                        No expertise metrics recorded.
+                      </div>
+                    )}
+                 </div>
+               </section>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                   <Card className="border-primary/10 shadow-lg bg-card overflow-hidden">
-                      <div className="p-1 bg-gradient-to-r from-primary to-accent" />
-                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                         <div className="space-y-1">
-                           <CardTitle className="text-sm font-black uppercase tracking-widest">GitHub Activity</CardTitle>
-                           <CardDescription className="text-[10px] font-bold">
-                             {profileData?.socials?.github ? `Live telemetry from @${profileData.socials.github}` : 'GitHub not connected'}
-                           </CardDescription>
-                         </div>
-                         <Github className="w-6 h-6 text-primary/40" />
-                      </CardHeader>
-                      <CardContent className="grid grid-cols-2 gap-4 pb-6 mt-4">
-                         <div className="p-3 rounded-2xl bg-primary/5 border border-primary/10 text-center group hover:bg-primary/10 transition-colors">
-                            <p className="text-xl font-black">{githubStats?.repos ?? 'N/A'}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Repos</p>
-                         </div>
-                         <div className="p-3 rounded-2xl bg-primary/5 border border-primary/10 text-center group hover:bg-primary/10 transition-colors">
-                            <p className="text-xl font-black">{githubStats?.followers ?? 'N/A'}</p>
-                            <p className="text-[10px] text-muted-foreground uppercase font-black tracking-wider">Followers</p>
-                         </div>
-                         {githubLookupError && (
-                           <p className="col-span-2 text-[10px] font-black uppercase tracking-widest text-amber-600">
-                             {githubLookupError}
-                           </p>
-                         )}
-                      </CardContent>
-                   </Card>
+               {/* Digital Dossier / CV */}
+               <div className="pt-6 border-t border-border/40">
+                  <div className="bg-muted/30 p-8 flex flex-col md:flex-row items-center justify-between gap-6 border border-border/50">
+                    <div className="space-y-1 text-center md:text-left">
+                      <h4 className="font-bold text-base">Institutional dossier</h4>
+                      <p className="text-xs text-muted-foreground font-medium">Download the verified academic and professional summary of {profileData?.fullName}.</p>
+                    </div>
+                    <Button className="h-11 rounded-none bg-foreground text-background hover:bg-foreground/90 px-8 text-xs font-bold uppercase tracking-wider">
+                      <Download className="w-4 h-4 mr-2" /> Download CV
+                    </Button>
+                  </div>
+               </div>
+            </TabsContent>
 
-                   <Card className="border-primary/10 shadow-lg bg-card overflow-hidden">
-                      <div className="p-1 bg-gradient-to-r from-accent to-primary" />
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                         <div className="space-y-1">
-                            <CardTitle className="text-sm font-black uppercase tracking-widest">Digital CV</CardTitle>
-                            <CardDescription className="text-[10px] font-bold">Generate institutional dossier</CardDescription>
-                         </div>
-                         <FileText className="w-6 h-6 text-primary/40" />
-                      </CardHeader>
-                      <CardContent className="flex items-center gap-4 pb-6 mt-4">
-                         <Button className="flex-1 gap-2 bg-primary text-primary-foreground font-black uppercase text-[10px] tracking-widest h-11 rounded-xl">
-                           <Download className="w-3.5 h-3.5" /> Download Dossier
-                         </Button>
-                         <Button variant="outline" size="icon" className="h-11 w-11 rounded-xl border-primary/10">
-                            <QrCode className="w-4 h-4 text-primary" />
-                         </Button>
-                      </CardContent>
-                   </Card>
-                </div>
-             </TabsContent>
-
-             <TabsContent value="academic">
-                <Card className="border-dashed border-2 py-12 bg-muted/20">
-                  <CardContent className="text-center text-muted-foreground">
-                    <Clock className="w-8 h-8 animate-pulse mx-auto mb-4 opacity-20" />
-                    <p className="font-bold uppercase tracking-widest text-xs">Section being prepared for deployment.</p>
-                  </CardContent>
-                </Card>
-             </TabsContent>
-           </Tabs>
+            <TabsContent value="academic" className="mt-10">
+               <div className="border border-dashed p-20 text-center text-muted-foreground">
+                 <p className="text-xs font-semibold uppercase tracking-[0.2em] opacity-40">Section under deployment</p>
+               </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
