@@ -46,7 +46,29 @@ export function useAdminDashboard(initialData?: any) {
     semester: 1,
   });
 
+  // Search states
+  const [courseSearchQuery, setCourseSearchQuery] = useState('');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+
   const isAdmin = ['college_admin'].includes(user?.role || '');
+
+  const filteredCourses = (courses || []).filter((course) => {
+    const query = courseSearchQuery.toLowerCase();
+    return (
+      course.name?.toLowerCase().includes(query) ||
+      course.code?.toLowerCase().includes(query) ||
+      course.department?.toLowerCase().includes(query)
+    );
+  });
+
+  const filteredUsers = (users || []).filter((user) => {
+    const query = userSearchQuery.toLowerCase();
+    return (
+      user.fullName?.toLowerCase().includes(query) ||
+      user.email?.toLowerCase().includes(query) ||
+      user.role?.toLowerCase().includes(query)
+    );
+  });
 
   const fetchAdminData = useCallback(async () => {
     try {
@@ -248,9 +270,13 @@ export function useAdminDashboard(initialData?: any) {
 
   return {
     loading,
-    courses,
-    users,
+    courses: filteredCourses,
+    users: filteredUsers,
     stats,
+    courseSearchQuery,
+    setCourseSearchQuery,
+    userSearchQuery,
+    setUserSearchQuery,
     showCourseDialog,
     setShowCourseDialog,
     editingCourse,

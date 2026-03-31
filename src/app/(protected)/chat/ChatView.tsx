@@ -91,7 +91,7 @@ export function ChatView({ user, initialRooms }: ChatViewProps) {
   };
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] bg-background md:rounded-md md:border md:border-border overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] bg-background overflow-hidden w-full">
       <div className={`${showChatOnMobile ? 'hidden lg:block' : 'block'} lg:block w-full lg:w-auto`}>
         <ChatSidebar
           rooms={rooms}
