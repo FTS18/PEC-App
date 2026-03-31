@@ -38,19 +38,19 @@ export function ChatSidebar({
   const isChatAdmin = userRole === "college_admin";
 
   // Helper: Get display title for DMs (show other person's name)
-  const getRoomDisplayTitle = (room: ChatRoom) => {
+  const getRoomDisplayTitle = (room: ChatRoom): string => {
     if (room.type === "dm" && room.participants && room.participantNames && userId) {
       const otherUserId = room.participants.find(id => id !== userId);
       if (otherUserId && room.participantNames[otherUserId]) {
-        return room.participantNames[otherUserId];
+        return String(room.participantNames[otherUserId]);
       }
     }
-    return room.title;
+    return String(room.title || "Untitled Chat");
   };
 
   // Filter rooms based on search
   const filteredRooms = rooms.filter((room) =>
-    getRoomDisplayTitle(room).toLowerCase().includes(searchQuery.toLowerCase())
+    room && getRoomDisplayTitle(room).toLowerCase().includes((searchQuery || "").toLowerCase())
   );
 
   const dmRooms = filteredRooms.filter((r) => r.type === "dm");
