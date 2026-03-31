@@ -39,6 +39,7 @@ export function StudentDashboard({ initialData, user: initialUser }: StudentDash
     scheduleDay,
     enrolledCoursesList,
     noticeboardItems,
+    requiredAttendancePercentage,
     loadError,
     setLoading,
     fetchStudentStats,
@@ -144,6 +145,7 @@ export function StudentDashboard({ initialData, user: initialUser }: StudentDash
           <AttendanceOverviewCard 
             attendancePercentage={stats.attendancePercentage}
             onClick={() => window.location.href = getFullUrl('/attendance')}
+            targetPercentage={requiredAttendancePercentage}
           />
         </div>
         <div className="lg:col-span-2">
