@@ -124,6 +124,12 @@ const navItems: NavItem[] = [
     roles: ["student", "faculty", "college_admin"],
   },
   {
+    icon: FileText,
+    label: "Score Sheet",
+    path: "/score-sheet",
+    roles: ["student"],
+  },
+  {
     icon: Book,
     label: "Course Materials",
     path: "/course-materials",
@@ -198,7 +204,7 @@ export function Sidebar({
     },
     {
       title: 'Academics',
-      paths: ['/courses', '/timetable', '/examinations', '/attendance', '/course-materials', '/resume-builder'],
+      paths: ['/courses', '/timetable', '/examinations', '/attendance', '/score-sheet', '/course-materials', '/resume-builder'],
     },
     {
       title: 'Campus',

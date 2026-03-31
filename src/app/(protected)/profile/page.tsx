@@ -24,6 +24,9 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -37,6 +40,16 @@ export default function StudentProfile() {
   const [profileData, setProfileData] = useState<any>(null);
   const [githubStats, setGithubStats] = useState<any>(null);
   const [activeTab, setActiveTab] = useState('overview');
+  const [editOpen, setEditOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    fullName: '',
+    phone: '',
+    address: '',
+    bio: '',
+    githubUsername: '',
+    linkedinUsername: '',
+  });
 
   const userId = id || user?.uid;
 
@@ -69,6 +82,14 @@ export default function StudentProfile() {
         };
 
         setProfileData(normalizedProfile);
+        setEditForm({
+          fullName: normalizedProfile.fullName || '',
+          phone: normalizedProfile.phone || '',
+          address: normalizedProfile.address || '',
+          bio: normalizedProfile.bio || '',
+          githubUsername: normalizedProfile.socials?.github || '',
+          linkedinUsername: normalizedProfile.socials?.linkedin || '',
+        });
 
         const githubUsername = normalizedProfile.socials.github;
         if (githubUsername) {
@@ -106,6 +127,55 @@ export default function StudentProfile() {
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
     toast.success("Profile link copied!");
+  };
+
+  const openEdit = () => {
+    setEditForm({
+      fullName: profileData?.fullName || '',
+      phone: profileData?.phone || '',
+      address: profileData?.address || '',
+      bio: profileData?.bio || '',
+      githubUsername: profileData?.socials?.github || '',
+      linkedinUsername: profileData?.socials?.linkedin || '',
+    });
+    setEditOpen(true);
+  };
+
+  const handleSaveProfile = async () => {
+    try {
+      setSaving(true);
+      await api.post('/auth/complete-profile', {
+        fullName: editForm.fullName?.trim(),
+        phone: editForm.phone?.trim() || null,
+        address: editForm.address?.trim() || null,
+        bio: editForm.bio?.trim() || null,
+        githubUsername: editForm.githubUsername?.trim() || null,
+        linkedinUsername: editForm.linkedinUsername?.trim() || null,
+        role: profileData?.role || user?.role,
+      });
+      toast.success('Profile updated');
+      setEditOpen(false);
+      // Refresh profile data
+      const profileRes = await api.get('/auth/profile');
+      const profile = extractData<any>(profileRes.data) || {};
+      setProfileData((prev: any) => ({
+        ...prev,
+        ...profile,
+        fullName: profile.fullName || profile.name || user?.name || 'User',
+        role: profile.role || user?.role || 'user',
+        socials: {
+          github: profile.githubUsername || profile.socials?.github || null,
+          linkedin: profile.linkedinUsername || profile.socials?.linkedin || null,
+        },
+        skills: Array.isArray(profile.skills) ? profile.skills : [],
+        projects: Array.isArray(profile.projects) ? profile.projects : [],
+        stats: profile.stats || null,
+      }));
+    } catch (error) {
+      toast.error('Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -172,7 +242,7 @@ export default function StudentProfile() {
                  <Button onClick={handleShare} variant="outline" size="sm" className="flex-1 gap-2 border-primary/20 font-bold uppercase text-[10px] tracking-widest">
                    <Share2 className="w-3.5 h-3.5" /> Share
                  </Button>
-                 <Button size="sm" className="flex-1 gap-2 bg-primary text-primary-foreground font-bold uppercase text-[10px] tracking-widest">
+                 <Button onClick={openEdit} size="sm" className="flex-1 gap-2 bg-primary text-primary-foreground font-bold uppercase text-[10px] tracking-widest">
                    <Edit2 className="w-3.5 h-3.5" /> Edit Profile
                  </Button>
                </div>
@@ -328,6 +398,57 @@ export default function StudentProfile() {
            </Tabs>
         </div>
       </div>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Edit Profile</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Input
+              placeholder="Full name"
+              value={editForm.fullName}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, fullName: event.target.value }))}
+            />
+            <Input
+              placeholder="Phone"
+              value={editForm.phone}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, phone: event.target.value }))}
+            />
+            <Input
+              placeholder="Address"
+              value={editForm.address}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, address: event.target.value }))}
+            />
+            <Textarea
+              rows={3}
+              placeholder="Bio"
+              value={editForm.bio}
+              onChange={(event) => setEditForm((prev) => ({ ...prev, bio: event.target.value }))}
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Input
+                placeholder="GitHub username"
+                value={editForm.githubUsername}
+                onChange={(event) => setEditForm((prev) => ({ ...prev, githubUsername: event.target.value }))}
+              />
+              <Input
+                placeholder="LinkedIn username"
+                value={editForm.linkedinUsername}
+                onChange={(event) => setEditForm((prev) => ({ ...prev, linkedinUsername: event.target.value }))}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleSaveProfile} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
