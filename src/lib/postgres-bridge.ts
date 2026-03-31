@@ -55,13 +55,12 @@ const request = async (
 };
 
 const API = {
-  get: (route: string, options?: { params?: Record<string, any> }) =>
-    request("GET", route, { params: options?.params }),
-  post: (route: string, body?: any) => request("POST", route, { body }),
-  patch: (route: string, body?: any) => request("PATCH", route, { body }),
-  delete: (route: string) => request("DELETE", route),
+  get: (url: string, options?: { params?: Record<string, any> }) =>
+    request("GET", url, options),
+  post: (url: string, body?: any) => request("POST", url, { body }),
+  patch: (url: string, body?: any) => request("PATCH", url, { body }),
+  delete: (url: string) => request("DELETE", url),
 };
-
 const timestampWrapper = (value: string | Date | undefined) => {
   const date = value ? new Date(value) : new Date();
   const ms = date.getTime();

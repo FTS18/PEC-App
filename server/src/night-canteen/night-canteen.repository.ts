@@ -40,7 +40,9 @@ export class NightCanteenRepository {
   createItem(data: CreateCanteenItemDto) {
     return this.prisma.canteenItem.create({
       data: {
-        ...data,
+        name: data.name,
+        price: data.price,
+        category: data.category,
         description: data.description ?? '',
         image: data.image ?? '',
         isAvailable: data.isAvailable ?? true,
@@ -53,7 +55,9 @@ export class NightCanteenRepository {
     return this.prisma.canteenItem.upsert({
       where: { id },
       update: {
-        ...data,
+        name: data.name,
+        price: data.price,
+        category: data.category,
         description: data.description ?? '',
         image: data.image ?? '',
         isAvailable: data.isAvailable ?? true,
@@ -61,7 +65,9 @@ export class NightCanteenRepository {
       },
       create: {
         id,
-        ...data,
+        name: data.name,
+        price: data.price,
+        category: data.category,
         description: data.description ?? '',
         image: data.image ?? '',
         isAvailable: data.isAvailable ?? true,
@@ -73,7 +79,7 @@ export class NightCanteenRepository {
   updateItem(id: string, data: UpdateCanteenItemDto) {
     return this.prisma.canteenItem.update({
       where: { id },
-      data,
+      data: data as any,
     });
   }
 
@@ -92,6 +98,7 @@ export class NightCanteenRepository {
       where,
       skip: query.offset,
       take: query.limit,
+      include: { items: true },
       orderBy: { [query.sortBy ?? 'timestamp']: query.sortOrder ?? 'desc' },
     });
 
@@ -99,7 +106,10 @@ export class NightCanteenRepository {
   }
 
   findOrderById(id: string) {
-    return this.prisma.canteenOrder.findUnique({ where: { id } });
+    return this.prisma.canteenOrder.findUnique({ 
+      where: { id },
+      include: { items: true }
+    });
   }
 
   createOrder(data: CreateCanteenOrderDto) {
@@ -109,7 +119,7 @@ export class NightCanteenRepository {
     if (!data.items?.length) {
       throw new Error('items are required to create a canteen order');
     }
-    return this.prisma.canteenOrder.create({
+    return (this.prisma.canteenOrder as any).create({
       data: {
         studentId: data.studentId,
         studentName: data.studentName ?? 'Student',
@@ -118,24 +128,20 @@ export class NightCanteenRepository {
         status: data.status ?? 'Pending',
         timestamp: data.timestamp ? new Date(data.timestamp) : new Date(),
         items: {
-          create: data.items.map((item) => {
-            if (!item.itemId) {
-              throw new Error('itemId is required for each canteen order item');
-            }
-            return {
-              itemId: item.itemId,
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-            };
-          }),
+          create: (data.items ?? []).map((item: any) => ({
+            itemId: item.itemId,
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          })),
         },
-      },
+      } as any,
+      include: { items: true },
     });
   }
 
   updateOrder(id: string, data: UpdateCanteenOrderDto) {
-    return this.prisma.canteenOrder.update({
+    return (this.prisma.canteenOrder as any).update({
       where: { id },
       data: {
         ...(data.status ? { status: data.status } : {}),
@@ -163,7 +169,8 @@ export class NightCanteenRepository {
               },
             }
           : {}),
-      },
+      } as any,
+      include: { items: true },
     });
   }
 

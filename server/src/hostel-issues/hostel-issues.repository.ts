@@ -28,13 +28,6 @@ export class HostelIssuesRepository {
       ...(query.status__ne ? { NOT: { status: query.status__ne } } : {}),
       ...(query.category ? { category: query.category } : {}),
       ...(query.priority ? { priority: query.priority } : {}),
-      ...(query.organizationId
-        ? {
-            organizationId: Array.isArray(query.organizationId)
-              ? { in: query.organizationId }
-              : query.organizationId,
-          }
-        : {}),
     };
 
     const total = await this.prisma.hostelIssue.count({ where });
@@ -58,7 +51,6 @@ export class HostelIssuesRepository {
     }
     return this.prisma.hostelIssue.create({
       data: {
-        title: data.title,
         description: data.description,
         category: data.category,
         priority: data.priority,
@@ -66,10 +58,8 @@ export class HostelIssuesRepository {
         roomNumber: data.roomNumber,
         studentId: data.studentId,
         studentName: data.studentName,
-        organizationId: data.organizationId,
-        responses: Array.isArray(data.responses) ? data.responses : [],
+        hostelName: (data as any).hostelName || 'General',
         createdAt: this.toDate(data.createdAt),
-        updatedAt: this.toDate(data.updatedAt),
       },
     });
   }
@@ -115,7 +105,6 @@ export class HostelIssuesRepository {
     return this.prisma.hostelIssue.update({
       where: { id },
       data: {
-        ...(data.title ? { title: data.title } : {}),
         ...(data.description ? { description: data.description } : {}),
         ...(data.category ? { category: data.category } : {}),
         ...(data.priority ? { priority: data.priority } : {}),
@@ -123,8 +112,6 @@ export class HostelIssuesRepository {
         ...(data.roomNumber ? { roomNumber: data.roomNumber } : {}),
         ...(data.studentId ? { studentId: data.studentId } : {}),
         ...(data.studentName ? { studentName: data.studentName } : {}),
-        ...(data.organizationId ? { organizationId: data.organizationId } : {}),
-        ...(nextResponses ? { responses: nextResponses } : {}),
         ...(this.toDate(data.updatedAt)
           ? { updatedAt: this.toDate(data.updatedAt) }
           : {}),

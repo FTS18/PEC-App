@@ -42,17 +42,19 @@ export function useStudentDashboard(initialData?: any, initialUser?: any) {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const processDashboardData = useCallback((summary: any, allCourses: Course[], timetableData: any[]) => {
-      const statsObj = summary?.totalSummary ?? {};
-      const summaryCourses = Array.isArray(summary?.courses) ? summary.courses : [];
+    if (summary && typeof summary === 'object') {
+      const statsObj = summary.totalSummary || {};
+      const summaryCourses = Array.isArray(summary.courses) ? summary.courses : [];
       const fallbackCourses = Array.isArray(allCourses) ? allCourses : [];
-      const rawEnrolled = summaryCourses.length > 0 ? summaryCourses : fallbackCourses;
-
-      const normalizedEnrolled: Course[] = rawEnrolled.map((course: any, index: number) => {
-        const matchById = fallbackCourses.find((c) => c.id === course.courseId || c.id === course.id);
-        const matchByCode = fallbackCourses.find((c) => c.code === course.courseCode || c.code === course.code);
+      
+      // Enrich enrolled courses with full details from allCourses
+      const normalizedEnrolled: Course[] = summaryCourses.map((course: any, index: number) => {
+        const idToMatch = String(course.courseId || course.id || '');
+        const matchById = fallbackCourses.find((c) => String(c.id) === idToMatch);
+        const matchByCode = fallbackCourses.find((c) => c.code === course.courseCode || c.code === course.courseCode);
         const matched = matchById ?? matchByCode;
 
-        const resolvedId = course.courseId ?? course.id ?? matched?.id ?? `course-${index}`;
+        const resolvedId = idToMatch || matched?.id || `course-${index}`;
 
         return {
           id: resolvedId,
@@ -66,7 +68,7 @@ export function useStudentDashboard(initialData?: any, initialUser?: any) {
           enrolledStudents: course.enrolledStudents ?? matched?.enrolledStudents ?? 0,
           description: course.description ?? matched?.description,
           type: course.type ?? matched?.type,
-          instructor: course.instructor ?? course.facultyName ?? matched?.instructor ?? matched?.facultyName,
+          instructor: (course.instructor ?? course.facultyName ?? matched?.instructor ?? matched?.facultyName) as string,
         };
       });
 
@@ -76,26 +78,29 @@ export function useStudentDashboard(initialData?: any, initialUser?: any) {
         enrolledCourses: normalizedEnrolled.length,
       });
       
-      const enrolledCourseIds = new Set(normalizedEnrolled.map((c: any) => c.courseId || c.id));
+      const enrolledCourseIds = new Set(normalizedEnrolled.map((c: any) => String(c.id)).filter(id => id && id !== 'undefined'));
       const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
       const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long' });
       
       const safeTimetable = Array.isArray(timetableData) ? timetableData : [];
       
-      let scheduleItems = safeTimetable
-        .filter((t: any) => enrolledCourseIds.has(t.courseId))
+      const scheduleItems = safeTimetable
+        .filter((t: any) => enrolledCourseIds.has(String(t.courseId)))
         .map((t: any) => {
-          const courseMatch = fallbackCourses.find((c: any) => c.id === t.courseId);
+          const course = allCourses.find((c: any) => String(c.id) === String(t.courseId));
           return {
             ...t,
-            courseName: courseMatch?.name || t.courseName || 'Class',
-            instructor: courseMatch?.instructor || courseMatch?.facultyName || t.facultyName || 'Faculty',
+            id: t.id || `schedule-${t.courseId}-${t.day}-${t.startTime}`,
+            courseCode: course?.code || t.courseCode || 'CLS',
+            courseName: course?.name || t.courseName || 'Class',
+            instructor: (course?.instructor || t.facultyName || t.instructor || 'Faculty') as string,
+            room: (t.room || t.location || 'TBA') as string,
           };
         });
 
       const getScheduleForDay = (dayName: string) => {
         return scheduleItems
-          .filter((item: any) => item.day === dayName)
+          .filter((item: any) => String(item.day).toLowerCase() === dayName.toLowerCase())
           .sort((a: any, b: any) => (a.startTime || '').localeCompare(b.startTime || ''));
       };
 
@@ -119,24 +124,31 @@ export function useStudentDashboard(initialData?: any, initialUser?: any) {
 
       setTodayClasses(activeSchedule);
       setScheduleDay(displayLabel);
+    }
   }, []);
 
   const fetchStudentStats = useCallback(async () => {
     if (!user) return;
     try {
       setLoadError(null);
-      type ApiResponse<T> = { success: boolean; data: T; meta?: any };
+      
+      // Helper to handle both {data: {data: T}} and {data: T}
+      const getData = (res: any) => {
+        if (res?.data?.success && res.data.data) return res.data.data;
+        if (res?.data) return res.data;
+        return res;
+      };
 
       const [summaryRes, coursesRes, timetableRes] = await Promise.all([
-        api.get<ApiResponse<any>>('/attendance/summary'),
-        api.get<ApiResponse<Course[]>>('/courses'),
-        api.get<ApiResponse<any>>('/timetable'),
+        api.get('/attendance/summary'),
+        api.get('/courses'),
+        api.get('/timetable'),
       ]);
 
       processDashboardData(
-        extractData<any>(summaryRes),
-        extractData<Course[]>(coursesRes) || [],
-        extractData<any>(timetableRes) || []
+        getData(summaryRes),
+        getData(coursesRes) || [],
+        getData(timetableRes) || []
       );
 
     } catch (error) {

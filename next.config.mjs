@@ -21,7 +21,6 @@ const nextConfig = {
     // Tree-shake large icon libraries at import time
     optimizePackageImports: [
       'lucide-react',
-      '@tabler/icons-react',
       'date-fns',
       'recharts',
       'framer-motion',
@@ -40,6 +39,7 @@ const nextConfig = {
 
   // ─── Turbopack alias (dev) ────────────────────────────────────────────────────
   turbopack: {
+    root: __dirname,
     resolveAlias: {
       canvas: emptyModuleAlias,
       fs: emptyModuleAlias,
