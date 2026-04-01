@@ -9,6 +9,7 @@ export default defineConfig({
   schema: path.join(__dirname, "prisma", "schema.prisma"),
   engine: "classic",
   datasource: {
+    provider: "postgresql",
     url: env("DATABASE_URL"),
   },
 });

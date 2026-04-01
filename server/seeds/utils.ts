@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { PrismaClient } from '../prisma/generated/client';
+import { PrismaClient } from '@prisma/client';
 
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
@@ -91,6 +91,7 @@ export async function clearDatabase() {
     await (prisma as any).canteenOrder.deleteMany();
     await (prisma as any).canteenItem.deleteMany();
     await prisma.user.deleteMany();
+    await (prisma as any).academicCalendarEvent.deleteMany();
     console.log('Database wipe completed.');
   } catch (error) {
     console.warn('Wipe encountered issues, likely tables already empty or missing:', (error as any).message);

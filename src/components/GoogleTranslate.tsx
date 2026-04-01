@@ -22,6 +22,7 @@ declare global {
   interface Window {
     googleTranslateElementInit?: () => void;
     __googleTranslateCustomInit?: () => void;
+    __googleTranslateLoadingPromise?: Promise<void>;
     google?: {
       translate?: GoogleTranslateElement;
     };
@@ -39,6 +40,46 @@ const languageOptions = [
 ];
 
 const LANGUAGE_STORAGE_KEY = 'ui.language';
+
+const GOOGLE_TRANSLATE_SCRIPT_ID = 'google-translate-script';
+
+function ensureGoogleTranslateScript(): Promise<void> {
+  if (typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+
+  if (window.google?.translate?.TranslateElement) {
+    return Promise.resolve();
+  }
+
+  if (window.__googleTranslateLoadingPromise) {
+    return window.__googleTranslateLoadingPromise;
+  }
+
+  window.__googleTranslateLoadingPromise = new Promise<void>((resolve, reject) => {
+    window.googleTranslateElementInit = () => {
+      window.dispatchEvent(new Event('google-translate-ready'));
+      resolve();
+    };
+
+    const existingScript = document.getElementById(GOOGLE_TRANSLATE_SCRIPT_ID) as HTMLScriptElement | null;
+    if (existingScript) {
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.id = GOOGLE_TRANSLATE_SCRIPT_ID;
+    script.src = 'https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+    script.async = true;
+    script.onerror = () => {
+      reject(new Error('Failed to load Google Translate script'));
+    };
+
+    document.head.appendChild(script);
+  });
+
+  return window.__googleTranslateLoadingPromise;
+}
 
 export function GoogleTranslate({ 
   containerId = "google_translate_element" 
@@ -120,11 +161,23 @@ export function GoogleTranslate({
     setGoogtransCookie(language);
   };
 
+  // Initialize on mount: read persisted language preference ONCE
+  useEffect(() => {
+    if (widgetInitializedRef.current) return; // Skip if already initialized
+    widgetInitializedRef.current = true;
+
+    const initialLanguage = readPreferredLanguage();
+    setSelectedLanguage(initialLanguage);
+    selectedLanguageRef.current = initialLanguage;
+    setGoogtransCookie(initialLanguage);
+  }, []); // Empty dependency array - runs once on mount
+
+  // Setup Google Translate widget and re-apply language
   useEffect(() => {
     const initWidget = () => {
       if (window.google?.translate?.TranslateElement) {
         const element = document.getElementById(containerId);
-        if (element && !widgetInitializedRef.current) {
+        if (element) {
           element.innerHTML = '';
           new window.google.translate.TranslateElement(
             { 
@@ -134,28 +187,25 @@ export function GoogleTranslate({
             }, 
             containerId
           );
-          widgetInitializedRef.current = true;
         }
         setWidgetStatus('ready');
+        // Apply saved language after widget initializes
+        applyLanguageWithRetry(selectedLanguageRef.current);
       }
     };
 
-    if (window.google?.translate?.TranslateElement) initWidget();
+    void ensureGoogleTranslateScript()
+      .then(() => {
+        initWidget();
+      })
+      .catch(() => {
+        setWidgetStatus('blocked');
+      });
 
     const handleReady = () => {
       initWidget();
-      applyLanguageWithRetry(selectedLanguageRef.current);
     };
     window.addEventListener('google-translate-ready', handleReady);
-
-    const initialLanguage = readPreferredLanguage();
-    setSelectedLanguage(initialLanguage);
-    selectedLanguageRef.current = initialLanguage;
-    setGoogtransCookie(initialLanguage);
-
-    const syncTimeout = window.setTimeout(() => {
-      applyLanguageWithRetry(initialLanguage);
-    }, 250);
 
     const statusTimeout = window.setTimeout(() => {
       if (window.google?.translate?.TranslateElement) {
@@ -167,7 +217,6 @@ export function GoogleTranslate({
     
     return () => {
       window.removeEventListener('google-translate-ready', handleReady);
-      window.clearTimeout(syncTimeout);
       window.clearTimeout(statusTimeout);
     };
   }, [containerId, includedLanguages]);
